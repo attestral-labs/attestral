@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/"
+      ]
+    },
+    "shell": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "shell-server"
+      ]
+    },
+    "internal-api": {
+      "url": "http://internal.acme.dev/mcp",
+      "env": {
+        "ACME_API_KEY": "sk-example"
+      }
+    },
+    "docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/srv/docs"
+      ]
+    }
+  }
+}

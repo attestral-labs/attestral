@@ -1,0 +1,26 @@
+name: 'Attestral Drift Check'
+description: 'Prove your deployment still matches its attested security design review'
+author: 'Attestral'
+branding:
+  icon: 'shield'
+  color: 'red'
+inputs:
+  policy:
+    description: 'Path to the compiled mcp-guard policy (from `attestral compile`)'
+    required: true
+  events:
+    description: 'Path to runtime telemetry JSONL (mcp-guard format)'
+    required: true
+  version:
+    description: 'attestral version to install'
+    required: false
+    default: 'attestral'
+runs:
+  using: 'composite'
+  steps:
+    - name: Install attestral
+      shell: bash
+      run: pip install --quiet "${{ inputs.version }}"
+    - name: Check design-runtime drift (fail-closed)
+      shell: bash
+      run: attestral drift "${{ inputs.policy }}" "${{ inputs.events }}" --fail-on-drift

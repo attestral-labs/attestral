@@ -1,0 +1,35 @@
+# Nightly design-runtime conformance check.
+# Fails the workflow (and pages whoever watches it) if deployment has
+# drifted from the attested design review.
+name: drift-check
+on:
+  schedule:
+    - cron: "0 6 * * *"        # 06:00 UTC daily
+  workflow_dispatch: {}         # manual runs
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fetch yesterday's telemetry from wherever mcp-guard ships it
+      # (S3 shown; swap for your log store)
+      - name: Pull telemetry
+        run: aws s3 cp s3://acme-guard-logs/events-$(date -d yesterday +%F).jsonl events.jsonl
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Re-compile the policy from the attested design in this repo,
+      # so the check always runs against the *reviewed* main branch
+      - name: Compile policy from attested design
+        run: |
+          pip install "attestral[terraform]"
+          attestral compile . -o policy.yaml
+
+      - name: Drift check
+        uses: attestral-labs/attestral@v1
+        with:
+          policy: policy.yaml
+          events: events.jsonl

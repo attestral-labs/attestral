@@ -1,0 +1,93 @@
+# Attestral core rule pack (v0)
+# Deterministic, design-level checks. Each rule targets a component type
+# and applies structured matchers against ingested attributes.
+rules:
+  - id: ATL-001
+    title: S3 bucket allows public access
+    severity: critical
+    target: aws_s3_bucket
+    match: { attr_in: { acl: ["public-read", "public-read-write"] } }
+    description: Bucket ACL grants access to all users, exposing stored data to the internet.
+    recommendation: Remove the public ACL and enforce account-level S3 Block Public Access.
+    frameworks: ["NIST AC-3", "ASVS V4.1", "SOC2 CC6.1"]
+
+  - id: ATL-002
+    title: Security group open to the world
+    severity: high
+    target: aws_security_group
+    match: { attr_list_contains: { _cidr_blocks: "0.0.0.0/0" } }
+    description: Ingress permits traffic from any IPv4 address, expanding the attack surface to the entire internet.
+    recommendation: Restrict ingress CIDRs to known ranges or place the service behind a load balancer/VPN.
+    frameworks: ["NIST SC-7", "SOC2 CC6.6"]
+
+  - id: ATL-003
+    title: IAM policy grants wildcard actions
+    severity: critical
+    target: aws_iam_policy
+    match: { attr_contains: { policy: '"Action": "*"' } }
+    description: Wildcard IAM actions violate least privilege; a compromised principal gains full account control.
+    recommendation: Enumerate required actions explicitly; use IAM Access Analyzer to right-size.
+    frameworks: ["NIST AC-6", "ASVS V4.1", "SOC2 CC6.3"]
+
+  - id: ATL-004
+    title: Database publicly accessible
+    severity: critical
+    target: aws_db_instance
+    match: { attr_equals: { publicly_accessible: true } }
+    description: The database endpoint is reachable from the public internet.
+    recommendation: Set publicly_accessible = false and access the DB through private subnets or a bastion.
+    frameworks: ["NIST SC-7", "SOC2 CC6.1"]
+
+  - id: ATL-005
+    title: Storage encryption not declared
+    severity: medium
+    target: aws_db_instance
+    match: { attr_missing: storage_encrypted }
+    description: Encryption at rest is not declared in the design; data may be stored in plaintext.
+    recommendation: Set storage_encrypted = true (and kms_key_id for CMK control).
+    frameworks: ["NIST SC-28", "ASVS V6.1", "SOC2 CC6.7"]
+
+  - id: ATL-101
+    title: MCP server uses non-TLS transport
+    severity: high
+    target: mcp_server
+    match: { attr_starts_with: { url: "http://" } }
+    description: Tool traffic (including prompts and tool results) crosses the network unencrypted.
+    recommendation: Serve the MCP endpoint over HTTPS/WSS only.
+    frameworks: ["NIST SC-8", "OWASP-AgSec TLS-1"]
+
+  - id: ATL-102
+    title: Filesystem MCP server rooted at a broad path
+    severity: high
+    target: mcp_server
+    match: { attr_list_any_of: { args: ["/", "~", "/home", "/Users"] } }
+    description: The agent gains read/write reach over a broad filesystem root, far beyond task scope.
+    recommendation: Scope the server to the narrowest project directory that supports the workflow.
+    frameworks: ["NIST AC-6", "OWASP-AgSec TOOL-2"]
+
+  - id: ATL-103
+    title: Shell-capable MCP server configured
+    severity: critical
+    target: mcp_server
+    match: { attr_any_contains: { command: ["bash", "sh", "cmd", "powershell"], args: ["bash", "sh -c", "shell"] } }
+    description: The agent can execute arbitrary shell commands; a single prompt injection becomes code execution.
+    recommendation: Replace generic shell access with narrowly scoped, allowlisted tools; gate with human approval.
+    frameworks: ["OWASP-AgSec TOOL-1", "NIST AC-6"]
+
+  - id: ATL-104
+    title: Secrets passed to MCP server via environment
+    severity: medium
+    target: mcp_server
+    match: { attr_equals: { _env_has_secrets: true } }
+    description: Credentials in tool-server env vars are exposed to the tool process and often to model context.
+    recommendation: Use a secret manager or OS keychain; never place raw credentials where tool output can echo them.
+    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-AgSec CRED-1"]
+
+  - id: ATL-201
+    title: Agent runtime and cloud share no declared boundary controls
+    severity: info
+    target: model
+    match: { model_has_both: ["mcp_server", "aws_"] }
+    description: The design contains both agent tooling and cloud resources but no declared control between the two trust zones.
+    recommendation: Document the authn/authz path from agent runtime to cloud APIs; deny by default.
+    frameworks: ["NIST AC-4", "OWASP-AgSec ARCH-1"]

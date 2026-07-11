@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation - Attestral</title>
+<meta name="description" content="Documentation for the open-source Attestral CLI: scan, verify, compile, drift, rule authoring, and the evidence chain.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --display:'Libre Caslon Text',Georgia,serif;
+    --body:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)}
+  a:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .nav-links{display:flex;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--ink);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+
+  .layout{display:grid;grid-template-columns:220px 1fr;gap:56px;padding:56px 0 90px}
+  @media(max-width:820px){.layout{grid-template-columns:1fr;gap:24px}}
+  .toc{position:sticky;top:24px;align-self:start;font-size:.88rem}
+  .toc .t{font-family:var(--mono);font-size:.7rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+  .toc a{display:block;color:var(--ink);text-decoration:none;padding:4px 0;border-left:2px solid transparent;padding-left:12px}
+  .toc a:hover{color:var(--seal);border-left-color:var(--seal)}
+  @media(max-width:820px){.toc{position:static}}
+
+  article h1{font-family:var(--display);font-weight:400;font-size:2.2rem;line-height:1.15;margin-bottom:10px}
+  article .sub{color:var(--muted);margin-bottom:44px;max-width:60ch}
+  article h2{font-family:var(--display);font-weight:400;font-size:1.55rem;margin:58px 0 12px;padding-top:18px;border-top:1px solid var(--rule)}
+  article h3{font-size:1.02rem;font-weight:600;margin:26px 0 8px}
+  article p{margin:10px 0;max-width:68ch}
+  article ul{margin:10px 0 10px 22px;max-width:66ch}
+  article li{margin:5px 0}
+  code{font-family:var(--mono);font-size:.85em;background:#E9EBE6;padding:1px 5px;border-radius:2px}
+  pre{background:var(--ink);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:18px 20px;overflow-x:auto;margin:16px 0;border-radius:2px}
+  pre code{background:none;padding:0;color:inherit;font-size:inherit}
+  pre .c{color:#8FA398}
+  table{border-collapse:collapse;margin:16px 0;font-size:.88rem;width:100%;max-width:720px}
+  th,td{border:1px solid var(--rule);padding:8px 12px;text-align:left;vertical-align:top}
+  th{background:var(--card);font-weight:600}
+  .note{border-left:3px solid var(--seal);background:var(--card);padding:14px 18px;margin:20px 0;font-size:.92rem;max-width:66ch}
+  footer{border-top:1px solid var(--rule);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html">Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="index.html#how">How it works</a>
+      <a href="docs.html" aria-current="page">Docs</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <nav class="toc" aria-label="On this page">
+    <div class="t">Open-source docs</div>
+    <a href="#install">Install</a>
+    <a href="#loop">The loop</a>
+    <a href="#scan">attestral scan</a>
+    <a href="#verify">attestral verify</a>
+    <a href="#compile">attestral compile</a>
+    <a href="#drift">attestral drift</a>
+    <a href="#rules">Writing rules</a>
+    <a href="#chain">Evidence chain</a>
+    <a href="#telemetry">Telemetry format</a>
+    <a href="#action">GitHub Action</a>
+    <a href="#hcl">Terraform extra</a>
+    <a href="#roadmap">Roadmap</a>
+  </nav>
+
+  <article>
+    <h1>Documentation</h1>
+    <p class="sub">Everything on this page covers the open-source CLI, licensed Apache&nbsp;2.0. It is complete: nothing below requires an account, a key, or a server.</p>
+
+    <h2 id="install">Install</h2>
+<pre><code>pip install attestral
+attestral --version</code></pre>
+    <p>Python 3.10+. The core has two dependencies (<code>click</code>, <code>pyyaml</code>). Optional LLM elicitation adds the <code>anthropic</code> package: <code>pip install "attestral[llm]"</code>.</p>
+    <p>Try the full loop on the bundled demo:</p>
+<pre><code>git clone https://github.com/attestral-labs/attestral && cd attestral
+attestral scan examples/demo-project
+attestral compile examples/demo-project -o policy.yaml
+attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></pre>
+
+    <h2 id="loop">The loop</h2>
+    <p>Attestral treats the design review, the runtime policy, and the audit evidence as one artifact in three forms:</p>
+    <ul>
+      <li><strong>Attest.</strong> <code>scan</code> builds a system model from Terraform and MCP configs and reviews it against typed rules. Findings are committed to a hash chain.</li>
+      <li><strong>Enforce.</strong> <code>compile</code> turns the reviewed model into a default-deny mcp-guard policy, stamped with the model hash and the review chain head. Your threat model stops being a document and becomes the configuration itself.</li>
+      <li><strong>Prove.</strong> <code>drift</code> diffs runtime telemetry against the compiled policy. Anything the review never saw (a new server, a denied capability, an out-of-scope path) is drift, and <code>verify</code> proves nobody edited the record afterward.</li>
+    </ul>
+
+    <h2 id="scan">attestral scan</h2>
+<pre><code>attestral scan PATH [-o STEM] [--format md|json|both] [--llm] [--fail-on SEVERITY]</code></pre>
+    <table>
+      <tr><th>Flag</th><th>Behavior</th></tr>
+      <tr><td><code>-o, --output</code></td><td>Output file stem (default <code>attestral-report</code>).</td></tr>
+      <tr><td><code>--format</code></td><td><code>md</code> for the human report, <code>json</code> for the chained evidence, <code>both</code> (default).</td></tr>
+      <tr><td><code>--llm</code></td><td>Adds LLM threat elicitation on top of the deterministic layer. Requires <code>ANTHROPIC_API_KEY</code>. LLM findings are tagged <code>origin: llm</code> and never mixed silently with rule findings.</td></tr>
+      <tr><td><code>--fail-on</code></td><td>Exit non-zero if findings at or above this severity exist. Works as a fail-closed CI gate.</td></tr>
+    </table>
+    <p>Ingestion is automatic: <code>*.tf</code> files feed the cloud model; <code>mcp.json</code>, <code>*.mcp.json</code>, and <code>claude_desktop_config.json</code> feed the agent-runtime model.</p>
+
+    <h2 id="verify">attestral verify</h2>
+<pre><code>attestral verify report.json</code></pre>
+    <p>Recomputes the hash chain offline and exits 0 (<code>VALID</code>) or 1 (<code>INVALID</code>). No network, no server, no account. An auditor can verify a two-year-old report on an air-gapped laptop.</p>
+
+    <h2 id="compile">attestral compile</h2>
+<pre><code>attestral compile PATH [-o mcp-guard-policy.yaml]</code></pre>
+    <p>Compilation is fail-closed by construction:</p>
+    <ul>
+      <li><code>default: deny</code>, so a server absent from the reviewed design is never allowed.</li>
+      <li>A critical finding against a server compiles to <code>allow: false</code> with the rule id as the recorded reason.</li>
+      <li>Filesystem servers are narrowed to their attested roots; broad roots (<code>/</code>, <code>~</code>, <code>/home</code>) deny until the design is re-scoped.</li>
+      <li>TLS-constrained servers observed with <code>http://</code> URLs deny.</li>
+      <li>The policy header carries the model hash and review chain head, which binds the policy cryptographically to the review that produced it.</li>
+    </ul>
+    <div class="note">Do not hand-edit a compiled policy. Change the design, re-run the review, re-compile. If policy and review can diverge silently, the evidence is worthless. That is the point of the binding.</div>
+
+    <h2 id="drift">attestral drift</h2>
+<pre><code>attestral drift POLICY_FILE EVENTS_FILE [--fail-on-drift]</code></pre>
+    <table>
+      <tr><th>Rule</th><th>Severity</th><th>Fires when</th></tr>
+      <tr><td><code>DRF-001</code></td><td>critical</td><td>A server appears in telemetry that is not in the attested design.</td></tr>
+      <tr><td><code>DRF-002</code></td><td>critical</td><td>A server the review denied is invoked at runtime.</td></tr>
+      <tr><td><code>DRF-003</code></td><td>high</td><td>A filesystem path outside the attested roots is accessed.</td></tr>
+      <tr><td><code>DRF-004</code></td><td>high</td><td>A TLS-constrained server is observed over plaintext.</td></tr>
+    </table>
+    <p><code>--fail-on-drift</code> exits non-zero on any finding, so drift checks run as a CI step or a cron job against yesterday's telemetry.</p>
+
+    <h2 id="rules">Writing rules</h2>
+    <p>Rules are YAML with structured matchers. There is no <code>eval</code> anywhere, and an unknown matcher fails closed: the rule simply never matches.</p>
+<pre><code>rules:
+ - id: ORG-001
+    title: Internal ALB missing auth attribute
+    severity: high
+    target: aws_lb            <span class="c"># component type prefix, or "model"</span>
+    match: { attr_missing: auth }
+    description: ...
+    recommendation: ...
+    frameworks: ["NIST AC-3", "SOC2 CC6.1"]</code></pre>
+    <table>
+      <tr><th>Matcher</th><th>Semantics</th></tr>
+      <tr><td><code>attr_equals</code></td><td>Attribute equals value exactly.</td></tr>
+      <tr><td><code>attr_in</code></td><td>Attribute is one of the listed values.</td></tr>
+      <tr><td><code>attr_missing</code></td><td>Attribute is absent from the ingested design.</td></tr>
+      <tr><td><code>attr_starts_with</code> / <code>attr_contains</code></td><td>String prefix / substring on the attribute.</td></tr>
+      <tr><td><code>attr_list_contains</code> / <code>attr_list_any_of</code></td><td>Membership tests over list attributes.</td></tr>
+      <tr><td><code>attr_any_contains</code></td><td>Any of several needles across one or more attributes.</td></tr>
+      <tr><td><code>model_has_both</code></td><td>Model-level: both component type prefixes exist in the design.</td></tr>
+    </table>
+    <p>Load custom packs alongside the core pack via <code>RuleEngine(["org_rules.yaml"])</code>.</p>
+
+    <h2 id="chain">Evidence chain</h2>
+    <p>Every run commits its findings to a SHA-256 hash chain: entry <em>N</em> hashes the canonical JSON of finding <em>N</em> together with the hash of entry <em>N−1</em>, starting from a zero genesis. The final hash (the chain head) appears in the report header and in every compiled policy.</p>
+    <p>The consequence: altering, inserting, or deleting any past entry changes every subsequent hash. A reviewer who records the chain head (in a PR comment, a ticket, an email) has permanently committed the whole review.</p>
+
+    <h2 id="telemetry">Telemetry format</h2>
+    <p><code>drift</code> reads JSONL, one event per line. mcp-guard emits this format natively, and anything else can adapt to it in a few lines:</p>
+<pre><code>{"ts": "2026-07-10T14:01:02Z", "server": "docs", "tool": "read_file", "args": ["/srv/docs/design.md"]}</code></pre>
+    <table>
+      <tr><th>Field</th><th>Required</th><th>Meaning</th></tr>
+      <tr><td><code>server</code></td><td>yes</td><td>MCP server name as configured.</td></tr>
+      <tr><td><code>tool</code></td><td>yes</td><td>Tool invoked.</td></tr>
+      <tr><td><code>args</code></td><td>no</td><td>Arguments; paths are checked against attested roots.</td></tr>
+      <tr><td><code>url</code></td><td>no</td><td>Transport endpoint; checked against TLS constraints.</td></tr>
+      <tr><td><code>ts</code></td><td>no</td><td>ISO-8601 timestamp, carried into drift findings.</td></tr>
+    </table>
+
+
+    <h2 id="action">GitHub Action</h2>
+    <p>Run drift checks on a schedule so conformance is continuous, not annual:</p>
+<pre><code>- uses: attestral-labs/attestral@v1
+  with:
+    policy: policy.yaml
+    events: events.jsonl</code></pre>
+    <p>A complete nightly workflow (pull telemetry, re-compile the policy from the reviewed main branch, drift-check) ships in <code>examples/github-actions/drift-schedule.yml</code>. The mcp-guard telemetry emitter lives in <code>integrations/mcp-guard/</code>.</p>
+
+    <h2 id="hcl">Terraform extra</h2>
+    <p>The core ships a dependency-free Terraform scanner. For full-fidelity HCL parsing (nested blocks, correct types), install the extra. Attestral picks it up automatically and falls back gracefully on malformed files:</p>
+<pre><code>pip install "attestral[terraform]"</code></pre>
+
+    <h2 id="roadmap">Roadmap</h2>
+    <p>Attestral is an open-source project. Everything documented above is the complete, current surface. Next up, roughly in order: a full HCL expression evaluator, more rule packs (Kubernetes, GCP, Azure), PR design-diffing, and import from legacy threat modeling exports. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
+  </article>
+</div>
+
+<footer>
+  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> · © 2026 Attestral · Apache 2.0</div>
+</footer>
+
+</body>
+</html>
