@@ -1,5 +1,10 @@
 # Attestral
 
+[![PyPI](https://img.shields.io/pypi/v/attestral)](https://pypi.org/project/attestral/)
+[![CI](https://github.com/attestral-labs/attestral/actions/workflows/ci.yml/badge.svg)](https://github.com/attestral-labs/attestral/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/attestral)](https://pypi.org/project/attestral/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+
 **Continuous, audit-ready security design review for cloud and agentic systems.**
 
 Attestral ingests your infrastructure-as-code and agent/MCP configurations, builds a unified system model, runs a deterministic rule pack (plus optional LLM threat elicitation), and produces a design review with a **tamper-evident evidence chain** you can hand to reviewers, auditors, and customers.
@@ -24,6 +29,7 @@ attestral scan ./my-project
 | Deterministic rule pack | ✅ 10 rules: cloud misconfig + agentic tool risk |
 | Framework mapping | ✅ NIST 800-53, ASVS, SOC 2, OWASP Agentic refs per finding |
 | Evidence chain + verification | ✅ `attestral verify report.json` |
+| SARIF output for GitHub Code Scanning | ✅ `--format sarif` → Security tab + PR annotations |
 | Fail-closed CI gate | ✅ `--fail-on high` |
 | LLM threat elicitation | ✅ optional, `--llm` + `ANTHROPIC_API_KEY`, findings tagged separately |
 | Design→policy compiler (`attestral compile`) | ✅ mcp-guard default-deny policy, bound to the review chain head |
@@ -42,6 +48,11 @@ attestral scan ./my-project -o review --format both
 
 # CI gate: fail the pipeline on high/critical design findings
 attestral scan . --fail-on high
+
+# Emit SARIF for GitHub Code Scanning (Security tab + inline PR annotations)
+attestral scan . --format sarif -o attestral
+# then upload attestral.sarif via github/codeql-action/upload-sarif@v3
+# (ready-made workflow: examples/github-actions/code-scanning.yml)
 
 # Add LLM design-review reasoning on top of the deterministic layer
 export ANTHROPIC_API_KEY=...

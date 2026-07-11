@@ -1,0 +1,31 @@
+# Publish Attestral design-review findings to the GitHub Security tab.
+# Findings appear under Security → Code scanning, and inline on pull requests.
+name: attestral-code-scanning
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  security-events: write        # required to upload SARIF
+
+jobs:
+  design-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install "attestral[terraform]"
+
+      - name: Scan design → SARIF
+        run: attestral scan . --format sarif -o attestral
+
+      - name: Upload to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: attestral.sarif
+          category: attestral

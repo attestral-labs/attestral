@@ -22,7 +22,8 @@ def main() -> None:
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option("-o", "--output", default="attestral-report", help="Output file stem.")
-@click.option("--format", "fmt", type=click.Choice(["md", "json", "both"]), default="both")
+@click.option("--format", "fmt", type=click.Choice(["md", "json", "both", "sarif"]), default="both",
+              help="md/json report, both (default), or sarif for GitHub Code Scanning.")
 @click.option("--llm", is_flag=True, help="Add LLM threat elicitation (needs ANTHROPIC_API_KEY).")
 @click.option("--fail-on", type=click.Choice(["critical", "high", "medium", "low"]), default=None,
               help="Exit non-zero if findings at/above this severity exist (CI gate).")
@@ -42,6 +43,10 @@ def scan(path: str, output: str, fmt: str, llm: bool, fail_on: str | None) -> No
             json.dumps({"target": path, "chain": audit_chain(findings)}, indent=2)
         )
         click.echo(f"wrote {output}.json")
+    if fmt == "sarif":
+        from attestral.sarif import render_sarif
+        Path(f"{output}.sarif").write_text(render_sarif(model, findings, path))
+        click.echo(f"wrote {output}.sarif")
 
     for f in findings:
         click.echo(f"  [{f.severity.value.upper():8}] {f.rule_id}  {f.title}  ({f.component_id})")
