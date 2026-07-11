@@ -62,6 +62,8 @@ class Finding:
     origin: str = "deterministic"   # deterministic | llm
     waived: bool = False            # suppressed by a documented waiver
     waiver_reason: str = ""         # justification, carried into the evidence chain
+    judge_verdict: str = ""         # "" | confirmed | false_positive | needs_review
+    judge_confidence: float = 0.0   # 0.0-1.0, set by the LLM-as-judge layer
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)

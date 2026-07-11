@@ -101,6 +101,9 @@ def render_sarif(model: SystemModel, findings: list[Finding], target: str) -> st
             },
             "properties": {"frameworks": f.framework_refs, "origin": f.origin},
         }
+        if f.judge_verdict:
+            result["properties"]["judgeVerdict"] = f.judge_verdict
+            result["properties"]["judgeConfidence"] = f.judge_confidence
         # A waived finding is a SARIF suppression: Code Scanning shows it as
         # dismissed, with the justification, instead of an open alert.
         if f.waived:

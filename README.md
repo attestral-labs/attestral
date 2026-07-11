@@ -20,7 +20,7 @@ attestral scan ./my-project
 - The fastest-growing attack surface (AI agents, MCP servers, tool permissions) is the one legacy tools understand least.
 - Review output is only worth what you can prove. Every Attestral run emits a SHA-256 hash chain over its findings, and altering any past entry invalidates the chain head.
 
-## What it does today (v0.3)
+## What it does today (v0.4)
 
 | Layer | Status |
 |---|---|
@@ -33,6 +33,7 @@ attestral scan ./my-project
 | Fail-closed CI gate | ✅ `--fail-on high` |
 | Baseline + waivers | ✅ documented, expiring exceptions kept in the evidence chain |
 | LLM threat elicitation | ✅ optional, `--llm` + `ANTHROPIC_API_KEY`, findings tagged separately |
+| LLM-as-judge verifier | ✅ optional, `--judge` cross-examines findings; panel voting; verdicts in the chain |
 | Design→policy compiler (`attestral compile`) | ✅ mcp-guard default-deny policy, bound to the review chain head |
 | Design-runtime drift detection (`attestral drift`) | ✅ JSONL telemetry diffed against the attested design |
 | PR design-diff (GitHub App) | 🔜 roadmap |
@@ -64,6 +65,12 @@ attestral scan . --fail-on high   # auto-discovers attestral-waivers.yaml
 export ANTHROPIC_API_KEY=...
 attestral scan ./my-project --llm
 
+# Cross-examine findings with an LLM judge (cuts false positives).
+# Verdicts (confirmed/false_positive/needs_review) are recorded in the chain.
+export ATTESTRAL_JUDGE_API_KEY=...          # or reuse ANTHROPIC_API_KEY
+attestral scan ./my-project --judge --judge-panel 3
+attestral scan ./my-project --judge --judge-suppress   # auto-waive confident false positives, on the record
+
 # Prove a report hasn't been altered
 attestral verify review.json
 
@@ -84,7 +91,8 @@ attestral scan examples/demo-project
 1. **Ingest** → unified `SystemModel` (components, edges, trust boundaries) from Terraform and MCP configs.
 2. **Deterministic layer** → typed matchers in YAML rules (`attestral/rules/core_rules.yaml`). No `eval`, unknown matchers fail closed.
 3. **LLM layer (optional)** → design-level threat elicitation over the model JSON; findings tagged `origin: llm`, never silently mixed with deterministic results.
-4. **Evidence layer** → hash-chained findings, markdown/JSON export, offline verification.
+4. **Judge layer (optional)** → an LLM cross-examines each finding for false positives; a panel of judges can vote. Verdicts are recorded on the finding and in the chain. The judge never deletes a finding: a confident false positive becomes a machine-generated waiver with the judge's reasoning, kept on the record.
+5. **Evidence layer** → hash-chained findings, markdown/JSON export, offline verification.
 
 ## Writing custom rules
 

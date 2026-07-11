@@ -82,6 +82,7 @@
     <a href="#drift">attestral drift</a>
     <a href="#sarif">Code scanning (SARIF)</a>
     <a href="#waivers">Baseline &amp; waivers</a>
+    <a href="#judge">LLM-as-judge</a>
     <a href="#rules">Writing rules</a>
     <a href="#chain">Evidence chain</a>
     <a href="#telemetry">Telemetry format</a>
@@ -168,6 +169,14 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
     expires: 2026-12-31              <span class="c"># optional; waiver lapses after this date</span></code></pre>
     <p>Two rules keep waivers honest. A waiver with no <code>reason</code> is ignored, and an expired waiver stops suppressing, so a finding can only be silenced by a current, justified exception. In SARIF, a waived finding becomes a suppression, which GitHub Code Scanning shows as dismissed rather than an open alert.</p>
     <div class="note">A waiver suppresses a finding from the <code>--fail-on</code> gate. It does not remove it. The whole point of the evidence chain is that accepted risk stays on the record.</div>
+
+    <h2 id="judge">LLM-as-judge</h2>
+    <p>Deterministic rules fire on patterns; some are false positives in context. The judge is an optional layer that cross-examines each finding. It sees the finding plus its component and returns a structured verdict, <code>confirmed</code>, <code>false_positive</code>, or <code>needs_review</code>, with a confidence and reasoning. Verdicts are recorded on the finding and carried into the evidence chain, so the judgment itself is auditable.</p>
+<pre><code>export ATTESTRAL_JUDGE_API_KEY=...        <span class="c"># or reuse ANTHROPIC_API_KEY</span>
+attestral scan . --judge --judge-panel 3 <span class="c"># 3 judges vote per finding</span>
+attestral scan . --judge --judge-suppress</code></pre>
+    <p>The judge never deletes a finding. By default it only annotates. With <code>--judge-suppress</code>, a high-confidence <code>false_positive</code> becomes a machine-generated waiver whose reason is the judge's reasoning: suppressed from the gate, but kept on the record like any human waiver. A panel of judges (<code>--judge-panel N</code>) votes, and the majority verdict wins, which blunts any single model's error.</p>
+    <div class="note">The judge layer needs an API key and the <code>anthropic</code> package (<code>pip install "attestral[llm]"</code>). Like the elicitation layer, its output is clearly separated from the deterministic core.</div>
 
     <h2 id="rules">Writing rules</h2>
     <p>Rules are YAML with structured matchers. There is no <code>eval</code> anywhere, and an unknown matcher fails closed: the rule simply never matches.</p>

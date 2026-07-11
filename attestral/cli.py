@@ -29,8 +29,14 @@ def main() -> None:
               help="Exit non-zero if findings at/above this severity exist (CI gate).")
 @click.option("--waivers", "waivers_path", type=click.Path(exists=True), default=None,
               help="YAML of documented waivers (auto-discovered as attestral-waivers.yaml).")
+@click.option("--judge", is_flag=True, help="Verify findings with an LLM judge (needs an API key).")
+@click.option("--judge-model", default="claude-sonnet-4-6", help="Model for the judge layer.")
+@click.option("--judge-panel", type=int, default=1, help="Judges per finding; majority vote.")
+@click.option("--judge-suppress", is_flag=True,
+              help="Auto-waive high-confidence false positives (kept on the record).")
 def scan(path: str, output: str, fmt: str, llm: bool, fail_on: str | None,
-         waivers_path: str | None) -> None:
+         waivers_path: str | None, judge: bool, judge_model: str, judge_panel: int,
+         judge_suppress: bool) -> None:
     """Scan PATH (Terraform, MCP configs) and generate a design review."""
     model = build_model(path)
     findings = RuleEngine().evaluate(model)
@@ -42,6 +48,12 @@ def scan(path: str, output: str, fmt: str, llm: bool, fail_on: str | None,
     wpath = waivers_path or discover_waivers(path)
     if wpath:
         for note in apply_waivers(findings, load_waivers(wpath)):
+            click.echo(f"  ! {note}", err=True)
+
+    if judge:
+        from attestral.judge import JudgeConfig, judge_findings
+        cfg = JudgeConfig(model=judge_model, panel=judge_panel, suppress=judge_suppress)
+        for note in judge_findings(model, findings, cfg):
             click.echo(f"  ! {note}", err=True)
 
     active = [f for f in findings if not f.waived]
@@ -61,7 +73,12 @@ def scan(path: str, output: str, fmt: str, llm: bool, fail_on: str | None,
         click.echo(f"wrote {output}.sarif")
 
     for f in findings:
-        tag = "  (waived)" if f.waived else ""
+        if f.waived:
+            tag = "  (waived)"
+        elif f.judge_verdict:
+            tag = f"  (judge: {f.judge_verdict} {f.judge_confidence})"
+        else:
+            tag = ""
         click.echo(f"  [{f.severity.value.upper():8}] {f.rule_id}  {f.title}  ({f.component_id}){tag}")
     summary = f"{len(model.components)} components · {len(active)} findings"
     if waived:
