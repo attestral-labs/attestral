@@ -16,7 +16,33 @@ dependencies = ["click>=8.1", "pyyaml>=6.0"]
 [project.optional-dependencies]
 llm = ["anthropic>=0.40"]
 terraform = ["python-hcl2>=4.3"]
+# Prompt-injection detection on agentic surfaces is TIERED (attestral/ml.py).
+# The default tier needs NO extra install and the two opt-in tiers share ONE
+# model, so findings are byte-identical whichever scores:
+#
+#   Tier 1  heuristic  (no extra)          zero-dependency pure-stdlib detector;
+#                                          `attestral scan --ml` works out of the
+#                                          box. Never required to install anything.
+#   Tier 2  onnx       (attestral[onnx])   RECOMMENDED accurate-but-light tier:
+#                                          the same DeBERTa classifier run through a
+#                                          raw onnxruntime session + a transformers
+#                                          tokenizer. NO torch => ~2.5-3x smaller than
+#                                          the torch tier (measured: ~276MB of deps
+#                                          vs ~700MB+, and torch's 529MB dir is gone).
+#   Tier 3  deberta    (attestral[ml])     HEAVY / fine-tunable tier: the same model
+#                                          run through transformers + torch (hundreds
+#                                          of MB). Pick this only to fine-tune locally.
+#
+# With an extra absent, `--ml` transparently falls back down the tiers, so no
+# extra is ever required to use the feature (auto: onnx -> deberta -> heuristic).
+#
+# NOTE: `optimum` is deliberately NOT a runtime dep - modern optimum hard-pulls
+# torch, which would defeat the whole point of the light tier. optimum + torch
+# are only needed for the ONE-TIME weight export (scripts/export_onnx.py), which
+# a maintainer runs with:  pip install "optimum[onnxruntime]"
+onnx = ["onnxruntime>=1.17", "transformers>=4.44", "tokenizers>=0.19", "numpy>=1.24"]
 ml = ["transformers>=4.44", "torch>=2.2"]
+deberta = ["transformers>=4.44", "torch>=2.2"]  # alias: the same heavy DeBERTa/torch tier
 dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [project.scripts]
@@ -24,3 +50,9 @@ attestral = "attestral.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["attestral"]
+
+[tool.pytest.ini_options]
+# Scope collection to our suite. `research/` holds vendored third-party MCP
+# repos (from the ecosystem scan) whose own test files otherwise break bare
+# `pytest` with hundreds of collection errors. Keep this in sync with CI.
+testpaths = ["tests"]
