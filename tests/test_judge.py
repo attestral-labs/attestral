@@ -1,3 +1,7 @@
+import os
+
+import pytest
+
 from attestral.evidence import audit_chain
 from attestral.judge import (
     JudgeConfig,
@@ -94,3 +98,51 @@ def test_judge_findings_skips_cleanly_without_a_key(monkeypatch):
     notes = judge_findings(m, [f], JudgeConfig())
     assert notes and "judge skipped" in notes[0]
     assert f.judge_verdict == ""        # nothing changed
+
+
+def test_judge_findings_orchestration_with_injected_query():
+    """Full loop (panel + vote + suppress) with no network, via a fake query."""
+    m, f = _model_and_finding()
+    calls = {"n": 0}
+
+    def fake_query(payload: str) -> str:
+        calls["n"] += 1
+        return '{"verdict":"false_positive","confidence":0.9,"reasoning":"sandbox only, no prod creds"}'
+
+    notes = judge_findings(m, [f], JudgeConfig(panel=3, suppress=True), query=fake_query)
+    assert notes == []
+    assert calls["n"] == 3                       # a panel of 3 judges was polled
+    assert f.judge_verdict == "false_positive"
+    assert f.waived is True                       # confident false positive machine-waived
+    assert "sandbox only" in f.waiver_reason
+
+
+def test_judge_findings_tolerates_a_flaky_judge_call():
+    """If some panel calls raise, the surviving votes still decide."""
+    m, f = _model_and_finding()
+    seq = iter([
+        RuntimeError("timeout"),
+        '{"verdict":"confirmed","confidence":0.8,"reasoning":"real"}',
+        '{"verdict":"confirmed","confidence":0.9,"reasoning":"real"}',
+    ])
+
+    def flaky_query(payload: str) -> str:
+        item = next(seq)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    judge_findings(m, [f], JudgeConfig(panel=3), query=flaky_query)
+    assert f.judge_verdict == "confirmed"         # 2 surviving votes still resolve
+
+
+@pytest.mark.skipif(
+    not (os.environ.get("ATTESTRAL_JUDGE_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")),
+    reason="live judge test: set ATTESTRAL_JUDGE_API_KEY or ANTHROPIC_API_KEY to run",
+)
+def test_judge_live_smoke():
+    """Opt-in: hits the real API. Skipped in CI (no key); runs locally with one."""
+    m, f = _model_and_finding()
+    judge_findings(m, [f], JudgeConfig(panel=1))
+    assert f.judge_verdict in ("confirmed", "false_positive", "needs_review")
+    assert 0.0 <= f.judge_confidence <= 1.0

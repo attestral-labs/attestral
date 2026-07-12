@@ -55,7 +55,19 @@
   th{background:var(--card);font-weight:600}
   .note{border-left:3px solid var(--seal);background:var(--card);padding:14px 18px;margin:20px 0;font-size:.92rem;max-width:66ch}
   footer{border-top:1px solid var(--rule);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+  .diagram{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:20px;margin:18px 0;overflow-x:auto}
+  .diagram .mermaid{display:flex;justify-content:center}
 </style>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true, theme: 'base',
+    themeVariables: {
+      primaryColor: '#FBFBF9', primaryTextColor: '#171F1C', primaryBorderColor: '#96222E',
+      lineColor: '#5D6660', fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: '14px'
+    }
+  });
+</script>
 </head>
 <body>
 
@@ -74,6 +86,7 @@
 <div class="wrap layout">
   <nav class="toc" aria-label="On this page">
     <div class="t">Open-source docs</div>
+    <a href="#pipeline">Pipeline</a>
     <a href="#install">Install</a>
     <a href="#loop">The loop</a>
     <a href="#scan">attestral scan</a>
@@ -94,6 +107,32 @@
   <article>
     <h1>Documentation</h1>
     <p class="sub">Everything on this page covers the open-source CLI, licensed Apache&nbsp;2.0. It is complete: nothing below requires an account, a key, or a server.</p>
+
+    <h2 id="pipeline">Pipeline</h2>
+    <p>A scan flows through three stages: ingest into one model, review in layers (each finding tagged by origin), and commit to a tamper-evident evidence chain. The deterministic core is never silently mixed with model reasoning.</p>
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+    TF["Terraform (.tf)"] --> M["SystemModel<br/>components · edges · trust boundaries"]
+    MCP["MCP configs (mcp.json)"] --> M
+    M --> L1["L1 Deterministic rules<br/>26 typed matchers · fail-closed"]
+    L1 --> L2["L2 ML classifiers (planned)<br/>DeBERTa on agentic surfaces"]
+    L2 --> L3["L3 LLM: elicitation + judge<br/>(optional, tagged origin: llm)"]
+    L3 --> W["Waivers<br/>documented, expiring"]
+    W --> EV["Evidence: SHA-256 chain<br/>verify offline"]
+    EV --> OUT["Markdown · JSON · SARIF"]
+      </pre>
+    </div>
+    <p>And the product loop: attest the design, prove the record, enforce it as a runtime policy, and detect divergence.</p>
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart LR
+    A["scan (attest)"] --> B["verify (prove)"]
+    A --> C["compile (enforce)"]
+    C --> D["drift (detect)"]
+    D -->|"design changed? re-attest"| A
+      </pre>
+    </div>
 
     <h2 id="install">Install</h2>
 <pre><code>pip install attestral
@@ -231,7 +270,7 @@ attestral scan . --judge --judge-suppress</code></pre>
 <pre><code>pip install "attestral[terraform]"</code></pre>
 
     <h2 id="roadmap">Roadmap</h2>
-    <p>Attestral is an open-source project. Everything documented above is the complete, current surface. Next up, roughly in order: a full HCL expression evaluator, more rule packs (Kubernetes, GCP, Azure), PR design-diffing, and import from legacy threat modeling exports. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
+    <p>Everything documented above is the complete, current surface (26 deterministic rules, SARIF, waivers, and the LLM-as-judge layer all ship today). Next up, roughly in order: an <strong>ML classifier layer</strong> (a local DeBERTa model for prompt-injection and capability classification on agentic surfaces, tagged <code>origin: ml</code>), more rule packs (Kubernetes, GCP, Azure), deeper HCL resolution (variables, modules), and PR design-diffing. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
   </article>
 </div>
 

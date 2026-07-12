@@ -91,3 +91,149 @@ rules:
     description: The design contains both agent tooling and cloud resources but no declared control between the two trust zones.
     recommendation: Document the authn/authz path from agent runtime to cloud APIs; deny by default.
     frameworks: ["NIST AC-4", "OWASP-AgSec ARCH-1"]
+
+  # --- v0.5 expansion: CIS AWS benchmarks + OWASP LLM Top 10 (2025) + MCP research ---
+
+  - id: ATL-006
+    title: RDS cluster storage not encrypted
+    severity: high
+    target: aws_rds_cluster
+    match: { attr_equals: { storage_encrypted: false } }
+    description: The RDS cluster stores data at rest without encryption; a snapshot or disk leak exposes plaintext.
+    recommendation: Set storage_encrypted = true and supply a KMS key (kms_key_id) for customer-managed control.
+    frameworks: ["CIS AWS 2.3.1", "NIST SC-28", "SOC2 CC6.7"]
+
+  - id: ATL-007
+    title: RDS automated backups disabled
+    severity: medium
+    target: aws_rds_cluster
+    match: { attr_in: { backup_retention_period: [0, "0"] } }
+    description: A retention period of zero disables automated backups; there is no point-in-time recovery after data loss or ransomware.
+    recommendation: Set backup_retention_period to at least 7 days (30+ for regulated workloads).
+    frameworks: ["CIS AWS 2.3.2", "NIST CP-9", "SOC2 A1.2"]
+
+  - id: ATL-008
+    title: RDS IAM database authentication disabled
+    severity: medium
+    target: aws_rds_cluster
+    match: { attr_equals: { iam_database_authentication_enabled: false } }
+    description: The database relies on static passwords instead of short-lived IAM credentials, widening credential-theft impact.
+    recommendation: Enable iam_database_authentication_enabled and issue access through IAM roles.
+    frameworks: ["NIST IA-5", "SOC2 CC6.1"]
+
+  - id: ATL-009
+    title: RDS cluster is single-AZ
+    severity: low
+    target: aws_rds_cluster
+    match: { attr_equals: { multi_az: false } }
+    description: A single-AZ database has no automatic failover; an AZ outage takes the workload down.
+    recommendation: Set multi_az = true for production databases.
+    frameworks: ["NIST CP-10", "SOC2 A1.2"]
+
+  - id: ATL-010
+    title: RDS instance storage explicitly unencrypted
+    severity: high
+    target: aws_db_instance
+    match: { attr_equals: { storage_encrypted: false } }
+    description: Encryption at rest is explicitly disabled on the database instance.
+    recommendation: Set storage_encrypted = true (and kms_key_id for a customer-managed key).
+    frameworks: ["CIS AWS 2.3.1", "NIST SC-28", "SOC2 CC6.7"]
+
+  - id: ATL-011
+    title: EBS volume not encrypted
+    severity: high
+    target: aws_ebs_volume
+    match: { attr_equals: { encrypted: false } }
+    description: The block volume stores data at rest in plaintext.
+    recommendation: Set encrypted = true; enable account-level EBS encryption by default.
+    frameworks: ["CIS AWS 2.2.1", "NIST SC-28"]
+
+  - id: ATL-012
+    title: EC2 instance auto-assigns a public IP
+    severity: medium
+    target: aws_instance
+    match: { attr_equals: { associate_public_ip_address: true } }
+    description: The instance is directly addressable from the internet, expanding the attack surface beyond the VPC.
+    recommendation: Place the instance in a private subnet and reach it via a load balancer, NAT, or bastion.
+    frameworks: ["NIST SC-7", "SOC2 CC6.6"]
+
+  - id: ATL-013
+    title: KMS key rotation disabled
+    severity: medium
+    target: aws_kms_key
+    match: { attr_equals: { enable_key_rotation: false } }
+    description: Automatic annual key rotation is off, extending the blast radius of a compromised key.
+    recommendation: Set enable_key_rotation = true.
+    frameworks: ["CIS AWS 3.8", "NIST SC-12"]
+
+  - id: ATL-014
+    title: SNS topic not encrypted at rest
+    severity: medium
+    target: aws_sns_topic
+    match: { attr_missing: kms_master_key_id }
+    description: Messages published to the topic are stored without server-side encryption.
+    recommendation: Set kms_master_key_id to a KMS key.
+    frameworks: ["NIST SC-28", "SOC2 CC6.7"]
+
+  - id: ATL-015
+    title: SQS queue not encrypted at rest
+    severity: medium
+    target: aws_sqs_queue
+    match: { attr_missing: kms_master_key_id }
+    description: Queued messages are stored without server-side encryption.
+    recommendation: Set kms_master_key_id (or enable SQS-managed SSE).
+    frameworks: ["NIST SC-28", "SOC2 CC6.7"]
+
+  - id: ATL-016
+    title: S3 bucket ACL grants all authenticated AWS users
+    severity: high
+    target: aws_s3_bucket
+    match: { attr_in: { acl: ["authenticated-read"] } }
+    description: The authenticated-read ACL grants access to every authenticated AWS account, not just your own.
+    recommendation: Remove the ACL grant and use bucket policies scoped to specific principals.
+    frameworks: ["NIST AC-3", "SOC2 CC6.1"]
+
+  - id: ATL-017
+    title: Neptune cluster storage not encrypted
+    severity: high
+    target: aws_neptune_cluster
+    match: { attr_equals: { storage_encrypted: false } }
+    description: The graph database stores data at rest without encryption.
+    recommendation: Set storage_encrypted = true with a KMS key.
+    frameworks: ["NIST SC-28", "SOC2 CC6.7"]
+
+  - id: ATL-018
+    title: Redshift cluster publicly accessible
+    severity: critical
+    target: aws_redshift_cluster
+    match: { attr_equals: { publicly_accessible: true } }
+    description: The data warehouse endpoint is reachable from the public internet.
+    recommendation: Set publicly_accessible = false and place the cluster in private subnets.
+    frameworks: ["NIST SC-7", "SOC2 CC6.1"]
+
+  - id: ATL-105
+    title: MCP server auto-installs packages at launch
+    severity: high
+    target: mcp_server
+    match: { attr_list_contains: { args: "-y" }}
+    description: The server is launched with an auto-confirm installer (npx -y / uvx), fetching and running remote package code with no pinned integrity check. A compromised or typosquatted package becomes code execution in the agent's context.
+    recommendation: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm flag.
+    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "NIST SA-12"]
+
+  - id: ATL-106
+    title: MCP server pinned to a mutable tag
+    severity: medium
+    target: mcp_server
+    match: { attr_any_contains: { args: ["@latest", ":latest"] } }
+    description: The tool server tracks a mutable tag, so its code can change under you after review (a tool-poisoning rug-pull) with no re-attestation.
+    recommendation: Pin to an immutable version or digest so the reviewed tool is the tool that runs.
+    frameworks: ["OWASP LLM05 Supply Chain", "OWASP-AgSec TOOL-3", "MITRE ATLAS AML.T0010"]
+
+  - id: ATL-107
+    title: MCP server grants outbound network or browser access
+    severity: medium
+    target: mcp_server
+    match: { attr_any_contains: { args: ["server-fetch", "mcp-server-fetch", "puppeteer", "playwright", "browser"] } }
+    description: A fetch or browser tool gives the agent an outbound channel, which is both an SSRF surface and a data-exfiltration path if a prompt injection lands.
+    recommendation: Constrain the tool to an allowlist of destinations; deny access to internal metadata endpoints and private ranges.
+    frameworks: ["OWASP LLM02 Sensitive Information Disclosure", "OWASP-AgSec TOOL-4", "NIST SC-7"]

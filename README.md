@@ -7,120 +7,210 @@
 
 **Continuous, audit-ready security design review for cloud and agentic systems.**
 
-Attestral ingests your infrastructure-as-code and agent/MCP configurations, builds a unified system model, runs a deterministic rule pack (plus optional LLM threat elicitation), and produces a design review with a **tamper-evident evidence chain** you can hand to reviewers, auditors, and customers.
+Attestral reads your Terraform and MCP/agent configs, builds one system model, reviews it against a deterministic rule pack (with optional LLM reasoning and an LLM-as-judge), and emits a design review with a **tamper-evident evidence chain** you can hand to reviewers, auditors, and customers. It then compiles the reviewed design into a runtime policy and diffs live telemetry back against it.
 
-```
+```bash
 pip install attestral
 attestral scan ./my-project
 ```
 
-## Why
+## The loop in one picture
 
-- Legacy threat modeling platforms are questionnaire-driven, consultant-heavy, and priced for the Fortune 500. In practice most teams do this work in a spreadsheet.
-- The fastest-growing attack surface (AI agents, MCP servers, tool permissions) is the one legacy tools understand least.
-- Review output is only worth what you can prove. Every Attestral run emits a SHA-256 hash chain over its findings, and altering any past entry invalidates the chain head.
+```mermaid
+flowchart LR
+    A["attestral scan<br/><b>attest</b>"] --> B["attestral verify<br/><b>prove</b>"]
+    A --> C["attestral compile<br/><b>enforce</b>"]
+    C --> D["attestral drift<br/><b>detect</b>"]
+    D -->|"design changed?<br/>re-attest"| A
+    style A fill:#96222E,color:#fff
+    style B fill:#1F6A4A,color:#fff
+```
 
-## What it does today (v0.4)
+Attest the design, prove the record has not been altered, compile it into a default-deny runtime policy, and detect when what runs diverges from what was reviewed. The whole loop runs offline, on a laptop, free.
 
-| Layer | Status |
-|---|---|
-| Terraform ingestion (design-level) | ✅ dependency-free scanner |
-| MCP server config ingestion | ✅ `mcp.json` / `claude_desktop_config.json` |
-| Deterministic rule pack | ✅ 10 rules: cloud misconfig + agentic tool risk |
-| Framework mapping | ✅ NIST 800-53, ASVS, SOC 2, OWASP Agentic refs per finding |
-| Evidence chain + verification | ✅ `attestral verify report.json` |
-| SARIF output for GitHub Code Scanning | ✅ `--format sarif` → Security tab + PR annotations |
-| Fail-closed CI gate | ✅ `--fail-on high` |
-| Baseline + waivers | ✅ documented, expiring exceptions kept in the evidence chain |
-| LLM threat elicitation | ✅ optional, `--llm` + `ANTHROPIC_API_KEY`, findings tagged separately |
-| LLM-as-judge verifier | ✅ optional, `--judge` cross-examines findings; panel voting; verdicts in the chain |
-| Design→policy compiler (`attestral compile`) | ✅ mcp-guard default-deny policy, bound to the review chain head |
-| Design-runtime drift detection (`attestral drift`) | ✅ JSONL telemetry diffed against the attested design |
-| PR design-diff (GitHub App) | 🔜 roadmap |
-| IriusRisk/ThreatModeler import | 🔜 roadmap |
+## How a scan works (the pipeline)
 
-## Usage
+```mermaid
+flowchart TB
+    subgraph ING["1 · Ingest"]
+        TF["Terraform (.tf)"] --> M
+        MCP["MCP configs<br/>(mcp.json)"] --> M
+        M["SystemModel<br/>components · edges · trust boundaries"]
+    end
+    M --> L1
+    subgraph REV["2 · Review (layered, each finding tagged by origin)"]
+        L1["<b>L1 Deterministic rules</b><br/>26 typed matchers · fail-closed<br/>origin: deterministic"]
+        L2["<b>L2 ML classifiers</b> (planned v0.6)<br/>DeBERTa prompt-injection on agentic surfaces<br/>origin: ml"]
+        L3["<b>L3 LLM</b> (optional)<br/>elicitation + LLM-as-judge verifier<br/>origin: llm"]
+        L1 --> L2 --> L3
+    end
+    REV --> W["Waivers<br/>documented, expiring exceptions"]
+    W --> EV["3 · Evidence<br/>SHA-256 hash chain · verify offline"]
+    EV --> OUT["Output: Markdown · JSON · <b>SARIF</b> (Code Scanning)"]
+    style L1 fill:#0a7d3611,stroke:#0a7d36
+    style L3 fill:#96222E11,stroke:#96222E
+```
+
+| Layer | What it does | Reproducible? | Cost |
+|---|---|---|---|
+| **L1 Deterministic** | 26 typed matchers over the model, fail-closed (unknown matcher never matches) | Yes, fully | Free, offline |
+| **L2 ML** (planned v0.6) | Local transformer (DeBERTa) for prompt-injection / capability classification on MCP surfaces | Pinned model + revision | Free, offline |
+| **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
+
+Every finding carries its `origin`, so the deterministic core is never silently mixed with model reasoning. That separation is what makes the review audit-grade.
+
+## Install and run the whole loop (60 seconds)
 
 ```bash
-# Scan a project (Terraform + MCP configs discovered automatically)
-attestral scan ./my-project
+pip install attestral
 
-# Markdown + JSON evidence report
-attestral scan ./my-project -o review --format both
+attestral scan examples/demo-project -o review        # attest  -> review.md + review.json
+attestral verify review.json                          # prove   -> chain VALID
+attestral compile examples/demo-project -o policy.yaml # enforce -> default-deny policy
+attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on-drift  # detect
+```
 
-# CI gate: fail the pipeline on high/critical design findings
-attestral scan . --fail-on high
+## The four commands
 
-# Emit SARIF for GitHub Code Scanning (Security tab + inline PR annotations)
-attestral scan . --format sarif -o attestral
-# then upload attestral.sarif via github/codeql-action/upload-sarif@v3
-# (ready-made workflow: examples/github-actions/code-scanning.yml)
+```mermaid
+flowchart LR
+    subgraph scan["attestral scan"]
+        s1["Terraform + MCP"] --> s2["findings + evidence chain<br/>md / json / sarif"]
+    end
+    subgraph verify["attestral verify"]
+        v1["report.json"] --> v2["VALID / INVALID<br/>(offline)"]
+    end
+    subgraph compile["attestral compile"]
+        c1["attested model"] --> c2["default-deny policy<br/>bound to chain head"]
+    end
+    subgraph drift["attestral drift"]
+        d1["policy + telemetry"] --> d2["drift findings"]
+    end
+```
 
-# Accept a known risk without disabling the gate: add a documented waiver.
-# A waived finding is suppressed from --fail-on but stays in the evidence
-# chain with its justification. See examples/attestral-waivers.example.yaml
-attestral scan . --fail-on high   # auto-discovers attestral-waivers.yaml
+```bash
+# SCAN: review a project (Terraform + MCP configs discovered automatically)
+attestral scan ./my-project --format both          # md + json
+attestral scan . --fail-on high                    # CI gate: exit 1 on high/critical
+attestral scan . --format sarif -o attestral       # SARIF -> GitHub Security tab + PR annotations
 
-# Add LLM design-review reasoning on top of the deterministic layer
-export ANTHROPIC_API_KEY=...
-attestral scan ./my-project --llm
-
-# Cross-examine findings with an LLM judge (cuts false positives).
-# Verdicts (confirmed/false_positive/needs_review) are recorded in the chain.
-export ATTESTRAL_JUDGE_API_KEY=...          # or reuse ANTHROPIC_API_KEY
-attestral scan ./my-project --judge --judge-panel 3
-attestral scan ./my-project --judge --judge-suppress   # auto-waive confident false positives, on the record
-
-# Prove a report hasn't been altered
+# VERIFY: prove a report has not been altered (no network, no server)
 attestral verify review.json
 
-# Close the loop: compile the attested design into a runtime policy...
+# COMPILE: turn the attested design into a default-deny mcp-guard policy
 attestral compile ./my-project -o policy.yaml
-# ...and diff runtime telemetry (mcp-guard JSONL) against it
+
+# DRIFT: diff runtime telemetry against the attested design
 attestral drift policy.yaml events.jsonl --fail-on-drift
 ```
 
-Try it on the included demo:
+## The sophistication layers (optional)
 
 ```bash
-attestral scan examples/demo-project
+# LLM threat elicitation on top of the deterministic layer
+export ANTHROPIC_API_KEY=...
+attestral scan ./my-project --llm
+
+# LLM-as-judge: cross-examine findings to cut false positives.
+# Verdicts (confirmed / false_positive / needs_review) are recorded in the chain.
+export ATTESTRAL_JUDGE_API_KEY=...                 # or reuse ANTHROPIC_API_KEY
+attestral scan . --judge --judge-panel 3           # 3 judges vote per finding
+attestral scan . --judge --judge-suppress          # auto-waive confident false positives, on the record
 ```
 
-## Architecture
+The judge never deletes a finding. A confident `false_positive` becomes a machine-generated waiver carrying the judge's reasoning: suppressed from the gate, but kept on the record.
 
-1. **Ingest** → unified `SystemModel` (components, edges, trust boundaries) from Terraform and MCP configs.
-2. **Deterministic layer** → typed matchers in YAML rules (`attestral/rules/core_rules.yaml`). No `eval`, unknown matchers fail closed.
-3. **LLM layer (optional)** → design-level threat elicitation over the model JSON; findings tagged `origin: llm`, never silently mixed with deterministic results.
-4. **Judge layer (optional)** → an LLM cross-examines each finding for false positives; a panel of judges can vote. Verdicts are recorded on the finding and in the chain. The judge never deletes a finding: a confident false positive becomes a machine-generated waiver with the judge's reasoning, kept on the record.
-5. **Evidence layer** → hash-chained findings, markdown/JSON export, offline verification.
+## Baseline and waivers
+
+Real repos start with findings. A waiver accepts a known risk and keeps the gate green without hiding anything: the waived finding stays in the evidence chain with its justification, and becomes a SARIF suppression (GitHub shows it dismissed, not open).
+
+```yaml
+# attestral-waivers.yaml  (auto-discovered at the scan root)
+waivers:
+  - rule: ATL-005
+    component: aws_db_instance.app     # or "*" for every component
+    reason: Encryption enforced at the storage layer; tracked in SEC-1234.
+    expires: 2026-12-31                # optional
+```
+
+Fail-safe: a waiver with no `reason` is ignored, and an expired waiver stops suppressing. A finding can only be silenced by a current, justified exception.
+
+## What it catches (26-rule pack)
+
+| Area | Examples |
+|---|---|
+| **Cloud misconfig** (AWS, CIS-grounded) | public S3/RDS/Redshift, `0.0.0.0/0` security groups, wildcard IAM, unencrypted RDS/EBS/Neptune, disabled backups, KMS rotation off, public EC2 IPs |
+| **Agentic / MCP** (OWASP LLM Top 10, MCP research) | shell-capable servers, broad filesystem roots, non-TLS transport, secrets in env, auto-installed packages (supply chain), mutable `@latest` tags (rug-pull), outbound-fetch/browser tools |
+| **Cross-cutting** | agent runtime and cloud sharing no declared boundary controls |
+
+Every finding maps to NIST 800-53, ASVS, SOC 2, OWASP LLM/Agentic, and MITRE ATLAS references.
+
+## Real-world benchmark
+
+Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, two rule packs:
+
+| | Findings on TerraGoat AWS |
+|---|---|
+| v0.4.0 (10 rules) | 3 |
+| v0.5.0 (26 rules) | **6** |
+
+The pipeline (ingest, evidence chain, tamper detection, gate, SARIF) is verified on real code; the rule pack keeps growing to raise coverage.
+
+## Use it in CI
+
+```yaml
+# .github/workflows/attestral.yml
+name: attestral
+on: [pull_request]
+permissions:
+  contents: read
+  security-events: write        # to upload to the Security tab
+jobs:
+  design-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install "attestral[terraform]"
+      - run: attestral scan . --format sarif -o attestral
+      - uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: attestral.sarif }
+      - run: attestral scan . --fail-on high      # hard gate (auto-uses attestral-waivers.yaml)
+```
+
+Ready-made workflows live in `examples/github-actions/`.
 
 ## Writing custom rules
 
+Rules are YAML with structured matchers. No `eval` anywhere, and an unknown matcher fails closed (never matches).
+
 ```yaml
 rules:
- - id: ORG-001
- title: Internal service exposed without auth attribute
- severity: high
- target: aws_lb
- match: { attr_missing: auth }
- description: ...
- recommendation: ...
- frameworks: ["NIST AC-3"]
+  - id: ORG-001
+    title: Internal load balancer missing auth attribute
+    severity: high
+    target: aws_lb                     # component type prefix, or "model"
+    match: { attr_missing: auth }
+    description: ...
+    recommendation: ...
+    frameworks: ["NIST AC-3", "SOC2 CC6.1"]
 ```
 
 ```bash
-attestral scan . # core pack
 python -c "from attestral.rules import RuleEngine; RuleEngine(['org_rules.yaml'])"
 ```
 
 ## Development
 
 ```bash
-pip install -e ".[dev]"
-pytest -q
+pip install -e ".[dev,terraform,llm]"
+pytest -q                 # offline suite; the live judge test skips without a key
 ruff check attestral tests
 ```
 
+To run the live judge test, set `ATTESTRAL_JUDGE_API_KEY` (or `ANTHROPIC_API_KEY`) and re-run `pytest -q`.
+
 ## License
 
-Apache 2.0
+Apache 2.0.

@@ -103,18 +103,39 @@ def _parse_verdict(text: str) -> dict | None:
     }
 
 
-def judge_findings(model: SystemModel, findings: list[Finding],
-                   cfg: JudgeConfig | None = None) -> list[str]:
-    """Annotate findings with judge verdicts in place. Returns skip/status notes."""
-    cfg = cfg or JudgeConfig()
+def _default_query(cfg: JudgeConfig):
+    """Build the Anthropic-backed query, or return a skip note (as a str)."""
     if not api_key():
-        return ["judge skipped: set ATTESTRAL_JUDGE_API_KEY or ANTHROPIC_API_KEY"]
+        return "judge skipped: set ATTESTRAL_JUDGE_API_KEY or ANTHROPIC_API_KEY"
     try:
         import anthropic
     except ImportError:
-        return ['judge skipped: pip install "attestral[llm]"']
-
+        return 'judge skipped: pip install "attestral[llm]"'
     client = anthropic.Anthropic(api_key=api_key())
+
+    def query(payload: str) -> str:
+        msg = client.messages.create(
+            model=cfg.model, max_tokens=400, system=_SYSTEM,
+            messages=[{"role": "user", "content": payload}],
+        )
+        return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+
+    return query
+
+
+def judge_findings(model: SystemModel, findings: list[Finding],
+                   cfg: JudgeConfig | None = None, query=None) -> list[str]:
+    """Annotate findings with judge verdicts in place. Returns skip/status notes.
+
+    `query` is an injectable `(payload: str) -> str` callable; when None, a
+    real Anthropic-backed query is built (needs an API key + the package).
+    Injecting a fake makes the whole orchestration testable offline.
+    """
+    cfg = cfg or JudgeConfig()
+    if query is None:
+        query = _default_query(cfg)
+        if isinstance(query, str):        # a skip note, not a callable
+            return [query]
     for f in findings:
         if f.waived:                      # a human waiver already accepted this
             continue
@@ -122,11 +143,7 @@ def judge_findings(model: SystemModel, findings: list[Finding],
         votes: list[dict] = []
         for _ in range(max(1, cfg.panel)):
             try:
-                msg = client.messages.create(
-                    model=cfg.model, max_tokens=400, system=_SYSTEM,
-                    messages=[{"role": "user", "content": payload}],
-                )
-                text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+                text = query(payload)
             except Exception:
                 continue
             vote = _parse_verdict(text)
