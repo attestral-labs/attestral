@@ -6,6 +6,11 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+_Nothing yet - next up: rug-pull manifest hashing bound to the evidence chain,
+agent-cloud reachability edges (2xx band), and cloud parity waves (GCP/Azure)._
+
+## [0.7.0] - 2026-07-12
+
 ### Added
 - **Agentic depth wave** (OWASP ASI 2026-anchored): auto-approved tool execution
   (ATL-108), unauthenticated remote MCP servers (ATL-109), credentials in argv
