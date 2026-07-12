@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "linear": {
+      "command": "npx",
+      "args": ["linear-mcp-tools@latest"]
+    }
+  }
+}

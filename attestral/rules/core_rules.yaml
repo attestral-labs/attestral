@@ -63,7 +63,7 @@ rules:
     match: { attr_list_any_of: { args: ["/", "~", "/home", "/Users"] } }
     description: The agent gains read/write reach over a broad filesystem root, far beyond task scope.
     recommendation: Scope the server to the narrowest project directory that supports the workflow.
-    frameworks: ["NIST AC-6", "OWASP-AgSec TOOL-2"]
+    frameworks: ["NIST AC-6", "OWASP-AgSec TOOL-2", "OWASP-ASI02:2026"]
 
   - id: ATL-103
     title: Shell-capable MCP server configured
@@ -72,7 +72,7 @@ rules:
     match: { attr_any_contains: { command: ["bash", "sh", "cmd", "powershell"], args: ["bash", "sh -c", "shell"] } }
     description: The agent can execute arbitrary shell commands; a single prompt injection becomes code execution.
     recommendation: Replace generic shell access with narrowly scoped, allowlisted tools; gate with human approval.
-    frameworks: ["OWASP-AgSec TOOL-1", "NIST AC-6"]
+    frameworks: ["OWASP-AgSec TOOL-1", "NIST AC-6", "OWASP-ASI05:2026"]
 
   - id: ATL-104
     title: Secrets passed to MCP server via environment
@@ -81,7 +81,7 @@ rules:
     match: { attr_equals: { _env_has_secrets: true } }
     description: Credentials in tool-server env vars are exposed to the tool process and often to model context.
     recommendation: Use a secret manager or OS keychain; never place raw credentials where tool output can echo them.
-    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-AgSec CRED-1"]
+    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-AgSec CRED-1", "OWASP-ASI03:2026"]
 
   - id: ATL-201
     title: Agent runtime and cloud share no declared boundary controls
@@ -218,7 +218,7 @@ rules:
     match: { attr_list_contains: { args: "-y" }}
     description: The server is launched with an auto-confirm installer (npx -y / uvx), fetching and running remote package code with no pinned integrity check. A compromised or typosquatted package becomes code execution in the agent's context.
     recommendation: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm flag.
-    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "NIST SA-12"]
+    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "NIST SA-12", "OWASP-ASI04:2026"]
 
   - id: ATL-106
     title: MCP server pinned to a mutable tag
@@ -227,7 +227,7 @@ rules:
     match: { attr_any_contains: { args: ["@latest", ":latest"] } }
     description: The tool server tracks a mutable tag, so its code can change under you after review (a tool-poisoning rug-pull) with no re-attestation.
     recommendation: Pin to an immutable version or digest so the reviewed tool is the tool that runs.
-    frameworks: ["OWASP LLM05 Supply Chain", "OWASP-AgSec TOOL-3", "MITRE ATLAS AML.T0010"]
+    frameworks: ["OWASP LLM05 Supply Chain", "OWASP-AgSec TOOL-3", "MITRE ATLAS AML.T0010", "OWASP-ASI04:2026"]
 
   - id: ATL-107
     title: MCP server grants outbound network or browser access
@@ -236,7 +236,7 @@ rules:
     match: { attr_any_contains: { args: ["server-fetch", "mcp-server-fetch", "puppeteer", "playwright", "browser"] } }
     description: A fetch or browser tool gives the agent an outbound channel, which is both an SSRF surface and a data-exfiltration path if a prompt injection lands.
     recommendation: Constrain the tool to an allowlist of destinations; deny access to internal metadata endpoints and private ranges.
-    frameworks: ["OWASP LLM02 Sensitive Information Disclosure", "OWASP-AgSec TOOL-4", "NIST SC-7"]
+    frameworks: ["OWASP LLM02 Sensitive Information Disclosure", "OWASP-AgSec TOOL-4", "NIST SC-7", "OWASP-ASI02:2026"]
 
   # --- v0.6 expansion: more AWS + Azure + GCP + Kubernetes ---
 
@@ -522,3 +522,99 @@ rules:
     description: A hostPath volume mounts a node directory into the pod; depending on the path it can expose or tamper with host files, container runtime sockets, or credentials.
     recommendation: Replace hostPath with a purpose-built volume type; if unavoidable, scope it to a narrow read-only path.
     frameworks: ["CIS K8s 5.2.x", "NIST AC-6", "MITRE ATLAS AML.T0011"]
+
+  # --- Agentic depth wave: anchored to the OWASP Top 10 for Agentic
+  # --- Applications 2026 (ASI01-ASI10) and the MCP security best-practices
+  # --- spec revision 2025-06-18. Fixtures: examples/agentic-risks/.
+
+  - id: ATL-108
+    title: Agent tool calls auto-approved without a human checkpoint
+    severity: critical
+    target: mcp_server
+    match: { attr_equals: { _auto_approve: true } }
+    description: An auto-approve list or autonomy flag lets every tool call run end-to-end, so one injected instruction executes with no human ever seeing it.
+    recommendation: Remove blanket auto-approval; allowlist only low-risk read-only tools and require confirmation for write, execute, and network actions.
+    frameworks: ["OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+
+  - id: ATL-109
+    title: Remote MCP server without authentication
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _remote_unauthed: true } }
+    description: The agent connects to a network MCP endpoint with no credential, so anyone who can reach the endpoint can drive the tool server or impersonate it to the agent.
+    recommendation: Require OAuth or an API key on the endpoint per the MCP auth spec (2025-06-18 revision) and pin the server identity.
+    frameworks: ["OWASP-ASI03:2026", "MCP Security Best Practices 2025-06-18", "NIST IA-2"]
+
+  - id: ATL-110
+    title: Credential passed to MCP server as a command-line argument
+    severity: high
+    target: mcp_server
+    match: { attr_any_contains: { args: ["--api-key", "--token", "--password", "--secret", "--access-key"] } }
+    description: Secrets in argv are visible to every process on the host and to anything that captures the launch command, including agent context and logs.
+    recommendation: Move the credential to a secret manager or OS keychain reference; never place it in launch arguments.
+    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-ASI03:2026"]
+
+  - id: ATL-111
+    title: MCP server container mounts a broad host path
+    severity: high
+    target: mcp_server
+    match: { attr_any_contains: { args: ["-v /:", "/Users:", "/home:", "/etc:", "/var/run/docker.sock"] } }
+    description: The containerized tool server bind-mounts a sensitive host directory (or the Docker socket), so container isolation no longer limits what the agent can read or change.
+    recommendation: Mount only the specific project directory the workflow needs, read-only where possible; never expose the Docker socket to a tool server.
+    frameworks: ["OWASP-ASI02:2026", "CIS Docker 5.5", "NIST AC-6"]
+
+  - id: ATL-202
+    title: Tool fleet forms an exfiltration chain (lethal trifecta)
+    severity: critical
+    target: model
+    match: { model_capability_combo: [["filesystem", "database", "saas_data"], ["network", "messaging"]] }
+    description: Across the configured servers the agent can read private data and reach an outbound channel, so one indirect prompt injection anywhere in its inputs can quietly exfiltrate what it reads.
+    recommendation: Split the workflow so no single agent session combines private-data access with unrestricted egress, or gate the egress tool behind human approval and a destination allowlist.
+    frameworks: ["OWASP-ASI02:2026", "OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051"]
+
+  - id: ATL-203
+    title: Tool fleet combines shell execution with outbound network reach
+    severity: high
+    target: model
+    match: { model_capability_combo: [["shell"], ["network", "messaging"]] }
+    description: The agent can both execute commands and talk to the internet, which turns a single injected instruction into download-and-run or command-and-control.
+    recommendation: Remove one side of the pair per session, or force shell use through an allowlisted, non-networked sandbox.
+    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI02:2026", "NIST SC-7"]
+
+  # --- Cross-server tool shadowing wave: the attack surface created by
+  # --- running several MCP servers side by side. Anchored to SAFE-MCP
+  # --- SAF-T1301 (Cross-Server Tool Shadowing), SAF-T1001/SAF-T1003, and the
+  # --- OWASP Agentic Top 10 2026. Fixtures: examples/tool-shadowing/.
+  # --- All three are model-level by nature: no single server is the finding,
+  # --- so a per-resource linter cannot express these checks at all.
+
+  - id: ATL-204
+    title: Tool name exposed by more than one MCP server
+    severity: high
+    target: model
+    match: { model_tool_name_collision: true }
+    description: Two servers in the fleet declare a tool with the same name, so tool routing is ambiguous and a lower-trust server can answer calls the agent believes go to the trusted one.
+    recommendation: Rename or namespace the colliding tool, or remove one of the servers; every tool name must identify exactly one implementation across the fleet.
+    frameworks: ["SAFE-MCP SAF-T1301", "OWASP-ASI02:2026", "NIST IA-4"]
+
+  # Deliberately structural, not language-based: the matcher cross-references
+  # tool *identifiers* against the fleet inventory, which only the system model
+  # can see. Whether the wording is also an injection payload is ml.py's job -
+  # this fires even when the steering text reads as perfectly innocent.
+  - id: ATL-205
+    title: Tool description steers the use of another server's tools
+    severity: critical
+    target: model
+    match: { model_cross_server_tool_reference: true }
+    description: A server's tool metadata references a tool that belongs to a different server - the cross-server shadowing pattern, where guidance planted in one server's descriptions silently changes how the agent uses a tool it trusts elsewhere.
+    recommendation: Remove the cross-server reference; a tool description must describe only its own tool. Treat the referencing server as untrusted until it has been reviewed.
+    frameworks: ["SAFE-MCP SAF-T1301", "OWASP-ASI06:2026", "MITRE ATLAS AML.T0051"]
+
+  - id: ATL-206
+    title: One MCP server name resolves to different launch targets
+    severity: high
+    target: model
+    match: { model_server_name_conflict: true }
+    description: The same server name is defined more than once with different commands or endpoints, so which code answers to that identity depends on config precedence - the shape of a server-impersonation or rug-pull attack.
+    recommendation: Keep one definition per server name; if an override is intentional, make the definitions identical or rename the variant so the identity is unambiguous.
+    frameworks: ["SAFE-MCP SAF-T1003", "OWASP-ASI04:2026", "MCP Security Best Practices 2025-06-18", "NIST IA-4"]

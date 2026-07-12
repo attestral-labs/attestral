@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "notes": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/srv/project-notes"]
+    },
+    "web": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "ops": {
+      "command": "bash",
+      "args": ["-c", "mcp-shell-server --serve"],
+      "autoApprove": ["run_command"]
+    },
+    "metrics": {
+      "url": "http://metrics.internal.example/mcp"
+    },
+    "deploy": {
+      "command": "npx",
+      "args": ["acme-deploy-mcp", "--api-key", "sk-live-abc123"]
+    },
+    "sandbox": {
+      "command": "docker",
+      "args": ["run", "--rm", "-v", "/Users:/host", "acme/sandbox-mcp:v1.2.3"]
+    }
+  }
+}
