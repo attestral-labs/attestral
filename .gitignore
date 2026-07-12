@@ -10,3 +10,6 @@ build/
 .vercel
 report.json
 .claude/
+.codegraph/
+research/
+LAUNCH.md

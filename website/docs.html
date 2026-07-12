@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Documentation - Attestral</title>
-<meta name="description" content="Documentation for the open-source Attestral CLI: scan, verify, compile, drift, rule authoring, and the evidence chain.">
+<meta name="description" content="Documentation for the open-source Attestral CLI, the security scanner for AI agents and MCP servers: scan, verify, compile, drift, rule authoring, and the evidence chain.">
 <meta name="theme-color" content="#96222E">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2396222E'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,9 +14,17 @@
   :root{
     --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
     --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --code-bg:#E9EBE6;
     --display:'Libre Caslon Text',Georgia,serif;
     --body:'Public Sans',system-ui,sans-serif;
     --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --code-bg:#232B1E;
+    }
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
@@ -46,8 +54,8 @@
   article p{margin:10px 0;max-width:68ch}
   article ul{margin:10px 0 10px 22px;max-width:66ch}
   article li{margin:5px 0}
-  code{font-family:var(--mono);font-size:.85em;background:#E9EBE6;padding:1px 5px;border-radius:2px}
-  pre{background:var(--ink);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:18px 20px;overflow-x:auto;margin:16px 0;border-radius:2px}
+  code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:2px}
+  pre{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:18px 20px;overflow-x:auto;margin:16px 0;border-radius:2px}
   pre code{background:none;padding:0;color:inherit;font-size:inherit}
   pre .c{color:#8FA398}
   table{border-collapse:collapse;margin:16px 0;font-size:.88rem;width:100%;max-width:720px}
@@ -60,9 +68,14 @@
 </style>
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   mermaid.initialize({
-    startOnLoad: true, theme: 'base',
-    themeVariables: {
+    startOnLoad: true,
+    theme: dark ? 'dark' : 'base',
+    themeVariables: dark ? {
+      primaryColor: '#1A1F16', primaryTextColor: '#E9ECE4', primaryBorderColor: '#E06B76',
+      lineColor: '#9BA79C', fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: '14px'
+    } : {
       primaryColor: '#FBFBF9', primaryTextColor: '#171F1C', primaryBorderColor: '#96222E',
       lineColor: '#5D6660', fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: '14px'
     }
@@ -106,17 +119,17 @@
 
   <article>
     <h1>Documentation</h1>
-    <p class="sub">Everything on this page covers the open-source CLI, licensed Apache&nbsp;2.0. It is complete: nothing below requires an account, a key, or a server.</p>
+    <p class="sub">Reference for the open-source Attestral CLI, the security scanner for AI agents and MCP servers. Everything here is licensed Apache&nbsp;2.0 and complete: nothing below requires an account, a key, or a server.</p>
 
     <h2 id="pipeline">Pipeline</h2>
-    <p>A scan flows through three stages: ingest into one model, review in layers (each finding tagged by origin), and commit to a tamper-evident evidence chain. The deterministic core is never silently mixed with model reasoning.</p>
+    <p>A scan flows through three stages: ingest your agent (MCP configs, system prompts, tool descriptions) and the cloud it runs on into one model, review in layers (each finding tagged by origin), and commit to a tamper-evident evidence chain. The deterministic core is never silently mixed with model reasoning.</p>
     <div class="diagram">
       <pre class="mermaid">
 flowchart TB
-    TF["Terraform (.tf)"] --> M["SystemModel<br/>components · edges · trust boundaries"]
-    K8S["Kubernetes manifests (.yaml)"] --> M
-    MCP["MCP configs (mcp.json)"] --> M
+    MCP["MCP configs (mcp.json)"] --> M["SystemModel<br/>components · edges · trust boundaries"]
     SP["System prompts + tool descriptions"] --> M
+    TF["Terraform (.tf)"] --> M
+    K8S["Kubernetes manifests (.yaml)"] --> M
     M --> L1["L1 Deterministic rules<br/>57 typed matchers · fail-closed"]
     L1 --> L2["L2 ML classifier (optional)<br/>DeBERTa prompt-injection on agentic surfaces"]
     L2 --> L3["L3 LLM: elicitation + judge<br/>(optional, tagged origin: llm)"]
@@ -272,7 +285,7 @@ attestral scan . --judge --judge-suppress</code></pre>
 <pre><code>pip install "attestral[terraform]"</code></pre>
 
     <h2 id="roadmap">Roadmap</h2>
-    <p>Everything documented above ships today: <strong>57 deterministic rules</strong> across AWS, Azure, GCP, Kubernetes, and MCP/agentic surfaces; SARIF; waivers; the <strong>optional ML layer</strong> (a local DeBERTa model for prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>); and the LLM-as-judge verifier. Next up, roughly in order: deeper HCL resolution (variables, modules), more cloud and Kubernetes rules, and PR design-diffing. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
+    <p>Everything documented above ships today: <strong>57 deterministic rules</strong> across MCP/agentic surfaces, AWS, Azure, GCP, and Kubernetes; SARIF; waivers; the <strong>optional ML layer</strong> (a local DeBERTa model for prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>); and the LLM-as-judge verifier. Next up, roughly in order: deeper HCL resolution (variables, modules), more cloud and Kubernetes rules, and PR design-diffing. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
   </article>
 </div>
 

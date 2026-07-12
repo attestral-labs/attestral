@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Attestral - Continuous security design review</title>
-<meta name="description" content="Audit-ready security design reviews for cloud and agentic systems. Deterministic rules, LLM reasoning, and a tamper-evident evidence chain. Open source, Apache 2.0.">
+<title>Attestral - The security scanner for AI agents and MCP servers</title>
+<meta name="description" content="The security scanner for AI agents and MCP servers. Attestral reviews system prompts, tool descriptions, and MCP configs, models your cloud and Kubernetes alongside the agent, and lands every finding in a tamper-evident evidence chain. Open source, Apache 2.0.">
 <link rel="canonical" href="https://attestral.vercel.app/">
 <meta name="theme-color" content="#96222E">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2396222E'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <!-- social sharing -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Attestral">
-<meta property="og:title" content="Attestral: every design decision reviewed. Every review, provable.">
-<meta property="og:description" content="Continuous, audit-ready security design review for cloud and agentic systems, with a tamper-evident evidence chain. pip install attestral · Apache 2.0.">
+<meta property="og:title" content="Attestral: the security scanner for AI agents and MCP servers.">
+<meta property="og:description" content="Reviews the security design of AI agents and MCP servers, and models your cloud and Kubernetes alongside them. Tamper-evident evidence chain. pip install attestral · Apache 2.0.">
 <meta property="og:url" content="https://attestral.vercel.app/">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Attestral: provable security design review">
-<meta name="twitter:description" content="Deterministic rules + LLM reasoning + a SHA-256 evidence chain you can verify offline. Open source. pip install attestral.">
+<meta name="twitter:title" content="Attestral: the security scanner for AI agents and MCP servers">
+<meta name="twitter:description" content="Scans agents, MCP servers, and the cloud they touch. Deterministic rules + a local prompt-injection classifier + a SHA-256 evidence chain you verify offline. pip install attestral.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -24,14 +24,23 @@
   :root{
     --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
     --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --term-bar:#232B26; --us-tint:rgba(150,34,46,.045);
     --display:'Libre Caslon Text',Georgia,serif;
     --body:'Public Sans',system-ui,sans-serif;
     --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --term-bar:#161B12; --us-tint:rgba(224,107,118,.07);
+    }
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
   a{color:var(--seal)}
+  code{font-family:var(--mono);font-size:.9em}
   a:focus-visible,button:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
   .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
 
@@ -43,6 +52,7 @@
   .nav-links{display:flex;gap:26px;font-size:.92rem}
   .nav-links a{color:var(--ink);text-decoration:none}
   .nav-links a:hover{color:var(--seal)}
+  @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
 
   /* hero */
   .hero{padding:84px 0 30px}
@@ -89,16 +99,48 @@
   .ledger-quote{border-left:3px solid var(--seal);padding:6px 0 6px 22px;font-family:var(--display);font-size:1.25rem;font-style:italic;max-width:44ch;margin:30px 0}
 
   /* terminal */
-  .term{background:var(--ink);color:#DDE2DD;font-family:var(--mono);font-size:.82rem;line-height:1.7;padding:22px 24px;border-radius:2px;overflow-x:auto;margin-top:38px}
-  .term .p{color:#8FA398}
-  .term .crit{color:#E5697A}
-  .term .high{color:#E2A65B}
-  .term .ok{color:#7CC7A1}
+  .term{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.82rem;line-height:1.7;padding:22px 24px;border-radius:2px;overflow-x:auto;margin-top:38px}
+  .term .p,.demo-body .p{color:#8FA398}
+  .term .crit,.demo-body .crit{color:#E5697A}
+  .term .high,.demo-body .high{color:#E2A65B}
+  .term .med,.demo-body .med{color:#DAC26A}
+  .term .ok,.demo-body .ok{color:#7CC7A1}
+  .term .dim,.demo-body .dim{color:#6E7D73}
+
+  /* hero quickstart CTA */
+  .quickstart{margin-top:34px;background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--seal);border-radius:4px;padding:22px 24px;max-width:620px}
+  .qs-hook{font-family:var(--display);font-size:clamp(1.15rem,2.6vw,1.5rem);line-height:1.25;margin-bottom:16px}
+  .qs-hook em{font-style:italic;color:var(--seal)}
+  .qs-steps{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+  .qs-note{font-size:.86rem;color:var(--muted);margin-top:16px}
+
+  /* demo terminal window (the "oh no" moment) */
+  .demo{margin-top:30px;border:1px solid var(--rule);border-radius:7px;overflow:hidden;box-shadow:0 12px 34px rgba(23,31,28,.12)}
+  .demo-bar{display:flex;align-items:center;gap:8px;background:var(--term-bar);padding:11px 16px;overflow:hidden}
+  .demo-bar .dot{width:11px;height:11px;border-radius:50%;background:#3a453f;flex:none}
+  .demo-bar .dot.r{background:#E5697A}.demo-bar .dot.y{background:#E2A65B}.demo-bar .dot.g{background:#7CC7A1}
+  .demo-title{margin-left:10px;min-width:0;font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;color:#8FA398;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .demo-body{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.79rem;line-height:1.75;padding:18px 20px;overflow-x:auto}
+  .demo-body b{color:#fff;font-weight:600}
+  .demo-cap{font-size:.86rem;color:var(--muted);margin-top:16px;max-width:62ch}
+
+  /* comparison: why not Checkov / Trivy */
+  .vs-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;margin-top:8px}
+  .vs-table{width:100%;border-collapse:collapse;min-width:560px;font-size:.9rem}
+  .vs-table th,.vs-table td{text-align:left;padding:13px 18px;border-bottom:1px solid var(--rule);vertical-align:top}
+  .vs-table thead th{font-family:var(--mono);font-size:.71rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--card)}
+  .vs-table thead th.us{color:var(--seal)}
+  .vs-table td.cap{font-weight:600;color:var(--ink);width:30%}
+  .vs-table td.them{color:var(--muted)}
+  .vs-table th.us,.vs-table td.us{background:var(--us-tint);color:var(--ink)}
+  .vs-table td.us .ck{color:var(--verify);font-weight:700;margin-right:6px}
+  .vs-table tbody tr:last-child td{border-bottom:none}
+  .vs-foot{font-size:.86rem;color:var(--muted);margin-top:18px;max-width:64ch}
 
 
   /* install + badges */
   .install{display:flex;align-items:center;gap:14px;margin-top:32px;flex-wrap:wrap}
-  .cmd{display:inline-flex;align-items:center;gap:16px;background:var(--ink);color:#DDE2DD;font-family:var(--mono);font-size:.98rem;padding:12px 14px 12px 18px;border-radius:3px}
+  .cmd{display:inline-flex;align-items:center;gap:16px;background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.98rem;padding:12px 14px 12px 18px;border-radius:3px;max-width:100%;overflow-x:auto}
   .cmd .dollar{color:#8FA398}
   .cmd button{background:transparent;border:1px solid #3a453f;color:#9fb0a7;font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:6px 11px;border-radius:3px;cursor:pointer;transition:color .15s,border-color .15s}
   .cmd button:hover{color:#fff;border-color:#5a655f}
@@ -130,15 +172,48 @@
 
 <main>
   <div class="wrap hero">
-    <p class="eyebrow">Continuous security design review</p>
-    <h1>Every design decision, reviewed. Every review, <em>provable.</em></h1>
-    <p class="lede">Attestral reads your Terraform, Kubernetes manifests, and MCP/agent configs, builds one system model, and reviews it on every change. Findings map to NIST, ASVS, SOC&nbsp;2, CIS, and OWASP Agentic, and land in a tamper-evident evidence chain. It then compiles the reviewed design into a default-deny runtime policy and diffs live telemetry back against it, so what you run and what you reviewed stay the same thing.</p>
-    <div class="install">
-      <div class="cmd"><span class="dollar">$</span> <span>pip install attestral</span> <button type="button" data-copy="pip install attestral">Copy</button></div>
+    <p class="eyebrow">AI agent &amp; MCP security</p>
+    <h1>The security scanner for <em>AI agents</em> and MCP servers.</h1>
+    <p class="lede">Attestral reads your MCP configs, system prompts, and tool descriptions, builds one system model, and reviews the agentic surfaces most scanners never look at. It models the cloud and Kubernetes your agent runs on too, so it can see the trust boundary between them. Findings map to NIST, ASVS, SOC&nbsp;2, CIS, and OWASP Agentic, and land in a tamper-evident evidence chain.</p>
+
+    <div class="quickstart">
+      <p class="qs-hook">Scan the MCP servers you've <em>already installed</em>.</p>
+      <div class="qs-steps">
+        <div class="cmd"><span class="dollar">$</span> <span>pip install attestral</span> <button type="button" data-copy="pip install attestral">Copy</button></div>
+        <div class="cmd"><span class="dollar">$</span> <span>attestral scan --local</span> <button type="button" data-copy="attestral scan --local">Copy</button></div>
+      </div>
+      <p class="qs-note">No account, no API key, fully offline. It reads the MCP configs your agents already use (Claude&nbsp;Desktop, Cursor, <code>.mcp.json</code>) and reviews every server it finds.</p>
+    </div>
+
+    <!-- The "oh no" moment: real demo scan output -->
+    <figure class="demo" aria-label="Terminal: attestral scan flags nine findings on an insecure MCP agent">
+      <div class="demo-bar" aria-hidden="true">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="demo-title">attestral scan · the 10-second demo</span>
+      </div>
+      <div class="demo-body">
+<span class="p">$</span> attestral scan examples/vulnerable-agent<br>
+&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-103&nbsp;&nbsp;Shell-capable MCP server configured&nbsp;&nbsp;(mcp_server.shell)<br>
+&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-103&nbsp;&nbsp;Shell-capable MCP server configured&nbsp;&nbsp;(mcp_server.deploy)<br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-101&nbsp;&nbsp;MCP server uses non-TLS transport&nbsp;&nbsp;(mcp_server.jira)<br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-102&nbsp;&nbsp;Filesystem MCP server rooted at a broad path&nbsp;&nbsp;(mcp_server.filesystem)<br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-105&nbsp;&nbsp;MCP server auto-installs packages at launch&nbsp;&nbsp;(mcp_server.filesystem)<br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-105&nbsp;&nbsp;MCP server auto-installs packages at launch&nbsp;&nbsp;(mcp_server.web)<br>
+&nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-104&nbsp;&nbsp;Secrets passed to MCP server via environment&nbsp;&nbsp;(mcp_server.jira)<br>
+&nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-106&nbsp;&nbsp;MCP server pinned to a mutable tag&nbsp;&nbsp;(mcp_server.deploy)<br>
+&nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-107&nbsp;&nbsp;MCP server grants outbound network or browser access&nbsp;&nbsp;(mcp_server.web)<br>
+6 components · <b>9 findings</b> · <span class="crit">2 critical</span>, <span class="high">4 high</span>, <span class="med">3 medium</span>
+      </div>
+    </figure>
+    <p class="demo-cap">A design review of the <code>vulnerable-agent</code> example in the repo: two small config files, nine design findings, zero cloud credentials required. Point it at your own machine with <code>attestral scan --local</code>, or add <code>--ml</code> to also catch the prompt-injection payload hidden in a tool description.</p>
+
+    <div class="cta-row">
+      <a class="btn primary" href="#start">Run the full loop</a>
       <a class="ghstar" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>
     </div>
     <div class="badges" aria-label="Project facts">
-      <span class="badge">PyPI <b>v0.2.0</b></span>
+      <span class="badge">Scans <b>AI agents &amp; MCP</b></span>
+      <span class="badge">PyPI <b>v0.6.0</b></span>
       <span class="badge">Apache&nbsp;2.0</span>
       <span class="badge">Python <b>3.10+</b></span>
       <span class="badge">Zero required deps</span>
@@ -178,6 +253,57 @@
       <p class="chain-caption">Each entry commits to the one before it. If anyone edits a past finding, the head stops matching, and <code>attestral verify</code> will catch it offline. No server involved.</p>
     </div>
   </div>
+
+  <section id="vs">
+    <div class="wrap">
+      <h2>Why not just Checkov or Trivy?</h2>
+      <p class="section-lede">Keep using them. They are excellent at cloud infrastructure, and attestral is not out to replace them; it scans the same Terraform and Kubernetes with 57 rules of its own. But those tools were built before agents had tools. They do not parse an <code>.mcp.json</code>, they cannot tell that a tool description is quietly asking the model to read your SSH key, and they have no concept of the trust boundary between an agent and the shell it can call. That agentic surface is the entire reason attestral exists.</p>
+      <div class="vs-wrap">
+        <table class="vs-table">
+          <thead>
+            <tr>
+              <th scope="col">Capability</th>
+              <th scope="col">Checkov · Trivy · tfsec</th>
+              <th scope="col" class="us">Attestral</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cap">Cloud IaC misconfiguration</td>
+              <td class="them">Mature and deep. Their home turf.</td>
+              <td class="us"><span class="ck">✓</span>57 rules across AWS, Azure, GCP, and Kubernetes.</td>
+            </tr>
+            <tr>
+              <td class="cap">MCP server configs (shell access, transport, secrets)</td>
+              <td class="them">Not modeled.</td>
+              <td class="us"><span class="ck">✓</span>First-class components in the system model.</td>
+            </tr>
+            <tr>
+              <td class="cap">System prompts and tool descriptions</td>
+              <td class="them">Not parsed.</td>
+              <td class="us"><span class="ck">✓</span>Reviewed, and scored for prompt injection.</td>
+            </tr>
+            <tr>
+              <td class="cap">Agent-to-tool trust boundaries</td>
+              <td class="them">No concept of one.</td>
+              <td class="us"><span class="ck">✓</span>The center of the graph attestral builds.</td>
+            </tr>
+            <tr>
+              <td class="cap">Prompt injection in agentic text</td>
+              <td class="them">Out of scope.</td>
+              <td class="us"><span class="ck">✓</span>Optional local ML classifier, fully offline.</td>
+            </tr>
+            <tr>
+              <td class="cap">Tamper-evident audit evidence</td>
+              <td class="them">Report only.</td>
+              <td class="us"><span class="ck">✓</span>SHA-256 evidence chain you verify offline.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="vs-foot">The honest version: run Checkov and Trivy for cloud depth, and run attestral for everything that lives above the infrastructure, the agent, its tools, and the prompts that drive them. It happens to cover the cloud underneath too.</p>
+    </div>
+  </section>
 
   <section id="problem">
     <div class="wrap">
@@ -248,7 +374,7 @@ chain <span class="ok">VALID ✅</span>
   <section id="loop">
     <div class="wrap">
       <h2>The review is the policy. The policy is the proof.</h2>
-      <p class="section-lede">Scanners stop at findings. Gateways enforce policies nobody reviewed. Attestral makes them the same artifact. The reviewed system model compiles into an mcp-guard runtime policy stamped with the review's chain head, and anything the review never saw counts as drift.</p>
+      <p class="section-lede">This is the depth that makes a review audit-grade, not just a linter. Scanners stop at findings. Gateways enforce policies nobody reviewed. Attestral makes them the same artifact. The reviewed system model compiles into an mcp-guard runtime policy stamped with the review's chain head, and anything the review never saw counts as drift.</p>
       <div class="cols">
         <div class="col">
           <span class="k">attestral scan</span>
@@ -308,7 +434,7 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
 
 <footer>
   <div class="wrap foot">
-    <div>Attestral: continuous, provable security design review.<br><code>pip install attestral</code> · Open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a></div>
+    <div>Attestral: the security scanner for AI agents and MCP servers.<br><code>pip install attestral</code> · Open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a></div>
     <div>© 2026 Attestral. Apache 2.0.</div>
   </div>
 </footer>
