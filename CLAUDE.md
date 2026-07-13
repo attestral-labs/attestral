@@ -32,7 +32,7 @@ One-liner: *"The security scanner built for the agentic era, and it covers your 
 ## Commands
 
 ```bash
-.venv/bin/pytest -q            # 107 pass / 2 skip. testpaths is pinned to tests/ in pyproject.
+.venv/bin/pytest -q            # 247 pass / 2 skip. testpaths is pinned to tests/ in pyproject.
 .venv/bin/ruff check attestral/
 .venv/bin/attestral scan <path>            # core scan (terminal only)
 .venv/bin/attestral scan <path> --ml --judge --fail-on high   # full pipeline + CI gate

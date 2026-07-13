@@ -62,7 +62,7 @@ def render_markdown(model: SystemModel, findings: list[Finding], target: str) ->
         "",
     ]
     if not active:
-        lines.append("No active findings from the deterministic rule pack. ✅")
+        lines.append("No active findings from the deterministic rule pack.")
     for i, f in enumerate(active, 1):
         lines += [
             f"### {i}. [{f.severity.value.upper()}] {f.title}  `{f.rule_id}`",

@@ -22,7 +22,7 @@ One partner agent that reaches the card can delegate a task, have `ops-shell`
 run an arbitrary command, and have `web` carry the results out. `ATL-210`'s
 finding names every rung:
 
-> Complete external attack path — external agent via public A2A endpoint
+> Complete external attack path - external agent via public A2A endpoint
 > [partner-ops] → code execution [ops-shell] → exfiltration [web].
 
 ## What fires, and why

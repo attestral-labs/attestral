@@ -1,4 +1,4 @@
-# Kubernetes hardening pack — CIS Kubernetes Benchmark 5.x + Pod Security
+# Kubernetes hardening pack - CIS Kubernetes Benchmark 5.x + Pod Security
 # Standards (baseline/restricted). Extends the core K8s rules ATL-501..510;
 # every id here is a NOT-yet-covered, high-signal workload-manifest check.
 # Fixtures that trigger each rule live in examples/k8s-pack/.
@@ -107,7 +107,7 @@ rules:
     severity: low
     target: k8s_container
     match: { attr_equals: { _has_requests: false } }
-    description: Without resource requests the scheduler cannot reserve capacity for the workload, so it competes unbounded for node CPU/memory — a noisy-neighbor and availability risk.
+    description: Without resource requests the scheduler cannot reserve capacity for the workload, so it competes unbounded for node CPU/memory - a noisy-neighbor and availability risk.
     recommendation: Set resources.requests for cpu and memory on every container so the scheduler can place and protect it.
     frameworks: ["CIS K8s 5.x", "NIST SC-6", "SOC2 A1.1"]
 

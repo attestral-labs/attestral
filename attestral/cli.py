@@ -320,7 +320,7 @@ def verify(report: str) -> None:
     """Verify the tamper-evident audit chain in a JSON report."""
     data = json.loads(Path(report).read_text())
     ok = verify_chain(data.get("chain", []))
-    click.echo("chain VALID ✅" if ok else "chain INVALID - report has been altered ❌")
+    click.echo("chain VALID" if ok else "chain INVALID - report has been altered")
     sys.exit(0 if ok else 1)
 
 

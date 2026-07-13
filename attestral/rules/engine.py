@@ -259,7 +259,7 @@ class RuleEngine:
             paths = external_attack_paths(model)
             if not paths:
                 return []
-            detail = "Complete external attack path — " + "; ".join(
+            detail = "Complete external attack path - " + "; ".join(
                 p.describe() for p in paths
             ) + "."
             return [self._finding(rule, "model:attack_path", "system model", detail=detail)]
