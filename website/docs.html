@@ -165,7 +165,7 @@ flowchart TB
     SP["System prompts + tool descriptions"] --> M
     TF["Terraform (.tf)"] --> M
     K8S["Kubernetes manifests (.yaml)"] --> M
-    M --> L1["L1 Deterministic rules<br/>57 typed matchers · fail-closed"]
+    M --> L1["L1 Deterministic rules<br/>typed matchers · fail-closed"]
     L1 --> L2["L2 ML classifier (optional)<br/>DeBERTa prompt-injection on agentic surfaces"]
     L2 --> L3["L3 LLM: elicitation + judge<br/>(optional, tagged origin: llm)"]
     L3 --> W["Waivers<br/>documented, expiring"]
@@ -320,7 +320,7 @@ attestral scan . --judge --judge-suppress</code></pre>
 <pre><code>pip install "attestral[terraform]"</code></pre>
 
     <h2 id="roadmap">Roadmap</h2>
-    <p>Everything documented above ships today: <strong>57 deterministic rules</strong> across MCP/agentic surfaces, AWS, Azure, GCP, and Kubernetes; SARIF; waivers; the <strong>optional ML layer</strong> (a local DeBERTa model for prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>); and the LLM-as-judge verifier. Next up, roughly in order: deeper HCL resolution (variables, modules), more cloud and Kubernetes rules, and PR design-diffing. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
+    <p>Everything documented above ships today: a deep <strong>deterministic rule pack</strong> across MCP/agentic surfaces, AWS, Azure, GCP, and Kubernetes; SARIF; waivers; the <strong>optional ML layer</strong> (a local DeBERTa model for prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>); and the LLM-as-judge verifier. Next up, roughly in order: deeper HCL resolution (variables, modules), more cloud and Kubernetes rules, and PR design-diffing. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
   </article>
 </div>
 

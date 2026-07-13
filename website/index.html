@@ -47,6 +47,14 @@
     width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
     display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
   .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  /* interactive polish: cards lift, comparison rows highlight on hover */
+  .col{transition:transform .16s ease, box-shadow .16s ease}
+  .col:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(23,31,28,.08)}
+  .vs-table tbody tr{transition:background .16s ease}
+  .vs-table tbody tr:hover{background:var(--us-tint)}
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .55s ease, transform .55s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
@@ -230,7 +238,7 @@
     </div>
     <div class="badges" aria-label="Project facts">
       <span class="badge">Scans <b>AI agents &amp; MCP</b></span>
-      <span class="badge">PyPI <b>v0.6.0</b></span>
+      <span class="badge">PyPI <b>v0.9.0</b></span>
       <span class="badge">Apache&nbsp;2.0</span>
       <span class="badge">Python <b>3.10+</b></span>
       <span class="badge">Zero required deps</span>
@@ -274,7 +282,7 @@
   <section id="vs">
     <div class="wrap">
       <h2>Why not just Checkov or Trivy?</h2>
-      <p class="section-lede">Keep using them. They are excellent at cloud infrastructure, and attestral is not out to replace them; it scans the same Terraform and Kubernetes with 57 rules of its own. But those tools were built before agents had tools. They do not parse an <code>.mcp.json</code>, they cannot tell that a tool description is quietly asking the model to read your SSH key, and they have no concept of the trust boundary between an agent and the shell it can call. That agentic surface is the entire reason attestral exists.</p>
+      <p class="section-lede">Keep using them. They are excellent at cloud infrastructure, and attestral is not out to replace them; it scans the same Terraform and Kubernetes with a solid CIS-grounded pack of its own. But those tools were built before agents had tools. They do not parse an <code>.mcp.json</code>, they cannot tell that a tool description is quietly asking the model to read your SSH key, and they have no concept of the trust boundary between an agent and the shell it can call. Attestral does one thing they structurally can't: it builds a system model of your whole agent fleet, so it catches the <em>toxic flows</em> that only exist across servers, where private data meets an exit and one injected sentence walks out with your secrets.</p>
       <div class="vs-wrap">
         <table class="vs-table">
           <thead>
@@ -288,7 +296,7 @@
             <tr>
               <td class="cap">Cloud IaC misconfiguration</td>
               <td class="them">Mature and deep. Their home turf.</td>
-              <td class="us"><span class="ck">✓</span>57 rules across AWS, Azure, GCP, and Kubernetes.</td>
+              <td class="us"><span class="ck">✓</span>A CIS-grounded pack across AWS, Azure, GCP, and Kubernetes.</td>
             </tr>
             <tr>
               <td class="cap">MCP server configs (shell access, transport, secrets)</td>
@@ -309,6 +317,21 @@
               <td class="cap">Prompt injection in agentic text</td>
               <td class="them">Out of scope.</td>
               <td class="us"><span class="ck">✓</span>Optional local ML classifier, fully offline.</td>
+            </tr>
+            <tr>
+              <td class="cap">Toxic flows across the tool fleet (lethal trifecta)</td>
+              <td class="them">No fleet model.</td>
+              <td class="us"><span class="ck">✓</span>Named source and sink servers, mapped over the graph.</td>
+            </tr>
+            <tr>
+              <td class="cap">Memory poisoning &amp; risky agent skills</td>
+              <td class="them">Not modeled.</td>
+              <td class="us"><span class="ck">✓</span>World-writable CLAUDE.md, vector stores, SKILL.md grants.</td>
+            </tr>
+            <tr>
+              <td class="cap">Runtime drift &amp; tool rug-pulls</td>
+              <td class="them">Static only.</td>
+              <td class="us"><span class="ck">✓</span>Attested design compiles to a policy; drift is caught.</td>
             </tr>
             <tr>
               <td class="cap">Tamper-evident audit evidence</td>
@@ -338,7 +361,7 @@
         <div class="col">
           <span class="k">Layer 1 · Deterministic</span>
           <h3>Typed rules over a unified model</h3>
-          <p>Terraform, Kubernetes manifests, MCP configs, and system prompts become one graph of components, edges, and trust boundaries. 57 YAML rules with structured matchers fire against that graph, spanning AWS, Azure, GCP, Kubernetes, and agentic surfaces. There is no eval anywhere in the path, and an unknown matcher simply never matches.</p>
+          <p>Terraform, Kubernetes manifests, MCP configs, agent instructions, and system prompts become one graph of components, edges, and trust boundaries. A CIS-grounded pack of typed YAML rules fires against that graph, spanning AWS, Azure, GCP, Kubernetes, and the agentic surfaces nobody else models. There is no eval anywhere in the path, and an unknown matcher simply never matches.</p>
         </div>
         <div class="col">
           <span class="k">Layer 2 · Reasoning</span>
@@ -484,6 +507,17 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
     });
     mq.addEventListener('change',render); // reflect OS change when un-overridden
     render();
+  })();
+</script>
+<script>
+  // Subtle scroll-reveal for section headings and ledes (respects reduced motion).
+  (function(){
+    var els=document.querySelectorAll('section .wrap > h2, section .wrap > .section-lede');
+    if(!('IntersectionObserver' in window)){return;}
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    },{threshold:.12});
+    els.forEach(function(el){ el.classList.add('reveal'); io.observe(el); });
   })();
 </script>
 
