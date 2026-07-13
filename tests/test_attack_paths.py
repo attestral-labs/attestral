@@ -2,11 +2,12 @@
 import json
 
 from attestral.ingest import build_model
-from attestral.paths import external_attack_paths
+from attestral.paths import external_attack_paths, internal_attack_paths
 from attestral.report_terminal import render_attack_paths, render_scan
 from attestral.rules import RuleEngine
 
 FIXTURE = "examples/attack-path"
+INTERNAL_FIXTURE = "examples/internal-attack-path"
 
 
 def _ids(model):
@@ -91,10 +92,41 @@ def test_attack_path_spec_fails_closed(tmp_path):
 
 
 def test_render_attack_paths_block():
+    # The attack-path fixture has both an external and an internal chain.
     text = render_attack_paths(build_model(FIXTURE), color=False)
-    assert "Attack paths (1)" in text
+    assert "Attack paths (2)" in text
+    assert "external chain:" in text and "internal chain:" in text
     assert "entry:" in text and "pivot:" in text and "impact:" in text
     assert "partner-ops" in text and "ops-shell" in text and "web" in text
+
+
+def test_internal_path_synthesized_without_a2a():
+    model = build_model(INTERNAL_FIXTURE)
+    assert external_attack_paths(model) == []          # no A2A entry exists
+    (p,) = internal_attack_paths(model)
+    assert p.kind == "internal"
+    assert p.entry.components == ["web"]                # the untrusted-input tool
+    assert p.pivot.components == ["ops"]                # the shell tool
+    assert "web" in p.impact.components                 # the egress channel
+    # It is rendered, but is NOT a separate finding: ATL-207 and ATL-203
+    # already gate this chain, so a third finding would just be noise.
+    ids = _ids(model)
+    assert "ATL-207" in ids and "ATL-203" in ids
+    assert "ATL-211" not in ids
+
+
+def test_internal_path_needs_all_three_stages(tmp_path):
+    # Untrusted input + egress via one web tool, but nothing runs code -> no path.
+    (tmp_path / "mcp.json").write_text(
+        json.dumps({"mcpServers": {"web": {"command": "uvx", "args": ["mcp-server-fetch"]}}})
+    )
+    assert internal_attack_paths(build_model(tmp_path)) == []
+
+
+def test_render_shows_internal_chain_only_when_no_external():
+    text = render_attack_paths(build_model(INTERNAL_FIXTURE), color=False)
+    assert "internal chain:" in text
+    assert "external chain:" not in text
 
 
 def test_render_attack_paths_empty_without_path(tmp_path):
@@ -106,7 +138,7 @@ def test_render_attack_paths_empty_without_path(tmp_path):
 def test_render_scan_surfaces_the_path():
     model = build_model(FIXTURE)
     text = render_scan(model, RuleEngine().evaluate(model), "attack-path", color=False)
-    assert "⚡ Attack paths" in text
+    assert "Attack paths" in text
     # the block sits above the severity groups
     assert text.index("Attack paths") < text.index("CRITICAL")
 

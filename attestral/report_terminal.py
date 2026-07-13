@@ -94,23 +94,23 @@ def breakdown(findings: list["Finding"], color: bool) -> str:
 
 
 def render_attack_paths(model: "SystemModel", *, color: bool | None = None) -> str:
-    """The assembled kill chains as a highlighted block: entry → pivot → impact
-    with the component at each rung. Empty string when no complete path exists.
-    This is the headline a scatter of individual findings can't convey."""
+    """The assembled kill chains as a highlighted block: for each complete path,
+    entry then pivot then impact, with the component at each rung. Empty string
+    when no complete path exists. This is the connected story a scatter of
+    individual findings does not convey."""
     if color is None:
         color = supports_color()
-    from attestral.paths import external_attack_paths
-    paths = external_attack_paths(model)
+    from attestral.paths import all_attack_paths
+    paths = all_attack_paths(model)
     if not paths:
         return ""
-    header = _paint(f"⚡ Attack paths ({len(paths)})", _SEV_COLOR["critical"], color)
-    lines = [header]
+    lines = [_paint(f"Attack paths ({len(paths)})", _SEV_COLOR["critical"], color)]
     for p in paths:
+        lines.append(f"  {_bold(f'{p.kind} chain', color)}:")
         for stage in (p.entry, p.pivot, p.impact):
-            arrow = _dim("→", color)
             role = _dim(f"{stage.role}:", color)
             comps = _bold(", ".join(stage.components), color)
-            lines.append(f"  {arrow} {role} {stage.label}  [{comps}]")
+            lines.append(f"    {role} {stage.label}  [{comps}]")
     return "\n".join(lines)
 
 
