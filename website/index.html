@@ -7,7 +7,7 @@
 <meta name="description" content="The security scanner for AI agents and MCP servers. Attestral reviews system prompts, tool descriptions, and MCP configs, models your cloud and Kubernetes alongside the agent, and lands every finding in a tamper-evident evidence chain. Open source, Apache 2.0.">
 <link rel="canonical" href="https://attestral.vercel.app/">
 <meta name="theme-color" content="#96222E">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2396222E'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
 <!-- social sharing -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Attestral">
@@ -17,6 +17,10 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Attestral: the security scanner for AI agents and MCP servers">
 <meta name="twitter:description" content="Scans agents, MCP servers, and the cloud they touch. Deterministic rules + a local prompt-injection classifier + a SHA-256 evidence chain you verify offline. pip install attestral.">
+<meta property="og:image" content="https://attestral.vercel.app/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://attestral.vercel.app/assets/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -68,6 +72,7 @@
   .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
   .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;letter-spacing:.01em;color:var(--ink);text-decoration:none}
   .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
   .nav-links{display:flex;gap:26px;font-size:.92rem}
   .nav-links a{color:var(--ink);text-decoration:none}
   .nav-links a:hover{color:var(--seal)}
@@ -172,6 +177,7 @@
   /* footer */
   footer{border-top:1px solid var(--rule);padding:44px 0 56px;font-size:.85rem;color:var(--muted)}
   footer .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .foot-labs{display:flex;align-items:center;gap:9px}
   .foot a{color:var(--seal)}
 </style>
 <script>
@@ -184,11 +190,12 @@
 
 <header>
   <div class="wrap nav">
-    <a class="wordmark" href="#">Attestral<span>.</span></a>
+    <a class="wordmark" href="#"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
     <nav class="nav-links" aria-label="Main">
       <a href="#how">How it works</a>
       <a href="#start">Get started</a>
       <a href="docs.html">Docs</a>
+      <a href="ml-deberta.html">ML layer</a>
       <a href="https://github.com/attestral-labs/attestral">GitHub</a>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
     </nav>
@@ -211,40 +218,36 @@
     </div>
 
     <!-- The "oh no" moment: real demo scan output -->
-    <figure class="demo" aria-label="Terminal: attestral scan flags nine findings on an insecure MCP agent">
+    <figure class="demo" aria-label="Terminal: attestral scan flags fourteen findings on an insecure MCP agent, including a lethal-trifecta toxic flow across servers">
       <div class="demo-bar" aria-hidden="true">
         <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
         <span class="demo-title">attestral scan · the 10-second demo</span>
       </div>
       <div class="demo-body">
 <span class="p">$</span> attestral scan examples/vulnerable-agent<br>
+&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-202&nbsp;&nbsp;Tool fleet forms an exfiltration chain (lethal trifecta)&nbsp;&nbsp;(model)<br>
+&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-108&nbsp;&nbsp;Agent tool calls auto-approved with no human checkpoint&nbsp;&nbsp;(mcp_server.shell)<br>
 &nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-103&nbsp;&nbsp;Shell-capable MCP server configured&nbsp;&nbsp;(mcp_server.shell)<br>
-&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-103&nbsp;&nbsp;Shell-capable MCP server configured&nbsp;&nbsp;(mcp_server.deploy)<br>
-&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-101&nbsp;&nbsp;MCP server uses non-TLS transport&nbsp;&nbsp;(mcp_server.jira)<br>
-&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-102&nbsp;&nbsp;Filesystem MCP server rooted at a broad path&nbsp;&nbsp;(mcp_server.filesystem)<br>
-&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-105&nbsp;&nbsp;MCP server auto-installs packages at launch&nbsp;&nbsp;(mcp_server.filesystem)<br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-207&nbsp;&nbsp;Untrusted input can reach a sensitive action&nbsp;&nbsp;(model)<br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-115&nbsp;&nbsp;Remote server holds a downstream credential&nbsp;&nbsp;(mcp_server.jira)<br>
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-105&nbsp;&nbsp;MCP server auto-installs packages at launch&nbsp;&nbsp;(mcp_server.web)<br>
 &nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-104&nbsp;&nbsp;Secrets passed to MCP server via environment&nbsp;&nbsp;(mcp_server.jira)<br>
-&nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-106&nbsp;&nbsp;MCP server pinned to a mutable tag&nbsp;&nbsp;(mcp_server.deploy)<br>
-&nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-107&nbsp;&nbsp;MCP server grants outbound network or browser access&nbsp;&nbsp;(mcp_server.web)<br>
-6 components · <b>9 findings</b> · <span class="crit">2 critical</span>, <span class="high">4 high</span>, <span class="med">3 medium</span>
+&nbsp;&nbsp;<span class="p">…</span> and 7 more<br>
+6 components · <b>14 findings</b> · <span class="crit">4 critical</span>, <span class="high">7 high</span>, <span class="med">3 medium</span>
       </div>
     </figure>
-    <p class="demo-cap">A design review of the <code>vulnerable-agent</code> example in the repo: two small config files, nine design findings, zero cloud credentials required. Point it at your own machine with <code>attestral scan --local</code>, or add <code>--ml</code> to also catch the prompt-injection payload hidden in a tool description.</p>
+    <p class="demo-cap">A design review of the <code>vulnerable-agent</code> example in the repo: two small config files, fourteen design findings, zero cloud credentials required. Three are fleet-level, including a lethal trifecta that only exists once you model all the servers together. Point it at your own machine with <code>attestral scan --local</code>, or add <code>--ml</code> to also catch the prompt-injection payload hidden in a tool description.</p>
 
     <div class="cta-row">
       <a class="btn primary" href="#start">Run the full loop</a>
       <a class="ghstar" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>
     </div>
     <div class="badges" aria-label="Project facts">
-      <span class="badge">Scans <b>AI agents &amp; MCP</b></span>
-      <span class="badge">PyPI <b>v0.9.0</b></span>
-      <span class="badge">Apache&nbsp;2.0</span>
+      <span class="badge">PyPI <b>v0.12.0</b></span>
       <span class="badge">Python <b>3.10+</b></span>
       <span class="badge">Zero required deps</span>
       <span class="badge">Runs <b>fully offline</b></span>
-      <span class="badge">GitHub <b>Code Scanning</b></span>
-      <span class="badge">NIST · ASVS · SOC&nbsp;2 · OWASP&nbsp;Agentic</span>
+      <span class="badge">Apache&nbsp;2.0</span>
     </div>
 
     <!-- Signature: the evidence chain -->
@@ -387,7 +390,7 @@
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-102&nbsp;&nbsp;Filesystem MCP server rooted at a broad path&nbsp;&nbsp;(mcp_server.filesystem)<br>
 7 components · 10 findings · chain head c31f8e…9bd4<br>
 <span class="p">$</span> attestral verify review.json<br>
-chain <span class="ok">VALID ✅</span>
+chain <span class="ok">VALID</span>
       </div>
     </div>
   </section>
@@ -456,7 +459,7 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       <div class="term" aria-label="Install and run the full loop">
 <span class="p">$</span> pip install attestral<br>
 <span class="p">$</span> attestral scan ./my-project&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="p"># attest: one system model, reviewed</span><br>
-<span class="p">$</span> attestral verify review.json&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="p"># prove: chain <span class="ok">VALID ✅</span></span><br>
+<span class="p">$</span> attestral verify review.json&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="p"># prove: chain <span class="ok">VALID</span></span><br>
 <span class="p">$</span> attestral compile ./my-project -o policy.yaml&nbsp;&nbsp;<span class="p"># enforce: default-deny policy</span><br>
 <span class="p">$</span> attestral drift policy.yaml events.jsonl&nbsp;&nbsp;<span class="p"># detect: runtime vs. reviewed design</span>
       </div>
@@ -480,7 +483,7 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
 <footer>
   <div class="wrap foot">
     <div>Attestral: the security scanner for AI agents and MCP servers.<br><code>pip install attestral</code> · Open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a></div>
-    <div>© 2026 Attestral. Apache 2.0.</div>
+    <div class="foot-labs"><svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><g fill="var(--ink)"><circle cx="90.00" cy="50.00" r="4.8"/><circle cx="89.00" cy="58.90" r="4.8"/><circle cx="86.04" cy="67.36" r="4.8"/><circle cx="81.27" cy="74.94" r="4.8"/><circle cx="74.94" cy="81.27" r="4.8"/><circle cx="67.36" cy="86.04" r="4.8"/><circle cx="58.90" cy="89.00" r="4.8"/><circle cx="50.00" cy="90.00" r="4.8"/><circle cx="41.10" cy="89.00" r="4.8"/><circle cx="32.64" cy="86.04" r="4.8"/><circle cx="25.06" cy="81.27" r="4.8"/><circle cx="18.73" cy="74.94" r="4.8"/><circle cx="13.96" cy="67.36" r="4.8"/><circle cx="11.00" cy="58.90" r="4.8"/><circle cx="10.00" cy="50.00" r="4.8"/><circle cx="11.00" cy="41.10" r="4.8"/><circle cx="13.96" cy="32.64" r="4.8"/><circle cx="18.73" cy="25.06" r="4.8"/><circle cx="25.06" cy="18.73" r="4.8"/><circle cx="32.64" cy="13.96" r="4.8"/><circle cx="41.10" cy="11.00" r="4.8"/><circle cx="50.00" cy="10.00" r="4.8"/><circle cx="58.90" cy="11.00" r="4.8"/><circle cx="67.36" cy="13.96" r="4.8"/><circle cx="74.94" cy="18.73" r="4.8"/><circle cx="81.27" cy="25.06" r="4.8"/><circle cx="86.04" cy="32.64" r="4.8"/><circle cx="89.00" cy="41.10" r="4.8"/><circle cx="50" cy="50" r="40"/></g><circle cx="50" cy="50" r="27.5" fill="none" stroke="var(--paper)" stroke-width="2.2"/><g stroke="var(--paper)" stroke-width="6.5" stroke-linecap="round"><path d="M50.00,67.00 L50.00,33.00"/><path d="M35.28,58.50 L64.72,41.50"/><path d="M35.28,41.50 L64.72,58.50"/></g></svg>An Attestral Labs project · © 2026 · Apache 2.0</div>
   </div>
 </footer>
 

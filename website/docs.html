@@ -6,7 +6,7 @@
 <title>Documentation - Attestral</title>
 <meta name="description" content="Documentation for the open-source Attestral CLI, the security scanner for AI agents and MCP servers: scan, verify, compile, drift, rule authoring, and the evidence chain.">
 <meta name="theme-color" content="#96222E">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2396222E'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -44,6 +44,7 @@
   .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
   .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);text-decoration:none}
   .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
   .nav-links{display:flex;gap:26px;font-size:.92rem}
   .nav-links a{color:var(--ink);text-decoration:none}
   .nav-links a:hover{color:var(--seal)}
@@ -120,11 +121,12 @@
 
 <header>
   <div class="wrap nav">
-    <a class="wordmark" href="index.html">Attestral<span>.</span></a>
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
     <nav class="nav-links" aria-label="Main">
       <a href="index.html#how">How it works</a>
       <a href="index.html#start">Get started</a>
       <a href="docs.html" aria-current="page">Docs</a>
+      <a href="ml-deberta.html">ML layer</a>
       <a href="https://github.com/attestral-labs/attestral">GitHub</a>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
     </nav>
@@ -325,7 +327,7 @@ attestral scan . --judge --judge-suppress</code></pre>
 </div>
 
 <footer>
-  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> · © 2026 Attestral · Apache 2.0</div>
+  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> · An Attestral Labs project · © 2026 · Apache 2.0</div>
 </footer>
 
 </body>
