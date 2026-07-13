@@ -106,36 +106,85 @@ def _call_signature(ev: dict) -> str:
     return f"{ev.get('server', '')}\x00{ev.get('tool', '')}\x00{args}"
 
 
+def _int_budget(val, minimum: int):
+    """Coerce a budget value to an int >= minimum, else None (check disabled).
+    Fails CLOSED on garbage - a hand-edited non-numeric budget disables that
+    one check rather than crashing the whole drift run."""
+    try:
+        n = int(val)
+    except (TypeError, ValueError):
+        return None
+    return n if n >= minimum else None
+
+
+def _consecutive(events: list[dict], keyfn):
+    """Yield (first_event, run_length, distinct_signatures, first_index) for each
+    maximal run of CONSECUTIVE events sharing keyfn(event). Only adjacency counts,
+    so benign identical calls spaced across the session don't accumulate."""
+    runs = []
+    key = None
+    count = 0
+    sigs: set = set()
+    first = None
+    start = 0
+    for i, ev in enumerate(events, 1):
+        k = keyfn(ev)
+        if k == key:
+            count += 1
+            sigs.add(_call_signature(ev))
+        else:
+            if count:
+                runs.append((first, count, len(sigs), start))
+            key, count, sigs, first, start = k, 1, {_call_signature(ev)}, ev, i
+    if count:
+        runs.append((first, count, len(sigs), start))
+    return runs
+
+
 def _budget_drift(policy: dict, events: list[dict]) -> list[Finding]:
     """Resource-drain / DoS checks (R7): runaway loops (DRF-006) and per-server
     call-volume overruns (DRF-007), enforced against the policy's budgets block.
     Aggregate over the whole event stream, so they run once, not per event."""
     budgets = policy.get("budgets") or {}
-    loop_threshold = budgets.get("loop_repeat_threshold")
-    max_calls = budgets.get("max_calls_per_server")
+    loop_threshold = _int_budget(budgets.get("loop_repeat_threshold"), 1)
+    max_calls = _int_budget(budgets.get("max_calls_per_server"), 0)
     out: list[Finding] = []
 
+    # DRF-006 - a runaway loop is a CONSECUTIVE run: identical (server,tool,args)
+    # past loop_threshold, OR the same (server,tool) with VARYING arguments
+    # (e.g. page=1,2,3...) past 2x the threshold so that stays low-noise.
     if loop_threshold:
-        repeats: dict[str, int] = {}
-        first_seen: dict[str, tuple[int, dict]] = {}
-        for i, ev in enumerate(events, 1):
-            sig = _call_signature(ev)
-            repeats[sig] = repeats.get(sig, 0) + 1
-            first_seen.setdefault(sig, (i, ev))
-        for sig, count in repeats.items():
+        for ev, count, _sigs, idx in _consecutive(events, _call_signature):
             if count >= loop_threshold:
-                i, ev = first_seen[sig]
                 out.append(_mk(
                     "DRF-006", str(ev.get("server", "")),
-                    f"tool '{ev.get('tool', '')}' called {count} times with identical "
-                    f"arguments (loop threshold {loop_threshold}) - possible runaway loop",
-                    i,
+                    f"tool '{ev.get('tool', '')}' called {count} times in a row with "
+                    f"identical arguments (threshold {loop_threshold}) - runaway loop",
+                    idx,
+                ))
+        for ev, count, distinct, idx in _consecutive(
+            events, lambda e: (str(e.get("server", "")), str(e.get("tool", "")))
+        ):
+            if distinct > 1 and count >= 2 * loop_threshold:
+                out.append(_mk(
+                    "DRF-006", str(ev.get("server", "")),
+                    f"tool '{ev.get('tool', '')}' called {count} times in a row with "
+                    f"varying arguments (threshold {2 * loop_threshold}) - runaway loop",
+                    idx,
                 ))
 
-    if max_calls:
+    # DRF-007 - per-server call volume over budget, only for attested & allowed
+    # servers (unattested/denied servers are DRF-001/002's job, not a budget
+    # overrun). max_calls == 0 means deny-all and is enforced, not ignored.
+    if max_calls is not None:
+        servers = policy.get("servers", {})
         per_server: dict[str, int] = {}
         for ev in events:
-            per_server[str(ev.get("server", ""))] = per_server.get(str(ev.get("server", "")), 0) + 1
+            name = str(ev.get("server", ""))
+            entry = servers.get(name)
+            if entry is None or not entry.get("allow", False):
+                continue
+            per_server[name] = per_server.get(name, 0) + 1
         for server, count in sorted(per_server.items()):
             if count > max_calls:
                 out.append(_mk(

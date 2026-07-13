@@ -135,14 +135,11 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             # Confused-deputy / token passthrough (MCP Security Best Practices
             # 2025-06-18): a network-reachable server that ALSO holds a
             # downstream credential can be induced to spend that delegated
-            # authority on an attacker's behalf. Downstream creds = a secret in
-            # env or an auth/api-key/token header the server forwards onward.
-            downstream_cred = attrs["_env_has_secrets"] or any(
-                "authorization" in k or "api-key" in k
-                or "apikey" in k or "token" in k
-                for k in header_keys
-            )
-            attrs["_confused_deputy"] = bool(downstream_cred)
+            # authority on an attacker's behalf. The downstream credential is a
+            # secret the SERVER PROCESS holds (in env) - NOT an auth header,
+            # which is the client's inbound credential to reach this endpoint
+            # (ATL-109's own remediation) and must never trip a deputy finding.
+            attrs["_confused_deputy"] = bool(attrs["_env_has_secrets"])
         # Coarse capability classes for the model-level combination
         # rules. The risk they capture is fleet-level: no single server
         # is the finding - private data + an outbound channel is an

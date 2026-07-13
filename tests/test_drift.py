@@ -96,6 +96,70 @@ def test_budgets_absent_means_no_r7_findings():
     assert not [f for f in hits if f.rule_id in ("DRF-006", "DRF-007")]
 
 
+def test_non_integer_budget_fails_closed_not_crash():
+    # A hand-edited/stringified budget must not abort the whole drift run.
+    policy = _policy()
+    policy["budgets"] = {"loop_repeat_threshold": "abc", "max_calls_per_server": None}
+    hits = detect_drift(
+        policy, load_events("examples/demo-project/runtime-events-r7.jsonl")
+    )
+    # No crash; the numeric checks are disabled but other drift still evaluates.
+    assert not [f for f in hits if f.rule_id in ("DRF-006", "DRF-007")]
+
+
+def test_stringified_numeric_budget_still_enforces():
+    policy = _policy()
+    policy["budgets"] = {"loop_repeat_threshold": "5", "max_calls_per_server": "100"}
+    hits = detect_drift(
+        policy, load_events("examples/demo-project/runtime-events-r7.jsonl")
+    )
+    assert any(f.rule_id == "DRF-006" for f in hits)
+
+
+def test_zero_budget_is_enforced_not_disabled():
+    # max_calls_per_server = 0 is the strictest budget (deny-all), must fire.
+    policy = _policy()
+    policy["budgets"] = {"max_calls_per_server": 0}
+    hits = detect_drift(
+        policy, load_events("examples/demo-project/runtime-events-r7.jsonl")
+    )
+    assert any(f.rule_id == "DRF-007" for f in hits)
+
+
+def test_non_consecutive_identical_calls_are_not_a_loop():
+    # Identical calls spaced apart (not adjacent) must not trip DRF-006.
+    policy = _policy()
+    events = [
+        {"server": "docs", "tool": "read_file", "args": ["/srv/docs/a.md"]},
+        {"server": "docs", "tool": "read_file", "args": ["/srv/docs/b.md"]},
+        {"server": "docs", "tool": "read_file", "args": ["/srv/docs/a.md"]},
+        {"server": "docs", "tool": "read_file", "args": ["/srv/docs/b.md"]},
+        {"server": "docs", "tool": "read_file", "args": ["/srv/docs/a.md"]},
+    ]  # /a.md appears 3x but never consecutively
+    assert not [f for f in detect_drift(policy, events) if f.rule_id == "DRF-006"]
+
+
+def test_varying_argument_loop_detected():
+    # A consecutive run of the same tool with varying args (page=1..10) is a
+    # runaway loop even though no two calls are byte-identical.
+    policy = _policy()
+    events = [
+        {"server": "docs", "tool": "read_file", "args": [f"/srv/docs/p{n}.md"]}
+        for n in range(10)
+    ]
+    assert any(f.rule_id == "DRF-006" for f in detect_drift(policy, events))
+
+
+def test_volume_budget_ignores_unattested_servers():
+    # An unattested server's calls are DRF-001, not a budget overrun (DRF-007).
+    policy = _policy()
+    policy["budgets"]["max_calls_per_server"] = 2
+    events = [{"server": "ghost", "tool": "x", "args": []} for _ in range(5)]
+    hits = detect_drift(policy, events)
+    assert not [f for f in hits if f.rule_id == "DRF-007"]
+    assert any(f.rule_id == "DRF-001" for f in hits)
+
+
 def test_manifest_hash_is_order_insensitive():
     from attestral.manifest import manifest_hash
 

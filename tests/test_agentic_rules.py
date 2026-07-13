@@ -53,6 +53,34 @@ def test_confused_deputy_needs_both_remote_and_cred(tmp_path):
     assert "ATL-115" not in {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
+def test_header_authed_remote_is_not_confused_deputy(tmp_path):
+    # A client auth header is inbound auth TO the endpoint (ATL-109's fix),
+    # NOT a downstream credential - it must not trip ATL-115.
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(
+        '{"mcpServers": {"github-remote": {"url": "https://api.githubcopilot.com/mcp/",'
+        ' "headers": {"Authorization": "Bearer ghp_clientToken"}}}}'
+    )
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+    model = ingest_mcp(cfg, SystemModel())
+    srv = model.get("mcp_server.github-remote")
+    assert srv.attr("_confused_deputy") is False
+    assert srv.attr("_remote_unauthed") is False  # it IS authenticated
+    ids = {f.rule_id for f in RuleEngine().evaluate(model)}
+    assert "ATL-115" not in ids and "ATL-109" not in ids
+
+
+def test_malformed_taint_flow_noniterable_fails_closed(tmp_path):
+    rules = tmp_path / "rules.yaml"
+    rules.write_text(
+        "rules:\n  - id: X-3\n    title: bad\n    severity: high\n    target: model\n"
+        "    match: { model_taint_flow: { sources: 5, sinks: 5 } }\n"
+    )
+    model = build_model(FIXTURE)  # must not raise
+    assert "X-3" not in {f.rule_id for f in RuleEngine(rule_paths=[rules]).evaluate(model)}
+
+
 def test_local_server_with_secret_is_not_confused_deputy(tmp_path):
     # A stdio server (no url) holding a secret is ATL-104's job, not a deputy.
     cfg = tmp_path / "mcp.json"

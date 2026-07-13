@@ -21,10 +21,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   linter can't produce. Closes the information-flow gap from the threat-model doc.
 - **R7 resource-drain / DoS budgets** (Kim et al. 2026 R7): the compiled policy
   now carries a tunable `budgets` block, and `drift` enforces it against runtime
-  telemetry - a runaway tool-call loop (same call repeated past
-  `loop_repeat_threshold`) is **DRF-006**, and per-server call volume over
-  `max_calls_per_server` is **DRF-007**. Closes the first open gap from
+  telemetry - a runaway tool-call loop (**DRF-006**: consecutive identical calls
+  past `loop_repeat_threshold`, or a same-tool run with varying arguments past
+  2x) and per-server call volume over `max_calls_per_server` (**DRF-007**, for
+  attested servers). Budgets fail closed on malformed values and a budget of 0
+  is enforced, not ignored. Closes the first open gap from
   docs/agentic-threat-model.md.
+
+### Fixed
+- Hardened the v0.9 additions after an adversarial review pass: ATL-115 no
+  longer flags a correctly-authenticated remote server (a client auth header is
+  inbound auth, not a downstream credential); drift budgets fail closed on
+  non-integer values instead of crashing; DRF-006 only counts *consecutive*
+  runs (no false positives from spaced-out identical calls) and now also catches
+  varying-argument loops; DRF-007 ignores unattested servers; and the
+  `model_taint_flow` matcher fails closed on a non-list spec.
 
 ## [0.8.0] - 2026-07-12
 

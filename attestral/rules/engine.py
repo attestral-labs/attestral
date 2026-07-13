@@ -142,7 +142,9 @@ class RuleEngine:
             # capability_combo trifecta in that it names the actual source and
             # sink servers - the path is what the structural model can see.
             spec = match["model_taint_flow"]
-            if not (isinstance(spec, dict) and spec.get("sources") and spec.get("sinks")):
+            if not (isinstance(spec, dict)
+                    and isinstance(spec.get("sources"), list) and spec["sources"]
+                    and isinstance(spec.get("sinks"), list) and spec["sinks"]):
                 return []  # malformed spec: fail closed
             src_caps, sink_caps = set(spec["sources"]), set(spec["sinks"])
             src_servers, sink_servers = [], []
