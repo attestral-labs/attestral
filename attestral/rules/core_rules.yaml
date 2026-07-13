@@ -834,3 +834,45 @@ rules:
     description: The same server name is defined more than once with different commands or endpoints, so which code answers to that identity depends on config precedence - the shape of a server-impersonation or rug-pull attack.
     recommendation: Keep one definition per server name; if an override is intentional, make the definitions identical or rename the variant so the identity is unambiguous.
     frameworks: ["SAFE-MCP SAF-T1003", "OWASP-ASI04:2026", "MCP Security Best Practices 2025-06-18", "NIST IA-4"]
+
+  # --- Multi-agent delegation wave: subagent definitions (.claude/agents/)
+  # --- and A2A agent cards (.well-known/agent-card.json) are part of the
+  # --- system's capability surface. Subagent tool grants feed the fleet
+  # --- combination rules (ATL-202/203/207) via the engine's delegation
+  # --- closure. Fixtures: examples/multi-agent/.
+
+  - id: ATL-119
+    title: Subagent granted shell execution
+    severity: high
+    target: subagent
+    match: { attr_list_contains: { _capabilities: "shell" } }
+    description: A delegate the main agent can invoke holds a shell-execution tool grant, so one injected instruction anywhere in the delegation chain becomes command execution - outside the MCP fleet most reviews look at.
+    recommendation: Drop Bash from the subagent's tools list; give it narrowly scoped tools, or gate its invocation behind human approval.
+    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI02:2026", "NIST AC-6"]
+
+  - id: ATL-120
+    title: Subagent inherits every tool of the main agent
+    severity: medium
+    target: subagent
+    match: { attr_equals: { _wildcard_tools: true } }
+    description: The subagent declares no tools list (or a wildcard), so it inherits the main agent's full tool surface - excessive agency in a delegate whose prompt and purpose were written for a narrower job.
+    recommendation: Declare an explicit, minimal tools list in the subagent's frontmatter.
+    frameworks: ["OWASP LLM06 Excessive Agency", "OWASP-ASI02:2026", "NIST AC-6"]
+
+  - id: ATL-121
+    title: A2A agent endpoint declares no authentication
+    severity: high
+    target: a2a_agent
+    match: { attr_equals: { _no_auth_declared: true } }
+    description: The agent card advertises an endpoint with no securitySchemes or security requirement, so any agent (or attacker) that can reach the URL can delegate tasks to it and consume its skills - a public agent.
+    recommendation: Declare securitySchemes (OpenAPI-style) in the agent card and enforce them at the endpoint; require per-caller identity for inter-agent requests.
+    frameworks: ["OWASP-ASI07:2026", "A2A Protocol AgentCard v1", "NIST IA-2"]
+
+  - id: ATL-122
+    title: A2A agent endpoint served over plaintext HTTP
+    severity: high
+    target: a2a_agent
+    match: { attr_starts_with: { url: "http://" } }
+    description: Inter-agent task traffic (instructions, artifacts, and any data the tasks carry) crosses the network unencrypted and can be read or altered in transit.
+    recommendation: Serve the A2A endpoint over HTTPS only and update the agent card url.
+    frameworks: ["OWASP-ASI07:2026", "NIST SC-8"]

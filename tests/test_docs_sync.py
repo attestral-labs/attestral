@@ -33,6 +33,7 @@ DIAGRAM_KEYWORDS = {
     "waivers.py": "Waivers",
     "evidence.py": "Evidence",
     "sarif.py": "SARIF",
+    "aibom.py": "AI-BOM",
     "report_terminal.py": "Terminal",
     "compile.py": "compile",
     "drift.py": "drift",

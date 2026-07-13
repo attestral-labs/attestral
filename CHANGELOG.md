@@ -6,8 +6,50 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
-_Next: deeper HCL resolution (variables/modules) to raise real-world cloud
-coverage, A2A / multi-agent delegation modeling, and an AI-BOM export._
+## [0.11.0] - 2026-07-13
+
+### Added
+- **AI-BOM export** (`attestral scan <path> --format aibom -o inv` →
+  `inv.cdx.json`): the agent stack as a CycloneDX 1.6 inventory. Stdio MCP
+  servers and subagents become `components` (with `pkg:npm`/`pkg:pypi` purls
+  when the launch pins a package version, capability classes, and the
+  canonical manifest SHA-256 that DRF-005 enforces at runtime); remote MCP
+  servers and A2A agent cards become `services` with their real
+  `authenticated` state and `x-trust-boundary`; instruction/prompt surfaces
+  are `data` components; the delegation/tool-access graph is the
+  `dependencies` entry. Cloud resources are deliberately excluded - they
+  belong in an infrastructure SBOM. Findings say what is wrong; the BOM says
+  what is there.
+- **Multi-agent delegation modeling**: Claude Code subagent definitions
+  (`.claude/agents/*.md`) are ingested as `subagent` components whose
+  frontmatter `tools:` grants derive capabilities (Bash → shell,
+  WebFetch/WebSearch → network, Read/Write/... → filesystem), and the
+  fleet-level rules (ATL-202/203/207) now reason over the **delegation
+  closure** - an MCP fleet with no shell still completes shell+network through
+  a delegate, and the finding names the chain (`filesystem via notes; network
+  via deploy-bot`). Wildcard delegates (no `tools:` key) are flagged as
+  excessive agency (**ATL-120**) but deliberately contribute no capabilities -
+  unknown grants are never guessed into findings. Shell-granted delegates are
+  **ATL-119**. A2A agent cards (`.well-known/agent-card.json` / `agent.json`)
+  are ingested as `a2a_agent` components: no declared `securitySchemes`/
+  `security` is a public agent (**ATL-121**, OWASP-ASI07) and a plaintext
+  `http://` endpoint is **ATL-122**. Fixture: `examples/multi-agent/` - its
+  MCP fleet is safe on its own; every fleet finding exists only across the
+  delegation hop.
+- **Static HCL resolution** in the Terraform ingester: `var.x` resolves from
+  `variable` defaults overridden by `terraform.tfvars`/`*.auto.tfvars` (root
+  modules only, per Terraform semantics), `local.x` resolves iteratively,
+  `"${..}"` interpolations substitute when fully decidable, and **local
+  `module` calls are instantiated** once per call under their real Terraform
+  address (`module.<name>.<type>.<rname>`) with call inputs overriding module
+  defaults (registry/git modules skipped; cycles cut; depth bounded). This is
+  the multiplier that makes the cloud rule pack fire on real-world repos, not
+  just literal-value fixtures. Fail-open contract: anything not statically
+  decidable stays exactly as written - resolution adds provable findings,
+  never guessed ones. Both parse tiers (python-hcl2 and the dependency-free
+  scanner, which now also strips inline comments) resolve identically.
+  Fixture: `examples/hcl-resolution/` - no risky literal anywhere; every
+  finding requires resolution.
 
 ## [0.10.0] - 2026-07-13
 

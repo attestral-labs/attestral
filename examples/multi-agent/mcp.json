@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "notes": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem@1.4.2", "/srv/project-notes"]
+    }
+  }
+}

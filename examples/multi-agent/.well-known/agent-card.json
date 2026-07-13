@@ -1,0 +1,17 @@
+{
+  "name": "support-triage",
+  "description": "Classifies inbound support tickets and drafts responses.",
+  "url": "http://agents.internal.example/a2a/support-triage",
+  "version": "1.2.0",
+  "protocolVersion": "1.0",
+  "capabilities": { "streaming": true },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {
+      "id": "triage",
+      "name": "Ticket triage",
+      "description": "Classify a ticket and draft a first response."
+    }
+  ]
+}

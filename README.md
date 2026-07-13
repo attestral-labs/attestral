@@ -59,8 +59,11 @@ attestral scan .    # review the current project - prints straight to your termi
 attestral scan .                          # print only - nothing is written
 attestral scan . -o review                # write review.md + review.json
 attestral scan . --format sarif -o out    # write out.sarif for GitHub Code Scanning
+attestral scan . --format aibom -o inv    # write inv.cdx.json - a CycloneDX 1.6 AI-BOM
 attestral scan . --quiet --fail-on high   # CI: just the summary + gate line, exit 1 on high+
 ```
+
+The AI-BOM is the inventory counterpart to the findings: every MCP server, subagent, A2A endpoint, and instruction surface in the scan as a CycloneDX 1.6 component or service - with pinned-package purls, capability classes, canonical manifest hashes, and the `authenticated` flag on remote endpoints - ready for the compliance and procurement workflows that consume SBOMs today.
 
 `--quiet` drops the per-finding detail and prints only the summary and gate (nothing at all on a clean scan). Colour is emitted only to an interactive terminal and is suppressed under `NO_COLOR` or when the output is piped, so CI logs and pipes stay plain.
 
@@ -93,11 +96,11 @@ Every finding maps to NIST 800-53, ASVS, SOC 2, CIS (AWS/Azure/GCP/K8s), OWASP L
 ```mermaid
 flowchart TB
     subgraph ING["1 · Ingest"]
-        TF["Terraform (.tf)"] --> M
+        TF["Terraform (.tf)<br/>vars · locals · local modules resolved"] --> M
         K8S["Kubernetes<br/>manifests (.yaml)"] --> M
         MCP["MCP configs<br/>(mcp.json)"] --> M
         SP["System prompts, agent instructions<br/>(CLAUDE.md/.cursorrules), skills (SKILL.md)<br/>+ tool descriptions"] --> M
-        AC["Agent settings + hooks<br/>(.claude/settings.json)"] --> M
+        AC["Agent settings + hooks, subagents,<br/>A2A agent cards (.claude/**, .well-known/)"] --> M
         LC["Installed agent configs<br/>(scan --local)"] --> M
         M["SystemModel<br/>components · edges · trust boundaries"]
     end
@@ -110,7 +113,7 @@ flowchart TB
     end
     REV --> W["Waivers<br/>documented, expiring exceptions"]
     W --> EV["3 · Evidence<br/>SHA-256 hash chain · verify offline"]
-    EV --> OUT["Output: Terminal (default, writes nothing) · Markdown · JSON · <b>SARIF</b> (Code Scanning)"]
+    EV --> OUT["Output: Terminal (default, writes nothing) · Markdown · JSON · <b>SARIF</b> (Code Scanning) · <b>AI-BOM</b> (CycloneDX 1.6)"]
     style L1 fill:#0a7d3611,stroke:#0a7d36
     style L3 fill:#96222E11,stroke:#96222E
 ```
