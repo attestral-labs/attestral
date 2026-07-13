@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "attestral"
-version = "0.9.0"
+version = "0.10.0"
 description = "Continuous, audit-ready security design review for cloud and agentic systems"
 readme = "README.md"
 license = { text = "Apache-2.0" }
