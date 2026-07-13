@@ -563,6 +563,15 @@ rules:
     recommendation: Mount only the specific project directory the workflow needs, read-only where possible; never expose the Docker socket to a tool server.
     frameworks: ["OWASP-ASI02:2026", "CIS Docker 5.5", "NIST AC-6"]
 
+  - id: ATL-112
+    title: Agent tool server holds cloud credentials
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _has_cloud_credentials: true } }
+    description: The tool server's environment carries cloud provider credentials, a live and provable path from the agent runtime into the cloud trust boundary (recorded as a reachability edge in the model).
+    recommendation: Put cloud access behind a scoped broker or short-lived role assumption; never hand raw cloud keys to an agent-reachable tool process.
+    frameworks: ["OWASP-ASI03:2026", "NIST AC-4", "NIST IA-5", "OWASP-AgSec ARCH-1"]
+
   - id: ATL-202
     title: Tool fleet forms an exfiltration chain (lethal trifecta)
     severity: critical

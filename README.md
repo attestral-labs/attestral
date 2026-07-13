@@ -191,10 +191,10 @@ flowchart LR
         v1["report.json"] --> v2["VALID / INVALID<br/>(offline)"]
     end
     subgraph compile["attestral compile"]
-        c1["attested model"] --> c2["default-deny policy<br/>bound to chain head"]
+        c1["attested model"] --> c2["default-deny policy<br/>tool manifest hashes pinned,<br/>bound to chain head"]
     end
     subgraph drift["attestral drift"]
-        d1["policy + telemetry"] --> d2["drift findings"]
+        d1["policy + telemetry"] --> d2["drift findings<br/>incl. manifest rug-pulls (DRF-005)"]
     end
 ```
 

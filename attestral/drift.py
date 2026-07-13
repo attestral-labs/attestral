@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from attestral.manifest import manifest_hash, normalize_tools
 from attestral.model import Finding, Severity
 
 DRIFT_RULES = {
@@ -21,6 +22,7 @@ DRIFT_RULES = {
     "DRF-002": ("Denied server invoked at runtime", Severity.CRITICAL),
     "DRF-003": ("Filesystem access outside attested roots", Severity.HIGH),
     "DRF-004": ("Non-TLS transport observed for TLS-constrained server", Severity.HIGH),
+    "DRF-005": ("Tool manifest changed since attestation (rug-pull)", Severity.CRITICAL),
 }
 
 
@@ -67,6 +69,28 @@ def detect_drift(policy: dict, events: list[dict]) -> list[Finding]:
                     findings.append(_mk("DRF-003", name, f"path '{arg}' outside attested roots {roots}", i))
         if constraints.get("transport") == "tls_only" and str(ev.get("url", "")).startswith("http://"):
             findings.append(_mk("DRF-004", name, f"plaintext url '{ev.get('url')}'", i))
+
+        # Rug-pull check: an event may carry the server's current manifest
+        # (or its precomputed hash). Re-hash with the same canonicalization
+        # used at scan time and compare to the attested pin.
+        attested = entry.get("manifest_sha256")
+        if attested:
+            observed = ""
+            if ev.get("manifest_sha256"):
+                observed = str(ev["manifest_sha256"])
+            elif isinstance(ev.get("manifest"), dict):
+                m = ev["manifest"]
+                observed = manifest_hash(
+                    m.get("command", ""), m.get("args"), m.get("url", ""),
+                    normalize_tools(m.get("tools")),
+                )
+            if observed and observed != attested:
+                findings.append(_mk(
+                    "DRF-005", name,
+                    f"observed manifest {observed[:16]}… != attested {attested[:16]}… "
+                    "- the tool surface changed after review",
+                    i,
+                ))
     findings.sort(key=lambda f: f.severity.rank, reverse=True)
     return findings
 

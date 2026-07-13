@@ -40,3 +40,8 @@ def test_metadata_binds_review():
 def test_yaml_renders_with_provenance_header():
     text = render_policy_yaml(_policy())
     assert text.startswith("# mcp-guard policy") and "default: deny" in text
+
+
+def test_every_server_pins_a_manifest_hash():
+    for name, entry in _policy()["servers"].items():
+        assert len(entry.get("manifest_sha256", "")) == 64, f"{name} has no manifest pin"

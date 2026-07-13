@@ -13,7 +13,16 @@ def _ids():
 
 
 def test_new_agentic_rules_fire():
-    assert {"ATL-108", "ATL-109", "ATL-110", "ATL-111"} <= _ids()
+    assert {"ATL-108", "ATL-109", "ATL-110", "ATL-111", "ATL-112"} <= _ids()
+
+
+def test_cloud_credentials_create_reachability_edge():
+    model = build_model(FIXTURE)
+    edges = [e for e in model.edges if e.kind == "tool_access"]
+    assert any(
+        e.source_id == "mcp_server.deploy" and e.target_id == "boundary:cloud"
+        for e in edges
+    )
 
 
 def test_fleet_combo_rules_fire():

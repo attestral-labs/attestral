@@ -18,7 +18,11 @@
     },
     "deploy": {
       "command": "npx",
-      "args": ["acme-deploy-mcp", "--api-key", "sk-live-abc123"]
+      "args": ["acme-deploy-mcp", "--api-key", "sk-live-abc123"],
+      "env": {
+        "AWS_ACCESS_KEY_ID": "AKIAEXAMPLE",
+        "AWS_SECRET_ACCESS_KEY": "example-not-real"
+      }
     },
     "sandbox": {
       "command": "docker",

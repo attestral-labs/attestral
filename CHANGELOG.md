@@ -6,8 +6,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
-_Nothing yet - next up: rug-pull manifest hashing bound to the evidence chain,
-agent-cloud reachability edges (2xx band), and cloud parity waves (GCP/Azure)._
+### Added
+- **Rug-pull detection with teeth**: every MCP server's tool manifest (launch
+  identity + tool surface) is canonically hashed at scan time
+  (`attestral/manifest.py`), pinned into the compiled policy as
+  `manifest_sha256`, and re-checked by `drift` - a mismatch is DRF-005
+  (critical): the tool that runs is not the tool that was reviewed.
+- **Agent→cloud reachability edges**: cloud provider credentials in a tool
+  server's env are detected (`_has_cloud_credentials`), flagged as ATL-112
+  (high), and recorded as a `tool_access` edge from the server to the cloud
+  boundary - the crossing becomes part of the attested model hash.
 
 ## [0.7.0] - 2026-07-12
 

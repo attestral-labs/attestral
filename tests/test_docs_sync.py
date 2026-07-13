@@ -25,6 +25,7 @@ DIAGRAM_KEYWORDS = {
     "ingest/scan.py": "SystemModel",
     "model.py": "SystemModel",
     "rules/engine.py": "Deterministic rules",
+    "manifest.py": "manifest",
     "ml.py": "ML",
     "llm.py": "LLM",
     "judge.py": "judge",

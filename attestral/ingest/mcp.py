@@ -4,9 +4,19 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from attestral.manifest import manifest_hash, normalize_tools
 from attestral.model import Component, SystemModel
 
 _SECRET_HINTS = ("KEY", "SECRET", "TOKEN", "PASSWORD", "CREDENTIAL")
+
+# Env keys that are specifically CLOUD credentials: unlike the generic
+# _SECRET_HINTS, these prove a live path from the agent runtime into the
+# cloud trust boundary (ATL-112 + a reachability edge in scan.py).
+_CLOUD_CRED_HINTS = (
+    "AWS_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+    "AZURE_CLIENT", "AZURE_TENANT", "GOOGLE_APPLICATION_CREDENTIALS",
+    "GOOGLE_CLOUD_KEY", "GCP_SERVICE_ACCOUNT", "KUBECONFIG",
+)
 
 # Launch-command flags that hand an agent autonomy with no human checkpoint.
 # Presence of any of these (or a non-empty client-side auto-approve list) means
@@ -140,6 +150,19 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         tool_names = _tool_names(cfg.get("tools"))
         if tool_names:
             attrs["_tool_names"] = tool_names
+        # Rug-pull pin: canonical hash of the launch identity + tool surface.
+        # compile carries it into the policy; drift re-hashes at runtime.
+        attrs["_manifest_hash"] = manifest_hash(
+            attrs["command"], attrs["args"], attrs["url"], normalize_tools(cfg.get("tools"))
+        )
+        # Cloud credentials are a provable agent->cloud crossing, stronger
+        # than the generic secret hint above.
+        cred_keys = [
+            k for k in attrs["env_keys"]
+            if any(h in k.upper() for h in _CLOUD_CRED_HINTS)
+        ]
+        attrs["_cloud_credential_keys"] = cred_keys
+        attrs["_has_cloud_credentials"] = bool(cred_keys)
     return Component(
         id=f"mcp_server.{name}",
         type="mcp_server",

@@ -11,6 +11,9 @@ Compilation rules (fail-closed):
   compile to `allow: false` until re-scoped in the design
 - non-TLS transports (ATL-101) compile to a tls_only constraint violation → deny
 - env-secret findings (ATL-104) compile to a `forbid_env_secrets` constraint
+- tool manifests are pinned: each server carries manifest_sha256 (canonical
+  hash of launch identity + tool surface); drift re-hashes what actually runs
+  and flags a mismatch as a rug-pull (DRF-005)
 """
 from __future__ import annotations
 
@@ -42,6 +45,8 @@ def compile_policy(
     servers: dict[str, dict] = {}
     for c in model.by_type("mcp_server"):
         entry: dict = {"allow": True, "constraints": {}, "attested_source": c.source}
+        if c.attr("_manifest_hash"):
+            entry["manifest_sha256"] = c.attr("_manifest_hash")
         server_findings = by_component.get(c.id, [])
         deny_reasons = [
             f.rule_id for f in server_findings if f.severity.value == "critical"
