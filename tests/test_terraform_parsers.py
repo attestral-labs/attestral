@@ -7,12 +7,12 @@ def _findings_ids(monkeypatch=None, force_fallback=False):
     model = SystemModel()
     if force_fallback:
         # simulate python-hcl2 not installed
-        original = tf._ingest_with_hcl2
-        tf._ingest_with_hcl2 = lambda f, m: False
+        original = tf._parse_with_hcl2
+        tf._parse_with_hcl2 = lambda f, dm: False
         try:
             tf.ingest_terraform("examples/demo-project", model)
         finally:
-            tf._ingest_with_hcl2 = original
+            tf._parse_with_hcl2 = original
     else:
         tf.ingest_terraform("examples/demo-project", model)
     return {f.rule_id for f in RuleEngine().evaluate(model)}, len(model.components)

@@ -26,8 +26,10 @@ def main() -> None:
                    "(Claude Desktop, Cursor, VS Code, Windsurf) instead of a PATH.")
 @click.option("-o", "--output", default="attestral-report",
               help="Write report files to this stem (implies writing files).")
-@click.option("--format", "fmt", type=click.Choice(["md", "json", "both", "sarif"]), default="both",
-              help="Report file format when writing: md/json/both/sarif. "
+@click.option("--format", "fmt",
+              type=click.Choice(["md", "json", "both", "sarif", "aibom"]), default="both",
+              help="Report file format when writing: md/json/both/sarif, or "
+                   "aibom for a CycloneDX 1.6 AI-BOM of the agent stack. "
                    "Passing this (or -o) writes files; otherwise results only print.")
 @click.option("--llm", is_flag=True, help="Add LLM threat elicitation (needs ANTHROPIC_API_KEY).")
 @click.option("--fail-on", type=click.Choice(["critical", "high", "medium", "low"]), default=None,
@@ -150,6 +152,10 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             from attestral.sarif import render_sarif
             Path(f"{output}.sarif").write_text(render_sarif(model, findings, path))
             click.echo(f"wrote {output}.sarif")
+        if fmt == "aibom":
+            from attestral.aibom import render_aibom
+            Path(f"{output}.cdx.json").write_text(render_aibom(model, path))
+            click.echo(f"wrote {output}.cdx.json")
     elif not quiet:
         click.echo("(no files written - add -o to save a report)")
 

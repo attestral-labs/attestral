@@ -25,8 +25,14 @@ needs no extra install, with two opt-in accuracy upgrades that share ONE model:
   (transformers + torch) is installed, the same model runs through a torch
   pipeline. Heavier, but the tier to pick when you want to fine-tune locally.
 
-All three emit byte-identical findings (same rule id, threshold, ``origin="ml"``),
-so the evidence chain and SARIF are unchanged whichever tier does the scoring.
+All three emit findings of byte-identical *schema* - same rule id
+(``ATL-ML-001``), same ``threshold`` gate, same ``origin="ml"``, same severity
+bands - so the evidence chain and SARIF are unchanged whichever tier does the
+scoring. This is a contract about finding *shape*, NOT about the *set* of
+findings: the heuristic is a curated pattern bank and the ONNX/DeBERTa tiers are
+a learned model, so on a borderline surface they can legitimately disagree on
+whether the score clears the threshold. Same schema, possibly different verdict -
+that divergence is the whole reason the tier is a user-selectable knob.
 
 Engine selection (see ``MLConfig.engine`` / ``ATTESTRAL_ML_ENGINE``):
 - ``auto`` (default): prefer ONNX when importable, else DeBERTa/torch, else

@@ -44,6 +44,16 @@ def _references(surface: str, name: str) -> bool:
     return re.search(pattern, surface, re.IGNORECASE) is not None
 
 
+def _capability_components(model: SystemModel) -> list[tuple[Component, set[str]]]:
+    """Every component that hands the agent runtime capabilities: MCP servers
+    and subagent delegates. The fleet-level rules reason over this union so
+    capability combos compose across the delegation hop."""
+    out: list[tuple[Component, set[str]]] = []
+    for c in list(model.by_type("mcp_server")) + list(model.by_type("subagent")):
+        out.append((c, set(c.attr("_capabilities") or [])))
+    return out
+
+
 def _distinct_servers(model: SystemModel) -> list[Component]:
     """mcp_server components de-duplicated by (id, source), so a config file
     that happens to match two discovery globs never counts as two servers."""
@@ -133,17 +143,32 @@ class RuleEngine:
             if model.by_type(a) and model.by_type(b):
                 return [self._finding(rule, "model", "system model")]
         elif "model_capability_combo" in match:
-            # Fires when every capability group is covered by SOME server in
-            # the fleet - the servers may differ; the combination is the risk.
+            # Fires when every capability group is covered by SOME component
+            # of the runtime - an MCP server or a subagent the main agent can
+            # delegate to. Capabilities compose transitively: a fleet with no
+            # shell still reaches shell through a delegate whose tool grants
+            # include Bash. The combination is the risk, and the finding names
+            # who contributes each side of it.
             groups = match["model_capability_combo"]
             if not (isinstance(groups, list) and groups
                     and all(isinstance(g, list) and g for g in groups)):
                 return []  # malformed spec: fail closed
+            reachable = _capability_components(model)
             fleet: set[str] = set()
-            for c in model.by_type("mcp_server"):
-                fleet.update(c.attr("_capabilities") or [])
+            for _c, caps in reachable:
+                fleet.update(caps)
             if all(fleet & set(g) for g in groups):
-                return [self._finding(rule, "model", "system model")]
+                parts = []
+                for g in groups:
+                    hit = sorted(fleet & set(g))
+                    names = sorted({
+                        c.name for c, caps in reachable if caps & set(g)
+                    })[:4]
+                    parts.append(f"{'/'.join(hit)} via {', '.join(names)}")
+                return [self._finding(
+                    rule, "model", "system model",
+                    detail="Capability chain: " + "; ".join(parts) + ".",
+                )]
         elif "model_taint_flow" in match:
             # A declared unsafe data-flow path: some server ingests untrusted
             # input (a `sources` capability) and some server performs a
@@ -157,8 +182,7 @@ class RuleEngine:
                 return []  # malformed spec: fail closed
             src_caps, sink_caps = set(spec["sources"]), set(spec["sinks"])
             src_servers, sink_servers = [], []
-            for c in model.by_type("mcp_server"):
-                caps = set(c.attr("_capabilities") or [])
+            for c, caps in _capability_components(model):
                 if caps & src_caps:
                     src_servers.append(c.name)
                 if caps & sink_caps:
