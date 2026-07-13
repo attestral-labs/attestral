@@ -69,7 +69,7 @@ def _tool_descriptions(tools) -> list[dict]:
 
 
 def _tool_names(tools) -> list[str]:
-    """Every declared tool name, description or not — the fleet's tool
+    """Every declared tool name, description or not - the fleet's tool
     namespace. Unlike _tool_descriptions (an ML scoring surface), a name
     matters even when bare: cross-server collisions key on the name alone."""
     names: list[str] = []

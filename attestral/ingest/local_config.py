@@ -3,7 +3,7 @@
 This powers ``attestral scan --local``: instead of pointing attestral at a
 repo, a user runs one command and it scans the MCP servers their agent tools
 (Claude Desktop, Cursor, VS Code, Windsurf, ...) are *already* wired to. No
-repo, no setup — an instant read on the attack surface sitting on their disk.
+repo, no setup - an instant read on the attack surface sitting on their disk.
 
 The discovery table below is the single extension point. To teach attestral
 about a new MCP client, add one ``_Candidate`` to ``_candidates()``; the
@@ -71,17 +71,17 @@ def _claude_desktop_path(home: Path, plat: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Discovery table — THE extension point. Add a client by appending one entry.
+# Discovery table - THE extension point. Add a client by appending one entry.
 # Each factory returns an iterable of candidate paths (dedup'd downstream).
 # ---------------------------------------------------------------------------
 def _candidates(plat: str) -> list[_Candidate]:
     return [
-        # Claude Desktop — path differs per OS, resolved in the factory.
+        # Claude Desktop - path differs per OS, resolved in the factory.
         _Candidate(
             "Claude Desktop", "user", (),
             lambda home, cwd, _p=plat: [_claude_desktop_path(home, _p)],
         ),
-        # Claude Code — user scope is the top-level mcpServers of
+        # Claude Code - user scope is the top-level mcpServers of
         # ~/.claude.json (the same file also nests per-project servers under
         # "projects"; build_local_model pulls out the current project's).
         # Project scope is a checked-in .mcp.json at the repo root.
@@ -93,7 +93,7 @@ def _candidates(plat: str) -> list[_Candidate]:
             "Claude Code (project)", "project", (),
             lambda home, cwd: [cwd / ".mcp.json"],
         ),
-        # Cursor — global (per-account) and project-local overrides.
+        # Cursor - global (per-account) and project-local overrides.
         _Candidate(
             "Cursor (global)", "user", (),
             lambda home, cwd: [home / ".cursor" / "mcp.json"],
@@ -102,13 +102,13 @@ def _candidates(plat: str) -> list[_Candidate]:
             "Cursor (project)", "project", (),
             lambda home, cwd: [cwd / ".cursor" / "mcp.json"],
         ),
-        # VS Code (Copilot MCP) — workspace config uses the `servers` key,
+        # VS Code (Copilot MCP) - workspace config uses the `servers` key,
         # which ingest_mcp already understands.
         _Candidate(
             "VS Code (project)", "project", (),
             lambda home, cwd: [cwd / ".vscode" / "mcp.json"],
         ),
-        # Windsurf (Codeium) — global config.
+        # Windsurf (Codeium) - global config.
         _Candidate(
             "Windsurf (global)", "user", (),
             lambda home, cwd: [home / ".codeium" / "windsurf" / "mcp_config.json"],

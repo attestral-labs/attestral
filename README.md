@@ -13,7 +13,7 @@
        width="820">
 </p>
 
-<!-- RESEARCH POST: "We scanned N popular MCP servers" — link TBD -->
+<!-- RESEARCH POST: "We scanned N popular MCP servers" - link TBD -->
 
 Attestral reviews the security *design* of AI agents and MCP servers. It reads your MCP/agent configs, system prompts, and tool descriptions, builds one system model, and reviews the agentic surfaces most scanners never look at, checking them against a deterministic rule pack, with an optional local ML layer for prompt injection, LLM reasoning, and an LLM-as-judge. And it models your cloud (Terraform) and Kubernetes *alongside* the agent, so it can see the trust boundary between the agent and the infrastructure it can reach, not just each in isolation. Every finding lands in a **tamper-evident SHA-256 evidence chain** you can hand to reviewers, auditors, and customers.
 
@@ -332,7 +332,7 @@ flowchart LR
 The **docs-sync gate** (`tests/test_docs_sync.py`) keeps this README honest: it
 fails when a pipeline module exists that no diagram shows, when a CLI command
 is undocumented, or when the package version has no `CHANGELOG.md` entry. If
-you add a stage, draw it — the suite won't pass until you do.
+you add a stage, draw it - the suite won't pass until you do.
 
 ## License
 

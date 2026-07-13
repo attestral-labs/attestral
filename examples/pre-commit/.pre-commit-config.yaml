@@ -1,4 +1,4 @@
-# Example .pre-commit-config.yaml — drop this into the ROOT of your repo.
+# Example .pre-commit-config.yaml - drop this into the ROOT of your repo.
 #
 # 1. pip install pre-commit   (or: brew install pre-commit)
 # 2. copy this file to your repo root as .pre-commit-config.yaml

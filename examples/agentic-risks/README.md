@@ -19,7 +19,7 @@ attestral scan examples/agentic-risks
 | `web` | ATL-107 | Fetch tool: an outbound channel that is both an SSRF surface and an exfiltration path. |
 | `recall` | ATL-114 | Persistent memory store: a memory-poisoning target (Kim et al. 2026 V6) and private data the agent reads back across sessions. |
 | `crm-proxy` | ATL-115, ATL-104 | Remote server holding a downstream Salesforce token: a confused deputy that can be induced to spend that delegated authority for an attacker. |
-| *(fleet)* | **ATL-207** | Toxic flow: `web`/`recall` ingest untrusted content and `ops` executes commands in the same agent — injected content can reach the executor. |
+| *(fleet)* | **ATL-207** | Toxic flow: `web`/`recall` ingest untrusted content and `ops` executes commands in the same agent - injected content can reach the executor. |
 | *(fleet)* | **ATL-202** | Lethal trifecta: `notes` reads private data, `web` reaches the internet. An indirect prompt injection in anything the agent reads can quietly exfiltrate the notes. |
 | *(fleet)* | **ATL-203** | `ops` executes commands and `web` reaches the internet: download-and-run / C2 from a single injected instruction. |
 

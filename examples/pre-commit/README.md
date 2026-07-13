@@ -1,7 +1,7 @@
 # attestral pre-commit hook
 
 Run attestral automatically on every commit so infra and agent-config risks are
-caught before they land — no CI round-trip required.
+caught before they land - no CI round-trip required.
 
 ## Setup
 

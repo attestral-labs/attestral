@@ -10,14 +10,14 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 - **Confused-deputy / token-passthrough detection** (ATL-115, MCP Security Best
   Practices 2025-06-18): a network-reachable MCP server that also holds a
   downstream credential (secret in env or a forwarded auth/token header) is
-  flagged — it can be induced to spend that delegated authority for an attacker
+  flagged - it can be induced to spend that delegated authority for an attacker
   or pass the token onward. New derived attribute `_confused_deputy`.
 - **Toxic-flow / taint-path detection** (ATL-207, Kim et al. 2026 R3): a new
   fail-closed `model_taint_flow` matcher fires when the fleet contains a server
-  that ingests untrusted external content (network/SaaS/memory — taint source)
+  that ingests untrusted external content (network/SaaS/memory - taint source)
   and a server that executes commands (taint sink), naming the actual source
   and sink servers. The flow is recorded as `taint_source`/`taint_sink` edges in
-  the model (and thus the attested hash) — the structural signal a per-resource
+  the model (and thus the attested hash) - the structural signal a per-resource
   linter can't produce. Closes the information-flow gap from the threat-model doc.
 - **R7 resource-drain / DoS budgets** (Kim et al. 2026 R7): the compiled policy
   now carries a tunable `budgets` block, and `drift` enforces it against runtime
@@ -50,7 +50,7 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   `examples/multicloud-k8s/azure.tf`.
 - **Agent-security SoK mapping** (Kim et al., _The Attack and Defense Landscape
   of Agentic AI_, arXiv:2603.11088, 2026): the agentic rule pack is mapped to
-  the survey's V1–V6 attack vectors and R1–R7 risk taxonomy in
+  the survey's V1-V6 attack vectors and R1-R7 risk taxonomy in
   [docs/agentic-threat-model.md](docs/agentic-threat-model.md), with
   `Agentic-SoK 2026 <code>` framework citations on the mapped rules. New rule
   **ATL-114**: persistent agent memory / vector stores are detected (new
@@ -86,15 +86,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   (ATL-110), broad host mounts into MCP containers (ATL-111).
 - **Fleet-level combination rules** via the new capability model and
   `model_capability_combo` matcher: lethal-trifecta exfiltration chain (ATL-202)
-  and shell + network reach (ATL-203) — findings only a system model can produce.
+  and shell + network reach (ATL-203) - findings only a system model can produce.
 - **Cross-server tool shadowing detection** (SAFE-MCP SAF-T1301-anchored,
   fixture `examples/tool-shadowing/`): tool-name collisions (ATL-204),
   cross-server steering in tool descriptions (ATL-205), and server-identity
-  conflicts across config scopes (ATL-206) — all model-level; findings now
+  conflicts across config scopes (ATL-206) - all model-level; findings now
   carry per-instance detail (which tool, which servers, which sources).
 - `attestral scan --local`: audits MCP servers already installed on the machine
-  (Claude Code — user scope, project `.mcp.json`, and the current project's
-  local scope nested in `~/.claude.json` — plus Claude Desktop, Cursor,
+  (Claude Code - user scope, project `.mcp.json`, and the current project's
+  local scope nested in `~/.claude.json` - plus Claude Desktop, Cursor,
   VS Code, Windsurf). Prints an inventory of the reviewed agent tool surface
   (server, transport, capability classes, source) and per-source server
   counts, so a clean scan shows its work and an empty config is

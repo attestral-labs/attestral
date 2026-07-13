@@ -20,12 +20,21 @@
     --mono:'IBM Plex Mono',ui-monospace,monospace;
   }
   @media (prefers-color-scheme:dark){
-    :root{
+    :root:not([data-theme="light"]){
       --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
       --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
       --term-bg:#0B0E08; --code-bg:#232B1E;
     }
   }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+    --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+    --term-bg:#0B0E08; --code-bg:#232B1E;
+  }
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
   a{color:var(--seal)}
@@ -66,20 +75,45 @@
   .diagram{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:20px;margin:18px 0;overflow-x:auto}
   .diagram .mermaid{display:flex;justify-content:center}
 </style>
+<script>
+  // Apply a saved theme before first paint (no flash); otherwise CSS follows
+  // the OS preference. Runs before the mermaid module so diagrams pick it up.
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  mermaid.initialize({
-    startOnLoad: true,
-    theme: dark ? 'dark' : 'base',
-    themeVariables: dark ? {
-      primaryColor: '#1A1F16', primaryTextColor: '#E9ECE4', primaryBorderColor: '#E06B76',
-      lineColor: '#9BA79C', fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: '14px'
-    } : {
-      primaryColor: '#FBFBF9', primaryTextColor: '#171F1C', primaryBorderColor: '#96222E',
-      lineColor: '#5D6660', fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: '14px'
-    }
+  const root = document.documentElement, KEY = 'attestral-theme';
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const activeTheme = () => root.getAttribute('data-theme') || (mq.matches ? 'dark' : 'light');
+  // Capture each diagram's source once so we can re-theme on toggle (mermaid
+  // replaces the node's text with SVG on render, so the source is the truth).
+  const nodes = [...document.querySelectorAll('.mermaid')];
+  const sources = nodes.map(el => el.textContent);
+  const DARK_VARS = {
+    primaryColor: '#1A1F16', primaryTextColor: '#E9ECE4', primaryBorderColor: '#E06B76',
+    lineColor: '#9BA79C', fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: '14px'
+  };
+  const LIGHT_VARS = {
+    primaryColor: '#FBFBF9', primaryTextColor: '#171F1C', primaryBorderColor: '#96222E',
+    lineColor: '#5D6660', fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: '14px'
+  };
+  function renderMermaid(){
+    const dark = activeTheme() === 'dark';
+    mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'base',
+      themeVariables: dark ? DARK_VARS : LIGHT_VARS });
+    nodes.forEach((el, i) => { el.removeAttribute('data-processed'); el.innerHTML = sources[i]; });
+    if (nodes.length) mermaid.run({ nodes });
+  }
+  const btn = document.getElementById('themeToggle');
+  const renderBtn = () => { if (btn) btn.textContent = activeTheme() === 'dark' ? '☀' : '☾'; };
+  if (btn) btn.addEventListener('click', () => {
+    const next = activeTheme() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem(KEY, next); } catch(e) {}
+    renderBtn(); renderMermaid();
   });
+  mq.addEventListener('change', () => { renderBtn(); renderMermaid(); });
+  renderBtn(); renderMermaid();
 </script>
 </head>
 <body>
@@ -92,6 +126,7 @@
       <a href="index.html#start">Get started</a>
       <a href="docs.html" aria-current="page">Docs</a>
       <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
     </nav>
   </div>
 </header>
