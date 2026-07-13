@@ -876,3 +876,30 @@ rules:
     description: Inter-agent task traffic (instructions, artifacts, and any data the tasks carry) crosses the network unencrypted and can be read or altered in transit.
     recommendation: Serve the A2A endpoint over HTTPS only and update the agent card url.
     frameworks: ["OWASP-ASI07:2026", "NIST SC-8"]
+
+  - id: ATL-123
+    title: A2A agent card defines auth schemes but requires none
+    severity: high
+    target: a2a_agent
+    match: { attr_equals: { _auth_defined_not_required: true } }
+    description: The card declares securitySchemes but has no security requirement, so per the A2A spec every skill is callable with no credential - a public agent that looks protected. This is the misconfiguration a reviewer skims past because auth "is configured".
+    recommendation: Add a non-empty top-level security requirement (or per-skill security) that references the declared schemes, and enforce it at the endpoint.
+    frameworks: ["OWASP-ASI07:2026", "A2A Protocol AgentCard v1", "NIST AC-3"]
+
+  - id: ATL-208
+    title: External agents can reach sensitive tools through a public A2A endpoint
+    severity: critical
+    target: model
+    match: { model_external_agent_reach: ["shell", "filesystem", "database", "memory", "saas_data"] }
+    description: An A2A endpoint that any external agent can invoke (no auth, or schemes defined but not required) fronts a runtime whose tools can execute commands or read private data. An unauthenticated caller can delegate a task that drives those tools - the inter-agent analogue of the lethal trifecta, visible only when the endpoint and the tool fleet are modeled together.
+    recommendation: Require authentication on the A2A endpoint (a non-empty security requirement over real schemes) and authorize per caller; or remove the sensitive tools from the externally-reachable agent's runtime.
+    frameworks: ["OWASP-ASI07:2026", "OWASP-ASI03:2026", "A2A Protocol AgentCard v1", "NIST AC-4"]
+
+  - id: ATL-209
+    title: External agents can reach cloud infrastructure through a public A2A endpoint
+    severity: critical
+    target: model
+    match: { model_external_cloud_reach: true }
+    description: An effectively-public A2A endpoint shares a runtime with a tool server that holds cloud credentials, so an external agent that reaches the card can delegate a task that drives the cloud-credentialed tool and pivot into the cloud account - a caller-to-endpoint-to-tool-to-cloud path no per-component check can see. This is the inter-agent delegation escalation the A2A/RFC 8693 guidance exists to prevent - a broad credential reachable across the agent boundary instead of a scoped, exchanged token.
+    recommendation: Require authentication on the A2A endpoint and exchange the caller's identity for a narrowly-scoped, short-lived downstream token (OAuth 2.0 Token Exchange, RFC 8693) rather than co-locating a broad cloud credential with an externally-reachable agent.
+    frameworks: ["OWASP-ASI07:2026", "OWASP-ASI03:2026", "MCP Security Best Practices 2025-06-18", "NIST AC-4"]

@@ -1,0 +1,20 @@
+{
+  "name": "ops-copilot",
+  "description": "Partner-facing operations agent that answers infra questions and runs read-only cloud queries for federated partner agents.",
+  "url": "https://agents.example.com/a2a/ops-copilot",
+  "version": "1.0.0",
+  "protocolVersion": "1.0",
+  "capabilities": { "streaming": true },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "securitySchemes": {
+    "partnerBearer": { "type": "http", "scheme": "bearer" }
+  },
+  "skills": [
+    {
+      "id": "describe_infra",
+      "name": "Describe infrastructure",
+      "description": "Summarize the current cloud resources and their status."
+    }
+  ]
+}

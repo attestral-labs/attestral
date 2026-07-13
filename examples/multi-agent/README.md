@@ -18,6 +18,7 @@ attestral scan examples/multi-agent
 | **ATL-202** | critical | *(fleet)* | Lethal trifecta *across the delegation hop*: `notes` reads private data, `deploy-bot` reaches the network. The finding names the chain: `filesystem via notes; network via deploy-bot`. |
 | **ATL-203** | high | *(fleet)* | Shell + network - both arrive through one delegate's tool grants, not through any MCP server. |
 | **ATL-207** | high | *(fleet)* | Taint path: the same delegate ingests untrusted web content and executes commands. |
+| **ATL-208** | critical | *(fleet)* | The `support-triage` A2A endpoint is unauthenticated, so an *external* agent can reach the internal `notes` (filesystem) and `deploy-bot` (shell) tools through it - the inter-agent analogue of the trifecta. |
 | ATL-119 | high | `deploy-bot` | A delegate holding shell execution: one injected instruction anywhere in the chain becomes command execution. |
 | ATL-120 | medium | `helper` | No `tools:` list - the delegate inherits the main agent's entire tool surface (excessive agency). Deliberately contributes **no** capabilities to the fleet rules: unknown grants are flagged, never guessed. |
 | ATL-121 | high | `support-triage` | A2A agent card with no `securitySchemes`/`security` - per the A2A spec, that is a public agent anyone can delegate tasks to. |

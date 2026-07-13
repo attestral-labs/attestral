@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "aws-tools": {
+      "command": "npx",
+      "args": ["@acme/aws-mcp@1.0.0"],
+      "env": {
+        "AWS_ACCESS_KEY_ID": "AKIAIOSFODNN7EXAMPLE",
+        "AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI-K7MDENG-bPxRfiCYEXAMPLEKEY"
+      }
+    }
+  }
+}

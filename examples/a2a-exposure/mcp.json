@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "customer-db": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-postgres@1.0.0", "postgresql://db.internal/customers"]
+    }
+  }
+}

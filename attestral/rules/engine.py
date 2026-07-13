@@ -194,6 +194,61 @@ class RuleEngine:
                     "share one agent, so injected content can reach the action."
                 )
                 return [self._finding(rule, "model:taint_flow", "system model", detail=detail)]
+        elif "model_external_agent_reach" in match:
+            # ASI07 inter-agent reachability: an A2A endpoint that any external
+            # agent can invoke (no auth, or schemes defined but not required)
+            # fronts a runtime whose tools carry a sensitive capability. So an
+            # unauthenticated caller can drive tools that read private data or
+            # run commands - a crossing only the system model can see, because
+            # neither the card nor any one server is the finding.
+            sensitive = match["model_external_agent_reach"]
+            if not (isinstance(sensitive, list) and sensitive
+                    and all(isinstance(s, str) for s in sensitive)):
+                return []  # malformed spec: fail closed
+            public = [c for c in model.by_type("a2a_agent")
+                      if c.attr("_effectively_public")]
+            if not public:
+                return []
+            sset = set(sensitive)
+            reachable: list[str] = []
+            for c, caps in _capability_components(model):
+                hit = caps & sset
+                if hit:
+                    reachable.append(f"{c.name} ({'/'.join(sorted(hit))})")
+            if not reachable:
+                return []
+            endpoints = ", ".join(sorted(c.name for c in public))
+            detail = (
+                f"Public A2A endpoint(s) [{endpoints}] front a runtime whose "
+                f"tools carry sensitive capabilities: {', '.join(sorted(reachable))}. "
+                "An external agent that reaches the card URL can drive them."
+            )
+            return [self._finding(rule, "model:external_reach", "system model", detail=detail)]
+        elif "model_external_cloud_reach" in match:
+            # The full external->cloud path: an effectively-public A2A endpoint
+            # fronts a runtime that also holds cloud credentials. So an external
+            # agent can delegate a task that drives a cloud-credentialed tool and
+            # reach your cloud account - three hops (caller -> endpoint -> tool ->
+            # cloud) that only the whole-system model connects.
+            if match["model_external_cloud_reach"] is not True:
+                return []  # malformed spec: fail closed
+            public = [c for c in model.by_type("a2a_agent")
+                      if c.attr("_effectively_public")]
+            cloud = [c for c in model.by_type("mcp_server")
+                     if c.attr("_has_cloud_credentials")]
+            if not (public and cloud):
+                return []
+            endpoints = ", ".join(sorted(c.name for c in public))
+            servers = ", ".join(
+                f"{c.name} ({', '.join(c.attr('_cloud_credential_keys') or [])})"
+                for c in sorted(cloud, key=lambda c: c.name)
+            )
+            detail = (
+                f"Public A2A endpoint(s) [{endpoints}] share a runtime with "
+                f"cloud-credentialed tool server(s) [{servers}], so an external "
+                "agent that reaches the card can pivot into the cloud account."
+            )
+            return [self._finding(rule, "model:external_cloud_reach", "system model", detail=detail)]
         elif "model_tool_name_collision" in match:
             # Two servers claiming one tool name: the client's routing decides
             # which implementation answers, so a lower-trust server can shadow

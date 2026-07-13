@@ -1,0 +1,20 @@
+{
+  "name": "support-concierge",
+  "description": "Partner-facing agent that answers customer questions and looks up account details for federated partner agents.",
+  "url": "https://agents.example.com/a2a/support-concierge",
+  "version": "1.0.0",
+  "protocolVersion": "1.0",
+  "capabilities": { "streaming": true },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "securitySchemes": {
+    "partnerBearer": { "type": "http", "scheme": "bearer" }
+  },
+  "skills": [
+    {
+      "id": "lookup_customer",
+      "name": "Look up a customer account",
+      "description": "Fetch a customer's account, plan, and recent tickets."
+    }
+  ]
+}

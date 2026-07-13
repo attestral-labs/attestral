@@ -142,13 +142,27 @@ def _a2a_component(f: Path) -> Component | None:
     if not isinstance(data, dict):
         return None
     name = str(data.get("name") or f.stem)
+    schemes = data.get("securitySchemes")
+    # A2A spec: `securitySchemes` DEFINES auth methods; `security` (a non-empty
+    # list of requirement objects) says which are REQUIRED. Schemes with no
+    # requirement is a public agent that merely looks protected - a distinct,
+    # more precise finding (ATL-123) than declaring nothing at all (ATL-121).
+    no_auth = not (schemes or data.get("security") or data.get("authentication"))
+    defined_not_required = bool(schemes) and not data.get("security")
+    skills = data.get("skills")
+    skill_names = (
+        [str(s.get("id") or s.get("name") or "") for s in skills if isinstance(s, dict)]
+        if isinstance(skills, list) else []
+    )
     attrs: dict = {
         "url": str(data.get("url", "")),
-        "_no_auth_declared": not (
-            data.get("securitySchemes")
-            or data.get("security")
-            or data.get("authentication")
-        ),
+        "_no_auth_declared": no_auth,
+        "_auth_defined_not_required": defined_not_required,
+        # "effectively public" = any external agent can invoke it: either no
+        # auth at all, or schemes defined but none required. This is what the
+        # cross-boundary reachability rule (ATL-208) keys on.
+        "_effectively_public": no_auth or defined_not_required,
+        "_skills": [s for s in skill_names if s],
     }
     if data.get("description"):
         attrs["description"] = str(data["description"])
