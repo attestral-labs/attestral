@@ -7,6 +7,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Internal attack paths**: the path synthesizer now also assembles the
+  *internal* kill chain, where the entry is a tool that ingests
+  attacker-influenceable content (a web fetcher, a SaaS reader, a memory store)
+  rather than an external A2A endpoint: untrusted input → code execution →
+  exfiltration or cloud. The terminal report renders both external and internal
+  chains in the "Attack paths" block, labelled by kind. The internal chain is a
+  rendered synthesis, not a new finding: ATL-207 (toxic flow) and ATL-203
+  (shell + network) already gate it, so a third finding would be noise. This is
+  the majority case, since most agent setups have no A2A endpoint. Fixture:
+  `examples/internal-attack-path/`.
+- **ML layer explainer**: `docs/ml-deberta.md` walks through what DeBERTa is,
+  the ideas behind it (disentangled attention, ELECTRA-style pre-training), and
+  exactly how Attestral wires it into the prompt-injection scoring path.
 - **Cross-server attack-path synthesis (ATL-210, critical)**: a new `attestral/
   paths.py` synthesizer assembles individual 2-way findings into a complete,
   named kill chain - an externally-reachable A2A endpoint (entry) → a
@@ -18,6 +31,9 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   from a subagent tool grant, not just an MCP server. New fail-closed
   `model_attack_path` matcher. Fixture: `examples/attack-path/`;
   `examples/multi-agent/` gains the assembled chain on top of its rungs.
+
+### Changed
+- The "Attack paths" report block header no longer uses a decorative glyph.
 
 ## [0.12.0] - 2026-07-13
 
