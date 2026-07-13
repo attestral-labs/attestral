@@ -7,6 +7,14 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Azure cloud-parity wave** (CIS Microsoft Azure Foundations + CIS AKS
+  grounded): the Azure band grows from 8 to 16 high-signal rules - storage
+  infrastructure encryption off (ATL-309) and TLS below 1.2 (ATL-310); Key
+  Vault public network access (ATL-311); SQL database transparent data
+  encryption off (ATL-312); App Service not HTTPS-only (ATL-313); Linux VM
+  password authentication (ATL-314); AKS local accounts enabled (ATL-315);
+  and PostgreSQL flexible server public network access (ATL-316). Fixture:
+  `examples/multicloud-k8s/azure.tf`.
 - **Agent-security SoK mapping** (Kim et al., _The Attack and Defense Landscape
   of Agentic AI_, arXiv:2603.11088, 2026): the agentic rule pack is mapped to
   the survey's V1–V6 attack vectors and R1–R7 risk taxonomy in

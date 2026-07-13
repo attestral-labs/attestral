@@ -20,7 +20,11 @@ def test_new_aws_rules_fire():
 
 
 def test_azure_rules_fire():
-    assert {"ATL-301", "ATL-302", "ATL-303", "ATL-304", "ATL-305", "ATL-306"} <= _ids()
+    assert {
+        "ATL-301", "ATL-302", "ATL-303", "ATL-304", "ATL-305", "ATL-306",
+        "ATL-307", "ATL-308", "ATL-309", "ATL-310", "ATL-311", "ATL-312",
+        "ATL-313", "ATL-314", "ATL-315", "ATL-316",
+    } <= _ids()
 
 
 def test_gcp_rules_fire():

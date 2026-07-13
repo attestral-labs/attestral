@@ -386,6 +386,78 @@ rules:
     recommendation: Set ssl_enforcement_enabled = true (and a modern ssl_minimal_tls_version).
     frameworks: ["CIS Azure 4.x", "NIST SC-8", "SOC2 CC6.7"]
 
+  - id: ATL-309
+    title: Azure storage account has infrastructure encryption disabled
+    severity: medium
+    target: azurerm_storage_account
+    match: { attr_equals: { infrastructure_encryption_enabled: false } }
+    description: Data is encrypted only once at rest; without the second infrastructure-encryption layer a single flaw in the service-managed encryption exposes stored data.
+    recommendation: Set infrastructure_encryption_enabled = true so blobs are double-encrypted at rest.
+    frameworks: ["CIS Azure 3.2", "NIST SC-28", "SOC2 CC6.1"]
+
+  - id: ATL-310
+    title: Azure storage account accepts TLS below 1.2
+    severity: medium
+    target: azurerm_storage_account
+    match: { attr_in: { min_tls_version: ["TLS1_0", "TLS1_1"] } }
+    description: The account negotiates deprecated TLS 1.0/1.1, whose known weaknesses let an attacker downgrade or decrypt data in transit.
+    recommendation: Set min_tls_version = "TLS1_2" so only modern TLS is accepted.
+    frameworks: ["CIS Azure 3.x", "NIST SC-8", "SOC2 CC6.7"]
+
+  - id: ATL-311
+    title: Azure Key Vault allows public network access
+    severity: high
+    target: azurerm_key_vault
+    match: { attr_equals: { public_network_access_enabled: true } }
+    description: The vault holding keys, secrets and certificates is reachable from the public internet, widening the blast radius of a leaked credential to the whole world.
+    recommendation: Set public_network_access_enabled = false and reach the vault via private endpoints.
+    frameworks: ["CIS Azure 8.x", "NIST SC-7", "SOC2 CC6.6"]
+
+  - id: ATL-312
+    title: Azure SQL database transparent data encryption disabled
+    severity: high
+    target: azurerm_mssql_database
+    match: { attr_equals: { transparent_data_encryption_enabled: false } }
+    description: The database files, backups and logs are stored unencrypted on disk, so theft of the underlying media or a backup exposes all data at rest.
+    recommendation: Set transparent_data_encryption_enabled = true (ideally with a customer-managed key).
+    frameworks: ["CIS Azure 4.x", "NIST SC-28", "SOC2 CC6.1"]
+
+  - id: ATL-313
+    title: Azure App Service does not require HTTPS
+    severity: medium
+    target: azurerm_linux_web_app
+    match: { attr_equals: { https_only: false } }
+    description: The web app answers plaintext HTTP, so session tokens and request data can be intercepted or tampered with in transit.
+    recommendation: Set https_only = true so all traffic is redirected to HTTPS.
+    frameworks: ["CIS Azure 9.x", "NIST SC-8", "SOC2 CC6.7"]
+
+  - id: ATL-314
+    title: Azure Linux VM permits password authentication
+    severity: high
+    target: azurerm_linux_virtual_machine
+    match: { attr_equals: { disable_password_authentication: false } }
+    description: SSH password authentication is enabled, exposing the VM to credential brute-force and password-spray attacks instead of relying on key-based auth.
+    recommendation: Set disable_password_authentication = true and provision access via SSH public keys only.
+    frameworks: ["CIS Azure 7.x", "NIST IA-2", "NIST IA-5(1)"]
+
+  - id: ATL-315
+    title: Azure Kubernetes Service allows local accounts
+    severity: high
+    target: azurerm_kubernetes_cluster
+    match: { attr_equals: { local_account_enabled: true } }
+    description: Static local admin kubeconfigs remain enabled, so anyone who obtains one bypasses Entra ID / RBAC identity and audit controls on the cluster.
+    recommendation: Set local_account_enabled = false and authenticate to AKS through Entra ID with RBAC.
+    frameworks: ["CIS AKS 4.x", "NIST AC-2", "NIST AC-6"]
+
+  - id: ATL-316
+    title: Azure PostgreSQL flexible server allows public network access
+    severity: high
+    target: azurerm_postgresql_flexible_server
+    match: { attr_equals: { public_network_access_enabled: true } }
+    description: The managed PostgreSQL flexible server accepts connections from the public internet, widening the attack surface to the whole world.
+    recommendation: Set public_network_access_enabled = false and reach the server over a delegated subnet / private endpoint.
+    frameworks: ["CIS Azure 4.x", "NIST SC-7", "SOC2 CC6.6"]
+
   # GCP
   - id: ATL-401
     title: GCP firewall rule open to the internet
