@@ -6,6 +6,8 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-13
+
 ### Added
 - **Website data regeneration scripts**: the architecture page's embedded code
   graph and the docs page's baked payloads are now generated, not hand-baked.
@@ -54,6 +56,10 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ### Changed
 - The "Attack paths" report block header no longer uses a decorative glyph.
+- Product output follows the house style everywhere: `attestral verify` prints
+  `chain VALID` / `chain INVALID - report has been altered` with no glyphs, the
+  markdown report's no-active-findings line loses its glyph, and the em dashes
+  in ATL-210's finding detail and ATL-505's description are now plain hyphens.
 
 ## [0.12.0] - 2026-07-13
 
