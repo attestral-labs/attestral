@@ -6,6 +6,11 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+_Nothing yet - next: deeper HCL resolution (variables/modules) to raise
+real-world coverage, A2A / multi-agent delegation modeling, and an AI-BOM export._
+
+## [0.9.0] - 2026-07-13
+
 ### Added
 - **Cloud IaC expansion to 146 rules** across AWS/Azure/GCP/Kubernetes, hitting
   the ~150 high-signal CIS-check target. Rules now live in modular
