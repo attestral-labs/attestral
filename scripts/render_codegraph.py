@@ -20,6 +20,11 @@ Usage:
     python3 scripts/render_codegraph.py --check   # exit 1 if the page drifted
 
 Stdlib only; run it from any Python 3.10+.
+
+Run `codegraph index` (a full re-index) first when regenerating after many
+edits or on a fresh index: the initial bulk pass cannot resolve calls into
+files it has not parsed yet, so an un-refreshed index under-reports call
+edges (81 vs the real 369 when this page was first baked).
 """
 from __future__ import annotations
 
