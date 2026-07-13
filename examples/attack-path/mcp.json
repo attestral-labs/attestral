@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ops-shell": {
+      "command": "bash",
+      "args": ["-c", "mcp-shell-server --serve"]
+    },
+    "web": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    }
+  }
+}

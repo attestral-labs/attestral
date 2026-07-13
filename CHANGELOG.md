@@ -6,6 +6,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **Cross-server attack-path synthesis (ATL-210, critical)**: a new `attestral/
+  paths.py` synthesizer assembles individual 2-way findings into a complete,
+  named kill chain - an externally-reachable A2A endpoint (entry) → a
+  code-execution tool (pivot) → an exfiltration channel or cloud credential
+  (impact), all in one runtime. Where the per-component rules see the rungs,
+  ATL-210 traces the whole ladder and names every hop (`external agent via
+  public A2A endpoint [X] → code execution [Y] → exfiltration [Z]`). It fires
+  only on a genuinely complete path (all three stages) and the pivot may come
+  from a subagent tool grant, not just an MCP server. New fail-closed
+  `model_attack_path` matcher. Fixture: `examples/attack-path/`;
+  `examples/multi-agent/` gains the assembled chain on top of its rungs.
+
 ## [0.12.0] - 2026-07-13
 
 ### Added

@@ -249,6 +249,20 @@ class RuleEngine:
                 "agent that reaches the card can pivot into the cloud account."
             )
             return [self._finding(rule, "model:external_cloud_reach", "system model", detail=detail)]
+        elif "model_attack_path" in match:
+            # The assembled kill chain: entry (external A2A) -> pivot (code
+            # execution) -> impact (exfiltration/cloud), all in one runtime.
+            # The per-component rules see the rungs; this traces the ladder.
+            if match["model_attack_path"] is not True:
+                return []  # malformed spec: fail closed
+            from attestral.paths import external_attack_paths
+            paths = external_attack_paths(model)
+            if not paths:
+                return []
+            detail = "Complete external attack path — " + "; ".join(
+                p.describe() for p in paths
+            ) + "."
+            return [self._finding(rule, "model:attack_path", "system model", detail=detail)]
         elif "model_tool_name_collision" in match:
             # Two servers claiming one tool name: the client's routing decides
             # which implementation answers, so a lower-trust server can shadow

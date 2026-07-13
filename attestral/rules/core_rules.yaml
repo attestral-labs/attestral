@@ -895,6 +895,15 @@ rules:
     recommendation: Require authentication on the A2A endpoint (a non-empty security requirement over real schemes) and authorize per caller; or remove the sensitive tools from the externally-reachable agent's runtime.
     frameworks: ["OWASP-ASI07:2026", "OWASP-ASI03:2026", "A2A Protocol AgentCard v1", "NIST AC-4"]
 
+  - id: ATL-210
+    title: Complete external attack path - public A2A endpoint to code execution to exfiltration or cloud
+    severity: critical
+    target: model
+    match: { model_attack_path: true }
+    description: A single connected path exists from an externally-reachable A2A endpoint, through a code-execution tool, to an exfiltration channel or a cloud credential - one agent session where an outside caller can get IN, RUN commands, and get data OUT. The individual rungs are separate findings; this is the assembled kill chain, which only a whole-system model can trace end to end.
+    recommendation: Break the chain at any rung - authenticate the A2A endpoint, remove shell/code-execution tools from the externally-reachable runtime, or gate the egress and cloud tools behind human approval and a destination allowlist.
+    frameworks: ["OWASP-ASI08:2026", "OWASP-ASI07:2026", "OWASP-ASI05:2026", "MITRE ATLAS AML.T0051"]
+
   - id: ATL-209
     title: External agents can reach cloud infrastructure through a public A2A endpoint
     severity: critical

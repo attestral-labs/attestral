@@ -1,0 +1,17 @@
+{
+  "name": "partner-ops",
+  "description": "Partner-facing operations agent that runs build and diagnostic tasks on behalf of federated partner agents.",
+  "url": "https://agents.example.com/a2a/partner-ops",
+  "version": "1.0.0",
+  "protocolVersion": "1.0",
+  "capabilities": { "streaming": true },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {
+      "id": "run_diagnostic",
+      "name": "Run a diagnostic",
+      "description": "Run a build or diagnostic command and summarize the result."
+    }
+  ]
+}
