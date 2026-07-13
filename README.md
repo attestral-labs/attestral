@@ -68,12 +68,12 @@ attestral explain ATL-103    # title, severity, description, fix, and framework 
 
 Every finding in the terminal output carries a `run: attestral explain <RULE_ID>` pointer, so the reasoning and the fix are one command away. Rule ids are matched case-insensitively.
 
-## What it catches (76-rule pack)
+## What it catches (77-rule pack)
 
 | Area | Examples |
 |---|---|
 | **Agentic / MCP** (OWASP LLM Top 10, MCP research) | shell-capable servers, broad filesystem roots, non-TLS transport, secrets in env, auto-installed packages (supply chain), mutable `@latest` tags (rug-pull), outbound-fetch/browser tools |
-| **Memory / context poisoning** (OWASP ASI06) | world-writable agent-instruction files (CLAUDE.md, `.cursorrules`, AGENTS.md) that anyone can rewrite to steer every future run |
+| **Memory / context poisoning** (OWASP ASI06, agent-security SoK) | world-writable agent-instruction files (CLAUDE.md, `.cursorrules`, AGENTS.md) that anyone can rewrite to steer every future run; persistent memory / vector stores as memory-poisoning targets |
 | **ML layer** (`attestral[ml]`) | prompt-injection / jailbreak text in MCP tool & server descriptions, system prompts, and agent-instruction files |
 | **AWS** (CIS-grounded) | public S3/RDS/Redshift, `0.0.0.0/0` security groups, wildcard IAM, unencrypted RDS/EBS/EFS/Neptune, disabled backups, KMS rotation off, public EC2/EKS, CloudTrail gaps, mutable ECR tags, plaintext ELB listeners |
 | **Azure** | public blob access, non-HTTPS storage, public SQL, wildcard NSG rules, Key Vault purge protection off, Postgres/MySQL SSL not enforced |
@@ -81,7 +81,7 @@ Every finding in the terminal output carries a `run: attestral explain <RULE_ID>
 | **Kubernetes** (CIS K8s) | privileged containers, privilege escalation, dangerous capabilities, run-as-root, host network/PID, hostPath mounts, missing resource limits, mutable image tags |
 | **Cross-cutting** (fleet-level, only visible in a system model) | lethal-trifecta capability combos (private data + egress), shell + network reach, cross-server tool shadowing (tool-name collisions, steering descriptions, server-identity conflicts), agent runtime and cloud sharing no declared boundary controls |
 
-Every finding maps to NIST 800-53, ASVS, SOC 2, CIS (AWS/Azure/GCP/K8s), OWASP LLM/Agentic, and MITRE ATLAS references.
+Every finding maps to NIST 800-53, ASVS, SOC 2, CIS (AWS/Azure/GCP/K8s), OWASP LLM/Agentic, and MITRE ATLAS references. The agentic checks are additionally mapped to the attack/risk taxonomy of the agent-security SoK (Kim et al. 2026) in [docs/agentic-threat-model.md](docs/agentic-threat-model.md).
 
 ## How a scan works (the pipeline)
 
@@ -97,7 +97,7 @@ flowchart TB
     end
     M --> L1
     subgraph REV["2 · Review (layered, each finding tagged by origin)"]
-        L1["<b>L1 Deterministic rules</b><br/>76 typed matchers · fail-closed<br/>origin: deterministic"]
+        L1["<b>L1 Deterministic rules</b><br/>77 typed matchers · fail-closed<br/>origin: deterministic"]
         L2["<b>L2 ML classifier</b> (optional)<br/>DeBERTa prompt-injection on agentic surfaces<br/>origin: ml"]
         L3["<b>L3 LLM</b> (optional)<br/>elicitation + LLM-as-judge verifier<br/>origin: llm"]
         L1 --> L2 --> L3
@@ -111,7 +111,7 @@ flowchart TB
 
 | Layer | What it does | Reproducible? | Cost |
 |---|---|---|---|
-| **L1 Deterministic** | 76 typed matchers over the model, fail-closed (unknown matcher never matches) | Yes, fully | Free, offline |
+| **L1 Deterministic** | 77 typed matchers over the model, fail-closed (unknown matcher never matches) | Yes, fully | Free, offline |
 | **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
 | **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
 

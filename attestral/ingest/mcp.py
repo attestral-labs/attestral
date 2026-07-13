@@ -43,6 +43,11 @@ _CAPABILITY_HINTS = {
                  "snowflake", "bigquery"),
     "saas_data": ("github", "gitlab", "notion", "jira", "linear", "confluence",
                   "gdrive", "google-drive", "dropbox", "sharepoint", "salesforce"),
+    # Persistent agent memory / vector stores: the target of memory-poisoning
+    # (Kim et al. 2026, V6) and a source of private data the agent reads back
+    # across sessions, so it also counts toward the exfiltration trifecta.
+    "memory": ("mem0", "server-memory", "memory-server", "knowledge-graph",
+               "chroma", "pinecone", "weaviate", "qdrant", "milvus", "vectorstore"),
 }
 
 

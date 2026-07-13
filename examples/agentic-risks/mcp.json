@@ -27,6 +27,10 @@
     "sandbox": {
       "command": "docker",
       "args": ["run", "--rm", "-v", "/Users:/host", "acme/sandbox-mcp:v1.2.3"]
+    },
+    "recall": {
+      "command": "npx",
+      "args": ["mem0-mcp-server"]
     }
   }
 }

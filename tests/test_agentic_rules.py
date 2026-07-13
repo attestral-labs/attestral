@@ -25,6 +25,32 @@ def test_cloud_credentials_create_reachability_edge():
     )
 
 
+def test_memory_store_fires_atl114():
+    # ATL-114: a persistent memory server is a memory-poisoning target (SoK V6).
+    assert "ATL-114" in _ids()
+
+
+def test_memory_capability_classified():
+    model = build_model(FIXTURE)
+    recall = model.get("mcp_server.recall")
+    assert recall and "memory" in (recall.attr("_capabilities") or [])
+
+
+def test_memory_counts_toward_trifecta(tmp_path):
+    # A memory store (private data) + a fetch tool (egress) alone must trip the
+    # lethal trifecta - proving memory joined the private-data capability group.
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(
+        '{"mcpServers": {'
+        '"recall": {"command": "npx", "args": ["mem0-mcp-server"]},'
+        '"web": {"command": "uvx", "args": ["mcp-server-fetch"]}}}'
+    )
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+    model = ingest_mcp(cfg, SystemModel())
+    assert "ATL-202" in {f.rule_id for f in RuleEngine().evaluate(model)}
+
+
 def test_fleet_combo_rules_fire():
     assert {"ATL-202", "ATL-203"} <= _ids()
 

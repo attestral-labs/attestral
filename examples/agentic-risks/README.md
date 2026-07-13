@@ -17,6 +17,7 @@ attestral scan examples/agentic-risks
 | `deploy` | ATL-110, ATL-104, ATL-112 | API key in argv (visible to every process), and raw AWS credentials in env - a live, provable path from the agent runtime into the cloud boundary, recorded as a reachability edge in the model. |
 | `sandbox` | ATL-111 | Docker "sandbox" that bind-mounts `/Users` into the container - the isolation is decorative. |
 | `web` | ATL-107 | Fetch tool: an outbound channel that is both an SSRF surface and an exfiltration path. |
+| `recall` | ATL-114 | Persistent memory store: a memory-poisoning target (Kim et al. 2026 V6) and private data the agent reads back across sessions. |
 | *(fleet)* | **ATL-202** | Lethal trifecta: `notes` reads private data, `web` reaches the internet. An indirect prompt injection in anything the agent reads can quietly exfiltrate the notes. |
 | *(fleet)* | **ATL-203** | `ops` executes commands and `web` reaches the internet: download-and-run / C2 from a single injected instruction. |
 

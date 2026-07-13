@@ -7,6 +7,14 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Agent-security SoK mapping** (Kim et al., _The Attack and Defense Landscape
+  of Agentic AI_, arXiv:2603.11088, 2026): the agentic rule pack is mapped to
+  the survey's V1–V6 attack vectors and R1–R7 risk taxonomy in
+  [docs/agentic-threat-model.md](docs/agentic-threat-model.md), with
+  `Agentic-SoK 2026 <code>` framework citations on the mapped rules. New rule
+  **ATL-114**: persistent agent memory / vector stores are detected (new
+  `memory` capability class) as memory-poisoning targets (V6) and now count as
+  private data toward the ATL-202 lethal-trifecta exfiltration chain.
 - **GCP cloud-parity wave** (CIS GCP Foundations + CIS GKE-grounded): the GCP
   band grows from 5 to 13 high-signal rules - Compute full cloud-platform scope
   (ATL-406), IP forwarding (ATL-407) and non-Shielded VMs (ATL-408); GKE

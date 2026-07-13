@@ -218,7 +218,7 @@ rules:
     match: { attr_list_contains: { args: "-y" }}
     description: The server is launched with an auto-confirm installer (npx -y / uvx), fetching and running remote package code with no pinned integrity check. A compromised or typosquatted package becomes code execution in the agent's context.
     recommendation: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm flag.
-    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "NIST SA-12", "OWASP-ASI04:2026"]
+    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "NIST SA-12", "OWASP-ASI04:2026", "Agentic-SoK 2026 R4"]
 
   - id: ATL-106
     title: MCP server pinned to a mutable tag
@@ -236,7 +236,7 @@ rules:
     match: { attr_any_contains: { args: ["server-fetch", "mcp-server-fetch", "puppeteer", "playwright", "browser"] } }
     description: A fetch or browser tool gives the agent an outbound channel, which is both an SSRF surface and a data-exfiltration path if a prompt injection lands.
     recommendation: Constrain the tool to an allowlist of destinations; deny access to internal metadata endpoints and private ranges.
-    frameworks: ["OWASP LLM02 Sensitive Information Disclosure", "OWASP-AgSec TOOL-4", "NIST SC-7", "OWASP-ASI02:2026"]
+    frameworks: ["OWASP LLM02 Sensitive Information Disclosure", "OWASP-AgSec TOOL-4", "NIST SC-7", "OWASP-ASI02:2026", "Agentic-SoK 2026 R1"]
 
   # --- v0.6 expansion: more AWS + Azure + GCP + Kubernetes ---
 
@@ -606,7 +606,7 @@ rules:
     match: { attr_equals: { _auto_approve: true } }
     description: An auto-approve list or autonomy flag lets every tool call run end-to-end, so one injected instruction executes with no human ever seeing it.
     recommendation: Remove blanket auto-approval; allowlist only low-risk read-only tools and require confirmation for write, execute, and network actions.
-    frameworks: ["OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+    frameworks: ["OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6", "Agentic-SoK 2026 R6"]
 
   - id: ATL-109
     title: Remote MCP server without authentication
@@ -651,16 +651,25 @@ rules:
     match: { attr_equals: { _world_writable: true } }
     description: A standing agent-instruction file (CLAUDE.md, .cursorrules, AGENTS.md, and the like) that any user on the host can rewrite is a persistent context-poisoning vector - one edit steers every future run of the agent, no prompt injection required.
     recommendation: Restrict write access to the instruction file and its directory to the owning user; treat these files as security-sensitive configuration, not scratch notes.
-    frameworks: ["OWASP-ASI06:2026", "NIST AC-6", "NIST CM-5", "MITRE ATLAS AML.T0051"]
+    frameworks: ["OWASP-ASI06:2026", "NIST AC-6", "NIST CM-5", "MITRE ATLAS AML.T0051", "Agentic-SoK 2026 V6"]
+
+  - id: ATL-114
+    title: Persistent agent memory store configured
+    severity: medium
+    target: mcp_server
+    match: { attr_list_contains: { _capabilities: "memory" } }
+    description: A cross-session memory / vector store is a memory-poisoning target - an attacker who writes crafted content into it steers the agent on future, unrelated runs (Kim et al. 2026 V6), and it is private data the agent reads back, widening the exfiltration surface.
+    recommendation: Treat retrieved memory as untrusted input, validate and attribute writes to a trusted source, scope the store to the current task context, and never let unreviewed external content land in long-term memory.
+    frameworks: ["OWASP-ASI06:2026", "Agentic-SoK 2026 V6", "Agentic-SoK 2026 R6", "MITRE ATLAS AML.T0070"]
 
   - id: ATL-202
     title: Tool fleet forms an exfiltration chain (lethal trifecta)
     severity: critical
     target: model
-    match: { model_capability_combo: [["filesystem", "database", "saas_data"], ["network", "messaging"]] }
-    description: Across the configured servers the agent can read private data and reach an outbound channel, so one indirect prompt injection anywhere in its inputs can quietly exfiltrate what it reads.
+    match: { model_capability_combo: [["filesystem", "database", "saas_data", "memory"], ["network", "messaging"]] }
+    description: Across the configured servers the agent can read private data (files, databases, SaaS, or persistent memory) and reach an outbound channel, so one indirect prompt injection anywhere in its inputs can quietly exfiltrate what it reads.
     recommendation: Split the workflow so no single agent session combines private-data access with unrestricted egress, or gate the egress tool behind human approval and a destination allowlist.
-    frameworks: ["OWASP-ASI02:2026", "OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051"]
+    frameworks: ["OWASP-ASI02:2026", "OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051", "Agentic-SoK 2026 R3", "Agentic-SoK 2026 R5"]
 
   - id: ATL-203
     title: Tool fleet combines shell execution with outbound network reach
@@ -669,7 +678,7 @@ rules:
     match: { model_capability_combo: [["shell"], ["network", "messaging"]] }
     description: The agent can both execute commands and talk to the internet, which turns a single injected instruction into download-and-run or command-and-control.
     recommendation: Remove one side of the pair per session, or force shell use through an allowlisted, non-networked sandbox.
-    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI02:2026", "NIST SC-7"]
+    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI02:2026", "NIST SC-7", "Agentic-SoK 2026 R6"]
 
   # --- Cross-server tool shadowing wave: the attack surface created by
   # --- running several MCP servers side by side. Anchored to SAFE-MCP
