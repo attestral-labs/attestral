@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The scanner, drawn from its own code graph - Attestral</title>
+<meta name="description" content="An interactive map of Attestral's pipeline: every module and import edge in the package, drawn from a static index of the code and arranged as the pipeline a scan flows through.">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --code-bg:#E9EBE6;
+    --seal-tint:rgba(150,34,46,.06); --verify-tint:rgba(31,106,74,.09);
+    --edge-rest:#B9BEB7;
+    --display:'Libre Caslon Text',Georgia,serif;
+    --body:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --code-bg:#232B1E;
+      --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+      --edge-rest:#454C42;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+    --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+    --term-bg:#0B0E08; --code-bg:#232B1E;
+    --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+    --edge-rest:#454C42;
+  }
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)}
+  a:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  .wrap-wide{max-width:1300px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .wordmark svg .p{fill:var(--seal)}
+  .wordmark svg .k{stroke:var(--paper)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--ink);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
+
+  article{max-width:760px;margin:0 auto;padding:56px 0 8px}
+  article.cont{padding:8px 0 40px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);display:flex;align-items:center;gap:.6rem}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--seal)}
+  article h1{font-family:var(--display);font-weight:400;font-size:clamp(2.1rem,5vw,3rem);line-height:1.12;margin:16px 0 14px;text-wrap:balance}
+  .standfirst{color:var(--muted);font-size:1.15rem;max-width:56ch;margin-bottom:26px;text-wrap:pretty}
+  .meta{font-family:var(--mono);font-size:.73rem;color:var(--muted);letter-spacing:.03em;display:flex;gap:22px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .meta b{color:var(--ink);font-weight:500}
+  section{padding:44px 0;border-bottom:1px solid var(--rule)}
+  section:last-of-type{border-bottom:none}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,3.4vw,1.9rem);line-height:1.16;margin:8px 0 14px;text-wrap:balance}
+  p{margin:0 0 14px;max-width:66ch;text-wrap:pretty}
+  p:last-child{margin-bottom:0}
+  .lede{font-size:1.1rem}
+  em{font-style:italic}
+  strong{font-weight:600}
+  code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:2px}
+  .pull{font-family:var(--display);font-size:1.35rem;line-height:1.36;border-left:3px solid var(--seal);padding:2px 0 2px 20px;margin:22px 0;max-width:60ch;text-wrap:pretty}
+
+  /* Graph figure */
+  .graphsec{padding:36px 0 12px}
+  .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:0 0 12px;font-size:.85rem;color:var(--muted)}
+  .toolbar label{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+  .toolbar input{accent-color:var(--seal)}
+  .lgd{display:inline-flex;align-items:center;gap:7px}
+  .lgd svg{display:block}
+  .lgd .lline{stroke:var(--edge-rest);stroke-width:2}
+  .toolbar .spacer{flex:1}
+  .diagram{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:18px 14px 8px;overflow-x:auto}
+  .diagram svg{display:block;width:100%;height:auto;min-width:1000px}
+  figcaption{font-size:.88rem;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--rule);max-width:78ch;text-wrap:pretty}
+  figcaption b{color:var(--ink);font-weight:600}
+
+  .colhead{font-size:11px;font-weight:600;letter-spacing:.12em;fill:var(--muted);font-family:var(--body)}
+  .colhead-n{font-weight:400;letter-spacing:0;fill:var(--muted);opacity:.75}
+  .edge{fill:none;stroke:var(--edge-rest);stroke-width:1.4;marker-end:url(#m-rest);transition:opacity .15s ease,stroke .15s ease}
+  .edge.lazy{stroke-dasharray:5 4}
+  .edge.found{display:none}
+  svg.show-found .edge.found{display:inline}
+  .edge.found.show{display:inline}
+  svg.hide-cli .edge.clifan{display:none}
+  svg.focusmode .edge{opacity:.12}
+  svg.focusmode .edge.out{opacity:1;stroke:var(--seal);stroke-width:2;marker-end:url(#m-out)}
+  svg.focusmode .edge.in{opacity:1;stroke:var(--ink);stroke-width:2;marker-end:url(#m-in)}
+  .mk-rest{fill:var(--edge-rest)}
+  .mk-out{fill:var(--seal)}
+  .mk-in{fill:var(--ink)}
+  .node{cursor:pointer;outline:none}
+  .node rect{fill:var(--paper);stroke:var(--rule);stroke-width:1.2;transition:opacity .15s ease,stroke .15s ease}
+  .node text{pointer-events:none}
+  .node .lbl{font-family:var(--mono);font-size:13px;font-weight:500;fill:var(--ink);text-anchor:middle}
+  .node .sublbl{font-family:var(--mono);font-size:10.5px;fill:var(--muted);text-anchor:middle;font-variant-numeric:tabular-nums}
+  .node:hover rect,.node:focus-visible rect{stroke:var(--seal);stroke-width:1.8}
+  .node.sel rect{stroke:var(--seal);stroke-width:2.2;fill:var(--seal-tint)}
+  svg.focusmode .node{opacity:.35}
+  svg.focusmode .node.hot,svg.focusmode .node.nbr{opacity:1}
+  .foundcap{font-size:11px;font-weight:600;letter-spacing:.12em;fill:var(--muted);font-family:var(--body)}
+  .foundrule{stroke:var(--rule);stroke-width:1;stroke-dasharray:2 4}
+
+  #tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:12px;padding:6px 10px;border-radius:2px;max-width:300px;opacity:0;transition:opacity .1s ease;z-index:10;line-height:1.45}
+  #tip.on{opacity:.96}
+  #tip .t2{opacity:.7}
+
+  /* Detail card below the graph */
+  #panel{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:18px 22px;margin-top:14px}
+  #panel .phead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  #panel h3{font-family:var(--mono);font-size:1.02rem;font-weight:600;margin:0;overflow-wrap:anywhere}
+  #panel .path{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+  .stagechip{font-size:.62rem;font-weight:600;letter-spacing:.1em;color:var(--seal);border:1px solid var(--seal);border-radius:2px;padding:1px 7px;text-transform:uppercase}
+  .backlink{font-size:.8rem;color:var(--muted);cursor:pointer;background:none;border:none;font-family:var(--body);padding:0;text-decoration:underline;text-underline-offset:3px;margin-left:auto}
+  .backlink:hover{color:var(--seal)}
+  #panel .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px 28px;margin-top:10px}
+  #panel h4{font-size:.66rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px;border-bottom:1px solid var(--rule);padding-bottom:4px}
+  #panel ul{list-style:none;max-height:300px;overflow-y:auto}
+  #panel li{padding:2px 0;font-size:.8rem}
+  .sym{font-family:var(--mono);font-size:.78rem;overflow-wrap:anywhere}
+  .sym .ln{color:var(--muted);font-size:.68rem}
+  .sym .sig{color:var(--muted);display:block;font-size:.68rem;padding-left:14px;overflow-wrap:anywhere}
+  .impline{font-family:var(--mono);font-size:.78rem;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .impline a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px;cursor:pointer}
+  .impline a:hover{text-decoration-color:var(--seal)}
+  .lazychip{font-family:var(--body);font-size:.6rem;font-weight:600;letter-spacing:.06em;color:var(--muted);border:1px dashed var(--muted);border-radius:2px;padding:0 5px}
+  .callline{font-family:var(--mono);font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
+  .callline b{color:var(--ink);font-weight:500}
+  #panel p.dim{color:var(--muted);font-size:.88rem;max-width:78ch;margin:6px 0 0}
+
+  footer{border-top:1px solid var(--rule);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<script>
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect class="p" x="8" y="8" width="84" height="84" rx="18"/><g class="k" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#start">Get started</a>
+      <a href="docs.html">Docs</a>
+      <a href="ml-deberta.html">ML layer</a>
+      <a href="architecture.html" aria-current="page">Architecture</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">&#9790;</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <p class="eyebrow">Field notes / The pipeline</p>
+  <h1>The scanner, drawn from its own code graph</h1>
+  <p class="standfirst">Attestral reviews a system as components, edges, and trust boundaries. This page turns that lens back on the tool: every plate and edge below is a real module and import in the package, arranged as the pipeline a scan flows through.</p>
+  <div class="meta" id="meta">
+    <span><b>25</b> modules</span>
+    <span><b>54</b> import edges, <b>14</b> lazy</span>
+    <span><b>169</b> functions and classes</span>
+    <span>generated 2026-07-13 at v0.12.0</span>
+  </div>
+</article>
+</div>
+
+<div class="wrap-wide graphsec">
+  <div class="toolbar">
+    <label><input type="checkbox" id="tglFound"> foundation imports <span id="foundN"></span></label>
+    <label><input type="checkbox" id="tglCli" checked> cli fan-out</label>
+    <span class="spacer"></span>
+    <span class="lgd"><svg width="34" height="8"><line x1="0" y1="4" x2="34" y2="4" class="lline"></line></svg> top-level import</span>
+    <span class="lgd"><svg width="34" height="8"><line x1="0" y1="4" x2="34" y2="4" class="lline" stroke-dasharray="5 4"></line></svg> lazy, inside a function</span>
+    <span>A &rarr; B reads &ldquo;A imports B&rdquo;</span>
+  </div>
+  <figure>
+    <div class="diagram"><svg id="g" role="img" aria-label="Module dependency graph of the attestral package, arranged by pipeline stage"></svg></div>
+    <figcaption><b>Hover</b> a module to light up what it imports (red, outgoing) and what imports it (dark, incoming). <b>Click</b> one for its functions, classes, and resolved call edges. The foundation row is hidden wiring by default: nearly every module imports <b>model</b>, so those edges draw only on hover or with the toggle.</figcaption>
+  </figure>
+  <div id="panel"></div>
+</div>
+<div id="tip"></div>
+
+<div class="wrap">
+<article class="cont">
+
+  <section>
+    <p class="lede">The map is generated, not illustrated. A tree-sitter pass parses every file in the package into a graph of symbols and edges, the same way Attestral parses your Terraform and MCP configs into components and edges. Solid lines are module-level imports straight from that index. Dashed lines are imports that happen inside a function, recovered with a source sweep.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The foundation row</p>
+    <h2>One vocabulary, every layer</h2>
+    <p><code>model.py</code> defines <code>Component</code>, <code>Edge</code>, <code>TrustBoundary</code>, <code>Finding</code>, and <code>Severity</code>. <span data-spell="model-importers" data-cap>Twenty-one</span> of the other <span data-spell="other-modules">twenty-four</span> modules import it, which is why it sits at the bottom of the map rather than in any one column.</p>
+    <p>That shape is deliberate. The deterministic rules, the ML scorer, and the LLM judge never talk to each other; they each read the same <code>SystemModel</code> and append the same <code>Finding</code> type. It is the reason findings from three very different analyses land in one severity ordering, one evidence chain, and one SARIF file without translation glue.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The dashed edges</p>
+    <h2>Lazy imports are a design invariant, not a style choice</h2>
+    <p>Most of <code>cli</code>'s fan-out is dashed, and that is the point. Anything heavier than <code>click</code> and <code>pyyaml</code> is imported inside the function that needs it: the ML tiers, the LLM layers, the SARIF and AIBOM renderers. A missing optional extra is never an import error, and <code>attestral scan</code> stays fast when you asked for the core scan only.</p>
+    <p class="pull">The scan you run is the diagram you see: ingest builds the model, analysis layers append findings, governance applies waivers, output renders the chain, and the runtime column turns the attested design into policy.</p>
+  </section>
+
+</article>
+</div>
+
+<footer>
+  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> &#183; An Attestral Labs project &#183; &#169; 2026 &#183; Apache 2.0</div>
+</footer>
+
+<script>
+const DATA = {"modules":{"attestral":{"functions":[],"classes":[],"bytes":246,"nodeCount":4},"attestral.aibom":{"functions":[{"name":"_purl","qname":"_purl","line":41,"sig":"(command, args) -> str | None","kind":"function"},{"name":"_props","qname":"_props","line":66,"sig":"(pairs) -> list[dict]","kind":"function"},{"name":"build_aibom","qname":"build_aibom","line":70,"sig":"(model: SystemModel, target: str) -> dict","kind":"function"},{"name":"render_aibom","qname":"render_aibom","line":173,"sig":"(model: SystemModel, target: str) -> str","kind":"function"}],"classes":[],"bytes":6708,"nodeCount":16},"attestral.cli":{"functions":[{"name":"main","qname":"main","line":18,"sig":"() -> None","kind":"function"},{"name":"scan","qname":"scan","line":57,"sig":"(ctx: click.Context, path: str | None, local: bool, output: str, fmt: str, llm: bool,\n         fail_on: str | None, waiv","kind":"function"},{"name":"init","qname":"init","line":220,"sig":"() -> None","kind":"function"},{"name":"explain","qname":"explain","line":259,"sig":"(rule_id: str) -> None","kind":"function"},{"name":"verify","qname":"verify","line":319,"sig":"(report: str) -> None","kind":"function"},{"name":"compile","qname":"compile","line":330,"sig":"(path: str, output: str) -> None","kind":"function"},{"name":"drift","qname":"drift","line":352,"sig":"(policy_file: str, events_file: str, fail_on_drift: bool) -> None","kind":"function"}],"classes":[],"bytes":16162,"nodeCount":19},"attestral.compile":{"functions":[{"name":"_model_hash","qname":"_model_hash","line":31,"sig":"(model: SystemModel) -> str","kind":"function"},{"name":"compile_policy","qname":"compile_policy","line":35,"sig":"(\n    model: SystemModel,\n    findings: list[Finding],\n    chain_head: str = \"\",\n) -> dict","kind":"function"},{"name":"render_policy_yaml","qname":"render_policy_yaml","line":107,"sig":"(policy: dict) -> str","kind":"function"}],"classes":[],"bytes":4408,"nodeCount":10},"attestral.drift":{"functions":[{"name":"_mk","qname":"_mk","line":31,"sig":"(rule: str, server: str, detail: str, event_no: int) -> Finding","kind":"function"},{"name":"_path_in_roots","qname":"_path_in_roots","line":48,"sig":"(path: str, roots: list[str]) -> bool","kind":"function"},{"name":"detect_drift","qname":"detect_drift","line":52,"sig":"(policy: dict, events: list[dict]) -> list[Finding]","kind":"function"},{"name":"_call_signature","qname":"_call_signature","line":102,"sig":"(ev: dict) -> str","kind":"function"},{"name":"_int_budget","qname":"_int_budget","line":109,"sig":"(val, minimum: int)","kind":"function"},{"name":"_consecutive","qname":"_consecutive","line":120,"sig":"(events: list[dict], keyfn)","kind":"function"},{"name":"_budget_drift","qname":"_budget_drift","line":144,"sig":"(policy: dict, events: list[dict]) -> list[Finding]","kind":"function"},{"name":"load_events","qname":"load_events","line":198,"sig":"(path: str | Path) -> list[dict]","kind":"function"}],"classes":[],"bytes":8706,"nodeCount":14},"attestral.evidence":{"functions":[{"name":"audit_chain","qname":"audit_chain","line":13,"sig":"(findings: list[Finding]) -> list[dict]","kind":"function"},{"name":"verify_chain","qname":"verify_chain","line":29,"sig":"(chain: list[dict]) -> bool","kind":"function"},{"name":"render_markdown","qname":"render_markdown","line":41,"sig":"(model: SystemModel, findings: list[Finding], target: str) -> str","kind":"function"}],"classes":[],"bytes":3758,"nodeCount":9},"attestral.ingest":{"functions":[],"classes":[],"bytes":379,"nodeCount":7},"attestral.ingest.agent_config":{"functions":[{"name":"_hook_commands","qname":"_hook_commands","line":49,"sig":"(hooks) -> list[str]","kind":"function"},{"name":"_is_settings_file","qname":"_is_settings_file","line":72,"sig":"(f: Path) -> bool","kind":"function"},{"name":"_frontmatter","qname":"_frontmatter","line":76,"sig":"(text: str) -> dict","kind":"function"},{"name":"_subagent_component","qname":"_subagent_component","line":98,"sig":"(f: Path) -> Component","kind":"function"},{"name":"_a2a_component","qname":"_a2a_component","line":137,"sig":"(f: Path) -> Component | None","kind":"function"},{"name":"_is_subagent_file","qname":"_is_subagent_file","line":179,"sig":"(f: Path) -> bool","kind":"function"},{"name":"_is_agent_card","qname":"_is_agent_card","line":187,"sig":"(f: Path) -> bool","kind":"function"},{"name":"ingest_agent_config","qname":"ingest_agent_config","line":191,"sig":"(path: str | Path, model: SystemModel) -> SystemModel","kind":"function"}],"classes":[],"bytes":8438,"nodeCount":17},"attestral.ingest.kubernetes":{"functions":[{"name":"_dig","qname":"_dig","line":37,"sig":"(doc: dict, path: tuple[str, ...]) -> dict | None","kind":"function"},{"name":"_seccomp_type","qname":"_seccomp_type","line":46,"sig":"(node: dict) -> str | None","kind":"function"},{"name":"_image_attrs","qname":"_image_attrs","line":52,"sig":"(image: str) -> dict[str, Any]","kind":"function"},{"name":"_container_component","qname":"_container_component","line":65,"sig":"(\n    workload_id: str, source: str, container: dict, index: int,\n    pod_seccomp: str | None = None,\n) -> Component","kind":"function"},{"name":"_workload_component","qname":"_workload_component","line":126,"sig":"(\n    kind: str, wl_name: str, source: str, pod: dict, namespace: str = \"default\"\n) -> Component","kind":"function"},{"name":"_ingest_doc","qname":"_ingest_doc","line":151,"sig":"(doc: dict, source: str, model: SystemModel) -> None","kind":"function"},{"name":"ingest_kubernetes","qname":"ingest_kubernetes","line":173,"sig":"(path: str | Path, model: SystemModel) -> SystemModel","kind":"function"}],"classes":[],"bytes":7268,"nodeCount":14},"attestral.ingest.local_config":{"functions":[{"name":"_platform_key","qname":"_platform_key","line":49,"sig":"(platform: str | None) -> str","kind":"function"},{"name":"_claude_desktop_path","qname":"_claude_desktop_path","line":59,"sig":"(home: Path, plat: str) -> Path","kind":"function"},{"name":"_candidates","qname":"_candidates","line":77,"sig":"(plat: str) -> list[_Candidate]","kind":"function"},{"name":"discover_config_sources","qname":"discover_config_sources","line":126,"sig":"(\n    home: str | Path | None = None,\n    cwd: str | Path | None = None,\n    platform: str | None = None,\n) -> list[Conf","kind":"function"},{"name":"_claude_code_project_servers","qname":"_claude_code_project_servers","line":162,"sig":"(config_path: Path, project_dir: Path) -> dict","kind":"function"},{"name":"_empty_model","qname":"_empty_model","line":192,"sig":"() -> SystemModel","kind":"function"},{"name":"build_local_model","qname":"build_local_model","line":203,"sig":"(\n    sources: list[ConfigSource] | None = None,\n    home: str | Path | None = None,\n    cwd: str | Path | None = None,\n","kind":"function"}],"classes":[{"name":"ConfigSource","qname":"ConfigSource","line":27,"sig":"","kind":"class"},{"name":"_Candidate","qname":"_Candidate","line":39,"sig":"","kind":"class"}],"bytes":9243,"nodeCount":17},"attestral.ingest.mcp":{"functions":[{"name":"_version_tuple","qname":"_version_tuple","line":64,"sig":"(v: str) -> tuple[int, ...]","kind":"function"},{"name":"_known_cve","qname":"_known_cve","line":74,"sig":"(tokens: list[str]) -> str | None","kind":"function"},{"name":"_tool_descriptions","qname":"_tool_descriptions","line":92,"sig":"(tools) -> list[dict]","kind":"function"},{"name":"_tool_names","qname":"_tool_names","line":109,"sig":"(tools) -> list[str]","kind":"function"},{"name":"component_from_server","qname":"component_from_server","line":123,"sig":"(name: str, cfg, source: str) -> Component","kind":"function"},{"name":"ingest_mcp","qname":"ingest_mcp","line":232,"sig":"(path: str | Path, model: SystemModel) -> SystemModel","kind":"function"}],"classes":[],"bytes":11411,"nodeCount":17},"attestral.ingest.prompts":{"functions":[{"name":"_is_instruction_file","qname":"_is_instruction_file","line":39,"sig":"(f: Path) -> bool","kind":"function"},{"name":"_is_skill_file","qname":"_is_skill_file","line":47,"sig":"(f: Path) -> bool","kind":"function"},{"name":"_skill_tool_grant","qname":"_skill_tool_grant","line":55,"sig":"(content: str) -> bool | None","kind":"function"},{"name":"_world_writable","qname":"_world_writable","line":82,"sig":"(f: Path) -> bool","kind":"function"},{"name":"_qualifies","qname":"_qualifies","line":94,"sig":"(f: Path) -> bool","kind":"function"},{"name":"ingest_prompts","qname":"ingest_prompts","line":103,"sig":"(path: str | Path, model: SystemModel) -> SystemModel","kind":"function"}],"classes":[],"bytes":6082,"nodeCount":14},"attestral.ingest.scan":{"functions":[{"name":"build_model","qname":"build_model","line":14,"sig":"(path: str | Path) -> SystemModel","kind":"function"},{"name":"_add_taint_edges","qname":"_add_taint_edges","line":38,"sig":"(model: SystemModel) -> None","kind":"function"},{"name":"_add_reachability_edges","qname":"_add_reachability_edges","line":57,"sig":"(model: SystemModel) -> None","kind":"function"}],"classes":[],"bytes":3111,"nodeCount":13},"attestral.ingest.terraform":{"functions":[{"name":"_unq","qname":"_unq","line":71,"sig":"(v)","kind":"function"},{"name":"_flatten","qname":"_flatten","line":84,"sig":"(attrs: dict, out: dict, cidr_vals: list) -> None","kind":"function"},{"name":"_parse_with_hcl2","qname":"_parse_with_hcl2","line":97,"sig":"(f: Path, dm: _DirModule) -> bool","kind":"function"},{"name":"_block_body","qname":"_block_body","line":133,"sig":"(text: str, start: int) -> str","kind":"function"},{"name":"_strip_comment","qname":"_strip_comment","line":147,"sig":"(value: str) -> str","kind":"function"},{"name":"_clean","qname":"_clean","line":158,"sig":"(value: str)","kind":"function"},{"name":"_scan_value","qname":"_scan_value","line":167,"sig":"(value: str)","kind":"function"},{"name":"_parse_with_scanner","qname":"_parse_with_scanner","line":180,"sig":"(f: Path, dm: _DirModule) -> None","kind":"function"},{"name":"_ref_parts","qname":"_ref_parts","line":218,"sig":"(s: str) -> tuple[str, str] | None","kind":"function"},{"name":"_resolve","qname":"_resolve","line":227,"sig":"(value, var_env: dict, local_env: dict)","kind":"function"},{"name":"_is_resolved","qname":"_is_resolved","line":245,"sig":"(v) -> bool","kind":"function"},{"name":"_resolve_locals","qname":"_resolve_locals","line":255,"sig":"(raw_locals: dict, var_env: dict) -> dict","kind":"function"},{"name":"_load_tfvars","qname":"_load_tfvars","line":273,"sig":"(directory: Path) -> dict","kind":"function"},{"name":"_parse_tfvars","qname":"_parse_tfvars","line":286,"sig":"(f: Path) -> dict","kind":"function"},{"name":"ingest_terraform","qname":"ingest_terraform","line":308,"sig":"(path: str | Path, model: SystemModel) -> SystemModel","kind":"function"},{"name":"_emit","qname":"_emit","line":341,"sig":"(\n    dm: _DirModule,\n    model: SystemModel,\n    dirs: dict[Path, _DirModule],\n    prefix: str,\n    var_env: dict,\n    ","kind":"function"}],"classes":[{"name":"_RawResource","qname":"_RawResource","line":53,"sig":"","kind":"class"},{"name":"_DirModule","qname":"_DirModule","line":62,"sig":"","kind":"class"}],"bytes":14346,"nodeCount":32},"attestral.judge":{"functions":[{"name":"api_key","qname":"api_key","line":47,"sig":"() -> str | None","kind":"function"},{"name":"build_context","qname":"build_context","line":51,"sig":"(model: SystemModel, finding: Finding) -> dict","kind":"function"},{"name":"decide","qname":"decide","line":70,"sig":"(votes: list[dict]) -> tuple[str, float, str]","kind":"function"},{"name":"apply_verdict","qname":"apply_verdict","line":80,"sig":"(finding: Finding, verdict: str, confidence: float, reasoning: str,\n                  cfg: JudgeConfig) -> None","kind":"function"},{"name":"_parse_verdict","qname":"_parse_verdict","line":90,"sig":"(text: str) -> dict | None","kind":"function"},{"name":"_default_query","qname":"_default_query","line":106,"sig":"(cfg: JudgeConfig)","kind":"function"},{"name":"judge_findings","qname":"judge_findings","line":126,"sig":"(model: SystemModel, findings: list[Finding],\n                   cfg: JudgeConfig | None = None, query=None) -> list[str","kind":"function"}],"classes":[{"name":"JudgeConfig","qname":"JudgeConfig","line":40,"sig":"","kind":"class"}],"bytes":5942,"nodeCount":16},"attestral.llm":{"functions":[{"name":"elicit","qname":"elicit","line":25,"sig":"(model: SystemModel, max_findings: int = 10) -> list[Finding]","kind":"function"}],"classes":[],"bytes":2384,"nodeCount":6},"attestral.manifest":{"functions":[{"name":"normalize_tools","qname":"normalize_tools","line":20,"sig":"(tools) -> list[dict]","kind":"function"},{"name":"canonical_manifest","qname":"canonical_manifest","line":36,"sig":"(\n    command: str = \"\", args: list | None = None, url: str = \"\", tools: list[dict] | None = None\n) -> dict","kind":"function"},{"name":"manifest_hash","qname":"manifest_hash","line":55,"sig":"(\n    command: str = \"\", args: list | None = None, url: str = \"\", tools: list[dict] | None = None\n) -> str","kind":"function"}],"classes":[],"bytes":2276,"nodeCount":6},"attestral.ml":{"functions":[{"name":"from_env","qname":"MLConfig::from_env","line":91,"sig":"(cls, **overrides) -> \"MLConfig\"","kind":"method"},{"name":"gather_surfaces","qname":"gather_surfaces","line":110,"sig":"(model: SystemModel) -> list[TextSurface]","kind":"function"},{"name":"_collect_component_surfaces","qname":"_collect_component_surfaces","line":118,"sig":"(c: Component, out: list[TextSurface]) -> None","kind":"function"},{"name":"_chunks","qname":"_chunks","line":136,"sig":"(text: str, size: int, overlap: int) -> Iterator[str]","kind":"function"},{"name":"_severity","qname":"_severity","line":148,"sig":"(prob: float) -> Severity","kind":"function"},{"name":"_snippet","qname":"_snippet","line":156,"sig":"(text: str, n: int = 160) -> str","kind":"function"},{"name":"_finding","qname":"_finding","line":161,"sig":"(surface: TextSurface, prob: float, evidence: list[str] | None = None) -> Finding","kind":"function"},{"name":"_clip","qname":"_clip","line":327,"sig":"(s: str, n: int = 80) -> str","kind":"function"},{"name":"_match_categories","qname":"_match_categories","line":332,"sig":"(text: str) -> dict[str, str]","kind":"function"},{"name":"_decoded_payloads","qname":"_decoded_payloads","line":344,"sig":"(text: str, limit: int = 12) -> list[str]","kind":"function"},{"name":"_describe_hidden_unicode","qname":"_describe_hidden_unicode","line":361,"sig":"(text: str) -> str","kind":"function"},{"name":"heuristic_score","qname":"heuristic_score","line":366,"sig":"(text: str) -> tuple[float, list[str]]","kind":"function"},{"name":"_heuristic_engine","qname":"_heuristic_engine","line":403,"sig":"(text: str) -> tuple[float, list[str]]","kind":"function"},{"name":"_transformer_classifier","qname":"_transformer_classifier","line":411,"sig":"(cfg: MLConfig) -> Classifier | None","kind":"function"},{"name":"_resolve_onnx_weights","qname":"_resolve_onnx_weights","line":443,"sig":"(cfg: MLConfig) -> str | None","kind":"function"},{"name":"_onnx_classifier","qname":"_onnx_classifier","line":474,"sig":"(cfg: MLConfig) -> Classifier | None","kind":"function"},{"name":"_fallback_note","qname":"_fallback_note","line":540,"sig":"(choice: str) -> str","kind":"function"},{"name":"_resolve_engine","qname":"_resolve_engine","line":561,"sig":"(cfg: MLConfig) -> tuple[_Engine, list[str]]","kind":"function"},{"name":"scan","qname":"scan","line":588,"sig":"(\n    model: SystemModel,\n    cfg: MLConfig | None = None,\n    classifier: Classifier | None = None,\n) -> tuple[list[Fin","kind":"function"}],"classes":[{"name":"MLConfig","qname":"MLConfig","line":81,"sig":"","kind":"class"},{"name":"TextSurface","qname":"TextSurface","line":102,"sig":"","kind":"class"}],"bytes":27452,"nodeCount":43},"attestral.model":{"functions":[{"name":"rank","qname":"Severity::rank","line":18,"sig":"(self) -> int","kind":"method"},{"name":"attr","qname":"Component::attr","line":32,"sig":"(self, key: str, default: Any = None) -> Any","kind":"method"},{"name":"to_dict","qname":"Finding::to_dict","line":68,"sig":"(self) -> dict[str, Any]","kind":"method"},{"name":"add","qname":"SystemModel::add","line":80,"sig":"(self, component: Component) -> None","kind":"method"},{"name":"by_type","qname":"SystemModel::by_type","line":83,"sig":"(self, prefix: str) -> list[Component]","kind":"method"},{"name":"get","qname":"SystemModel::get","line":86,"sig":"(self, component_id: str) -> Component | None","kind":"method"},{"name":"crossing_edges","qname":"SystemModel::crossing_edges","line":89,"sig":"(self) -> list[Edge]","kind":"method"},{"name":"to_json","qname":"SystemModel::to_json","line":98,"sig":"(self) -> str","kind":"method"}],"classes":[{"name":"Severity","qname":"Severity","line":10,"sig":"","kind":"class"},{"name":"Component","qname":"Component","line":23,"sig":"","kind":"class"},{"name":"Edge","qname":"Edge","line":37,"sig":"","kind":"class"},{"name":"TrustBoundary","qname":"TrustBoundary","line":46,"sig":"","kind":"class"},{"name":"Finding","qname":"Finding","line":53,"sig":"","kind":"class"},{"name":"SystemModel","qname":"SystemModel","line":75,"sig":"","kind":"class"}],"bytes":3395,"nodeCount":19},"attestral.paths":{"functions":[{"name":"describe","qname":"AttackPath::describe","line":50,"sig":"(self) -> str","kind":"method"},{"name":"_capability_components","qname":"_capability_components","line":58,"sig":"(model: SystemModel) -> list[tuple[str, set[str]]]","kind":"function"},{"name":"_pivot_and_impact","qname":"_pivot_and_impact","line":67,"sig":"(model: SystemModel) -> tuple[list[str], list[str], str]","kind":"function"},{"name":"external_attack_paths","qname":"external_attack_paths","line":83,"sig":"(model: SystemModel) -> list[AttackPath]","kind":"function"},{"name":"internal_attack_paths","qname":"internal_attack_paths","line":106,"sig":"(model: SystemModel) -> list[AttackPath]","kind":"function"},{"name":"all_attack_paths","qname":"all_attack_paths","line":131,"sig":"(model: SystemModel) -> list[AttackPath]","kind":"function"}],"classes":[{"name":"Stage","qname":"Stage","line":35,"sig":"","kind":"class"},{"name":"AttackPath","qname":"AttackPath","line":44,"sig":"","kind":"class"}],"bytes":5542,"nodeCount":14},"attestral.report_terminal":{"functions":[{"name":"supports_color","qname":"supports_color","line":35,"sig":"(stream=None) -> bool","kind":"function"},{"name":"_paint","qname":"_paint","line":46,"sig":"(text: str, code: str, on: bool) -> str","kind":"function"},{"name":"_bold","qname":"_bold","line":50,"sig":"(text: str, on: bool) -> str","kind":"function"},{"name":"_dim","qname":"_dim","line":54,"sig":"(text: str, on: bool) -> str","kind":"function"},{"name":"_one_line","qname":"_one_line","line":58,"sig":"(text: str, width: int = _HINT_WIDTH) -> str","kind":"function"},{"name":"_tag","qname":"_tag","line":66,"sig":"(f: \"Finding\") -> str","kind":"function"},{"name":"_plural","qname":"_plural","line":74,"sig":"(n: int, noun: str) -> str","kind":"function"},{"name":"_counts","qname":"_counts","line":78,"sig":"(findings: list[\"Finding\"]) -> dict[str, int]","kind":"function"},{"name":"breakdown","qname":"breakdown","line":85,"sig":"(findings: list[\"Finding\"], color: bool) -> str","kind":"function"},{"name":"render_attack_paths","qname":"render_attack_paths","line":96,"sig":"(model: \"SystemModel\", *, color: bool | None = None) -> str","kind":"function"},{"name":"render_scan","qname":"render_scan","line":117,"sig":"(\n    model: \"SystemModel\",\n    findings: list[\"Finding\"],\n    target: str,\n    *,\n    quiet: bool = False,\n    color: b","kind":"function"},{"name":"render_fleet","qname":"render_fleet","line":197,"sig":"(model: \"SystemModel\", *, color: bool | None = None) -> str","kind":"function"},{"name":"gate_line","qname":"gate_line","line":221,"sig":"(fail_on: str, failed: bool, *, color: bool | None = None) -> str","kind":"function"}],"classes":[],"bytes":8165,"nodeCount":24},"attestral.rules":{"functions":[],"classes":[],"bytes":72,"nodeCount":3},"attestral.rules.engine":{"functions":[{"name":"_builtin_packs","qname":"_builtin_packs","line":19,"sig":"() -> list[Path]","kind":"function"},{"name":"_identifier_like","qname":"_identifier_like","line":33,"sig":"(name: str) -> bool","kind":"function"},{"name":"_references","qname":"_references","line":41,"sig":"(surface: str, name: str) -> bool","kind":"function"},{"name":"_capability_components","qname":"_capability_components","line":47,"sig":"(model: SystemModel) -> list[tuple[Component, set[str]]]","kind":"function"},{"name":"_distinct_servers","qname":"_distinct_servers","line":57,"sig":"(model: SystemModel) -> list[Component]","kind":"function"},{"name":"_matches","qname":"_matches","line":71,"sig":"(component: Component, match: dict[str, Any]) -> bool","kind":"function"},{"name":"__init__","qname":"RuleEngine::__init__","line":119,"sig":"(self, rule_paths: list[str | Path] | None = None)","kind":"method"},{"name":"evaluate","qname":"RuleEngine::evaluate","line":126,"sig":"(self, model: SystemModel) -> list[Finding]","kind":"method"},{"name":"_evaluate_model_rule","qname":"RuleEngine::_evaluate_model_rule","line":140,"sig":"(self, rule: dict, match: dict, model: SystemModel) -> list[Finding]","kind":"method"},{"name":"_finding","qname":"RuleEngine::_finding","line":348,"sig":"(rule: dict, component_id: str, source: str, detail: str = \"\") -> Finding","kind":"method"}],"classes":[{"name":"RuleEngine","qname":"RuleEngine","line":118,"sig":"","kind":"class"}],"bytes":17907,"nodeCount":20},"attestral.sarif":{"functions":[{"name":"_uri","qname":"_uri","line":38,"sig":"(source: str) -> str","kind":"function"},{"name":"render_sarif","qname":"render_sarif","line":53,"sig":"(model: SystemModel, findings: list[Finding], target: str) -> str","kind":"function"}],"classes":[],"bytes":4682,"nodeCount":11},"attestral.waivers":{"functions":[{"name":"covers","qname":"Waiver::covers","line":37,"sig":"(self, finding: Finding) -> bool","kind":"method"},{"name":"expired","qname":"Waiver::expired","line":40,"sig":"(self, today: _dt.date) -> bool","kind":"method"},{"name":"load_waivers","qname":"load_waivers","line":49,"sig":"(path: str | Path) -> list[Waiver]","kind":"function"},{"name":"discover_waivers","qname":"discover_waivers","line":64,"sig":"(scan_path: str | Path) -> Path | None","kind":"function"},{"name":"apply_waivers","qname":"apply_waivers","line":76,"sig":"(\n    findings: list[Finding],\n    waivers: list[Waiver],\n    today: _dt.date | None = None,\n) -> list[str]","kind":"function"}],"classes":[{"name":"Waiver","qname":"Waiver","line":31,"sig":"","kind":"class"}],"bytes":3281,"nodeCount":13}},"imports":[{"src":"attestral","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.aibom","dst":"attestral","lazy":false,"count":1},{"src":"attestral.aibom","dst":"attestral.manifest","lazy":false,"count":1},{"src":"attestral.aibom","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.cli","dst":"attestral","lazy":false,"count":1},{"src":"attestral.cli","dst":"attestral.aibom","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.compile","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.drift","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.evidence","lazy":false,"count":1},{"src":"attestral.cli","dst":"attestral.ingest","lazy":false,"count":1},{"src":"attestral.cli","dst":"attestral.ingest.local_config","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.judge","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.llm","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.ml","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.model","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.report_terminal","lazy":true,"count":3},{"src":"attestral.cli","dst":"attestral.rules","lazy":false,"count":1},{"src":"attestral.cli","dst":"attestral.sarif","lazy":true,"count":1},{"src":"attestral.cli","dst":"attestral.waivers","lazy":true,"count":1},{"src":"attestral.compile","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.drift","dst":"attestral.manifest","lazy":false,"count":1},{"src":"attestral.drift","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.evidence","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ingest","dst":"attestral.ingest.kubernetes","lazy":false,"count":1},{"src":"attestral.ingest","dst":"attestral.ingest.mcp","lazy":false,"count":1},{"src":"attestral.ingest","dst":"attestral.ingest.prompts","lazy":false,"count":1},{"src":"attestral.ingest","dst":"attestral.ingest.scan","lazy":false,"count":1},{"src":"attestral.ingest","dst":"attestral.ingest.terraform","lazy":false,"count":1},{"src":"attestral.ingest.agent_config","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ingest.kubernetes","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ingest.local_config","dst":"attestral.ingest.mcp","lazy":false,"count":1},{"src":"attestral.ingest.local_config","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ingest.mcp","dst":"attestral.manifest","lazy":false,"count":1},{"src":"attestral.ingest.mcp","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ingest.prompts","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ingest.scan","dst":"attestral.ingest.agent_config","lazy":false,"count":1},{"src":"attestral.ingest.scan","dst":"attestral.ingest.kubernetes","lazy":false,"count":1},{"src":"attestral.ingest.scan","dst":"attestral.ingest.mcp","lazy":false,"count":1},{"src":"attestral.ingest.scan","dst":"attestral.ingest.prompts","lazy":false,"count":1},{"src":"attestral.ingest.scan","dst":"attestral.ingest.terraform","lazy":false,"count":1},{"src":"attestral.ingest.scan","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ingest.terraform","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.judge","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.llm","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.ml","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.paths","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.report_terminal","dst":"attestral.model","lazy":true,"count":1},{"src":"attestral.report_terminal","dst":"attestral.paths","lazy":true,"count":1},{"src":"attestral.rules","dst":"attestral.rules.engine","lazy":false,"count":1},{"src":"attestral.rules.engine","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.rules.engine","dst":"attestral.paths","lazy":true,"count":1},{"src":"attestral.sarif","dst":"attestral","lazy":false,"count":1},{"src":"attestral.sarif","dst":"attestral.model","lazy":false,"count":1},{"src":"attestral.waivers","dst":"attestral.model","lazy":false,"count":1}],"calls":[{"src":"build_aibom","dst":"manifest_hash","srcMod":"attestral.aibom","dstMod":"attestral.manifest","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"build_aibom","dst":"Component::attr","srcMod":"attestral.aibom","dstMod":"attestral.model","kind":"calls"},{"src":"render_markdown","dst":"audit_chain","srcMod":"attestral.evidence","dstMod":"attestral.evidence","kind":"calls"},{"src":"audit_chain","dst":"Finding::to_dict","srcMod":"attestral.evidence","dstMod":"attestral.model","kind":"calls"},{"src":"audit_chain","dst":"Finding::to_dict","srcMod":"attestral.evidence","dstMod":"attestral.model","kind":"calls"},{"src":"_subagent_component","dst":"_frontmatter","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.ingest.agent_config","kind":"calls"},{"src":"ingest_agent_config","dst":"_a2a_component","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.ingest.agent_config","kind":"calls"},{"src":"ingest_agent_config","dst":"_hook_commands","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.ingest.agent_config","kind":"calls"},{"src":"ingest_agent_config","dst":"_is_agent_card","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.ingest.agent_config","kind":"calls"},{"src":"ingest_agent_config","dst":"_is_settings_file","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.ingest.agent_config","kind":"calls"},{"src":"ingest_agent_config","dst":"_is_subagent_file","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.ingest.agent_config","kind":"calls"},{"src":"ingest_agent_config","dst":"_subagent_component","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.ingest.agent_config","kind":"calls"},{"src":"_a2a_component","dst":"Component","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.model","kind":"instantiates"},{"src":"_subagent_component","dst":"Component","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.model","kind":"instantiates"},{"src":"ingest_agent_config","dst":"Component","srcMod":"attestral.ingest.agent_config","dstMod":"attestral.model","kind":"instantiates"},{"src":"_default_query","dst":"api_key","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"calls"},{"src":"_default_query","dst":"api_key","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"calls"},{"src":"judge_findings","dst":"JudgeConfig","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"instantiates"},{"src":"judge_findings","dst":"_default_query","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"calls"},{"src":"judge_findings","dst":"_parse_verdict","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"calls"},{"src":"judge_findings","dst":"apply_verdict","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"calls"},{"src":"judge_findings","dst":"build_context","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"calls"},{"src":"judge_findings","dst":"decide","srcMod":"attestral.judge","dstMod":"attestral.judge","kind":"calls"},{"src":"elicit","dst":"Finding","srcMod":"attestral.llm","dstMod":"attestral.model","kind":"instantiates"},{"src":"elicit","dst":"Severity","srcMod":"attestral.llm","dstMod":"attestral.model","kind":"instantiates"},{"src":"elicit","dst":"SystemModel::to_json","srcMod":"attestral.llm","dstMod":"attestral.model","kind":"calls"},{"src":"render_fleet","dst":"Component::attr","srcMod":"attestral.report_terminal","dstMod":"attestral.model","kind":"calls"},{"src":"render_fleet","dst":"Component::attr","srcMod":"attestral.report_terminal","dstMod":"attestral.model","kind":"calls"},{"src":"render_fleet","dst":"Component::attr","srcMod":"attestral.report_terminal","dstMod":"attestral.model","kind":"calls"},{"src":"render_fleet","dst":"Component::attr","srcMod":"attestral.report_terminal","dstMod":"attestral.model","kind":"calls"},{"src":"breakdown","dst":"_counts","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"breakdown","dst":"_paint","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"gate_line","dst":"_paint","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"gate_line","dst":"_paint","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"gate_line","dst":"supports_color","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_attack_paths","dst":"_bold","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_attack_paths","dst":"_bold","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_attack_paths","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_attack_paths","dst":"_paint","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_attack_paths","dst":"supports_color","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"_bold","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"_bold","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"_one_line","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"_plural","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_fleet","dst":"supports_color","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_bold","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_bold","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_dim","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_one_line","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_one_line","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_paint","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_paint","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_paint","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_plural","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_plural","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"_tag","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"breakdown","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_scan","dst":"supports_color","srcMod":"attestral.report_terminal","dstMod":"attestral.report_terminal","kind":"calls"},{"src":"render_sarif","dst":"_uri","srcMod":"attestral.sarif","dstMod":"attestral.sarif","kind":"calls"},{"src":"apply_waivers","dst":"Waiver::covers","srcMod":"attestral.waivers","dstMod":"attestral.waivers","kind":"calls"},{"src":"apply_waivers","dst":"Waiver::expired","srcMod":"attestral.waivers","dstMod":"attestral.waivers","kind":"calls"},{"src":"load_waivers","dst":"Waiver","srcMod":"attestral.waivers","dstMod":"attestral.waivers","kind":"instantiates"}]};
+
+/* ---------- layout ---------- */
+const STAGES = [
+  { key: 'ENTRY',      x: 18,   w: 122, mods: ['attestral.cli'] },
+  { key: 'INGEST',     x: 200,  w: 176, mods: ['attestral.ingest', 'attestral.ingest.scan', 'attestral.ingest.local_config',
+                                               'attestral.ingest.mcp', 'attestral.ingest.terraform', 'attestral.ingest.kubernetes',
+                                               'attestral.ingest.prompts', 'attestral.ingest.agent_config'] },
+  { key: 'ANALYSIS',   x: 452,  w: 170, mods: ['attestral.rules', 'attestral.rules.engine', 'attestral.ml', 'attestral.llm', 'attestral.judge'] },
+  { key: 'GOVERNANCE', x: 690,  w: 168, mods: ['attestral.waivers', 'attestral.evidence'] },
+  { key: 'OUTPUT',     x: 922,  w: 186, mods: ['attestral.report_terminal', 'attestral.sarif', 'attestral.aibom'] },
+  { key: 'RUNTIME',    x: 1172, w: 140, mods: ['attestral.compile', 'attestral.drift'] },
+];
+const FOUNDATION = [
+  { id: 'attestral.model',    x: 200,  w: 330 },
+  { id: 'attestral.manifest', x: 575,  w: 205 },
+  { id: 'attestral.paths',    x: 825,  w: 185 },
+  { id: 'attestral',          x: 1055, w: 257 },
+];
+const W = 1330, TOPY = 44, PH = 46, VGAP = 14, MAINB = TOPY + 8 * (PH + VGAP) - VGAP;
+const FCAPY = MAINB + 44, FY = FCAPY + 14, H = FY + 48 + 26;
+const FOUND_SET = new Set(FOUNDATION.map(f => f.id));
+
+function shortLabel(m) {
+  if (m === 'attestral') return 'attestral (pkg)';
+  if (m === 'attestral.ingest') return 'ingest (pkg)';
+  if (m === 'attestral.rules') return 'rules (pkg)';
+  const parts = m.split('.');
+  return parts[parts.length - 1];
+}
+function stageOf(m) {
+  if (FOUND_SET.has(m)) return 'FOUNDATION';
+  for (const s of STAGES) if (s.mods.includes(m)) return s.key;
+  return '?';
+}
+
+const pos = {};
+for (const s of STAGES) {
+  const n = s.mods.length;
+  const isEntry = s.key === 'ENTRY';
+  const h = isEntry ? 64 : PH;
+  const y0 = isEntry ? TOPY + (MAINB - TOPY - h) / 2 : TOPY;
+  s.mods.forEach((m, i) => {
+    pos[m] = { x: s.x, y: isEntry ? y0 : y0 + i * (PH + VGAP), w: s.w, h: h };
+  });
+}
+for (const f of FOUNDATION) pos[f.id] = { x: f.x, y: FY, w: f.w, h: 48 };
+
+/* ---------- adjacency ---------- */
+const importsOut = {}, importsIn = {};
+DATA.imports.forEach(e => {
+  (importsOut[e.src] = importsOut[e.src] || []).push(e);
+  (importsIn[e.dst] = importsIn[e.dst] || []).push(e);
+});
+const foundEdgeCount = DATA.imports.filter(e => FOUND_SET.has(e.dst)).length;
+
+const callAgg = {};
+DATA.calls.forEach(c => {
+  const k = c.srcMod + '|' + c.src + '|' + c.dstMod + '|' + c.dst;
+  callAgg[k] = callAgg[k] ? { ...callAgg[k], n: callAgg[k].n + 1 } : { ...c, n: 1 };
+});
+const CALLS = Object.values(callAgg);
+
+/* ---------- render ---------- */
+const svg = document.getElementById('g');
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+const defs = el('defs', {}, svg);
+[['m-rest', 'mk-rest'], ['m-out', 'mk-out'], ['m-in', 'mk-in']].forEach(([id, cls]) => {
+  const mk = el('marker', { id, viewBox: '0 0 10 10', refX: 8.5, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M 0 1 L 9 5 L 0 9 z', class: cls }, mk);
+});
+
+const gEdges = el('g', {}, svg);
+const gNodes = el('g', {}, svg);
+
+for (const s of STAGES) {
+  const t = el('text', { x: s.x, y: 24, class: 'colhead' }, svg);
+  t.textContent = s.key;
+  const n = el('tspan', { dx: 6, class: 'colhead-n' }, t);
+  n.textContent = String(s.mods.length);
+}
+el('line', { x1: 18, y1: FCAPY - 16, x2: W - 18, y2: FCAPY - 16, class: 'foundrule' }, svg);
+const fc = el('text', { x: 18, y: FCAPY, class: 'foundcap' }, svg);
+fc.textContent = 'FOUNDATION';
+const fcn = el('tspan', { dx: 6, class: 'colhead-n' }, fc);
+fcn.textContent = `the shared vocabulary: ${foundEdgeCount} of ${DATA.imports.length} import edges land here`;
+
+const inIdx = {}, outIdx = {};
+DATA.imports.forEach(e => {
+  (inIdx[e.dst] = inIdx[e.dst] || []).push(e);
+  (outIdx[e.src] = outIdx[e.src] || []).push(e);
+});
+function attachY(node, list, e) {
+  const i = list.indexOf(e);
+  return pos[node].y + pos[node].h * (i + 1) / (list.length + 1);
+}
+function attachXTop(node, list, e) {
+  const i = list.indexOf(e);
+  return pos[node].x + pos[node].w * (i + 1) / (list.length + 1);
+}
+
+const edgeEls = [];
+DATA.imports.forEach(e => {
+  const s = pos[e.src], t = pos[e.dst];
+  if (!s || !t) return;
+  let d;
+  if (FOUND_SET.has(e.dst)) {
+    const x1 = s.x + s.w / 2, y1 = s.y + s.h;
+    const x2 = attachXTop(e.dst, inIdx[e.dst], e), y2 = t.y - 2;
+    const my = Math.max(y1 + 30, MAINB + 20);
+    d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${y2 - 40}, ${x2} ${y2}`;
+  } else if (t.x > s.x + s.w) {
+    const y1 = attachY(e.src, outIdx[e.src], e), y2 = attachY(e.dst, inIdx[e.dst], e);
+    const x1 = s.x + s.w, x2 = t.x - 2;
+    const dx = (x2 - x1) * 0.45;
+    d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+  } else {
+    const x1 = s.x + s.w, x2 = t.x + t.w + 2;
+    const y1 = attachY(e.src, outIdx[e.src], e), y2 = pos[e.dst].y + pos[e.dst].h / 2;
+    const bulge = Math.max(x1, x2) + 34;
+    d = `M ${x1} ${y1} C ${bulge} ${y1}, ${bulge} ${y2}, ${x2} ${y2}`;
+  }
+  const cls = ['edge'];
+  if (e.lazy) cls.push('lazy');
+  if (FOUND_SET.has(e.dst)) cls.push('found');
+  if (e.src === 'attestral.cli') cls.push('clifan');
+  const p = el('path', { d, class: cls.join(' '), 'data-src': e.src, 'data-dst': e.dst }, gEdges);
+  edgeEls.push(p);
+});
+
+const nodeEls = {};
+Object.keys(pos).forEach(m => {
+  const p = pos[m];
+  const info = DATA.modules[m] || { functions: [], classes: [], bytes: 0 };
+  const g = el('g', { class: 'node', tabindex: 0, role: 'button', 'data-m': m,
+                      'aria-label': m + ', ' + info.functions.length + ' functions' }, gNodes);
+  el('rect', { x: p.x, y: p.y, width: p.w, height: p.h, rx: 3 }, g);
+  const lbl = el('text', { x: p.x + p.w / 2, y: p.y + p.h / 2 - 2, class: 'lbl' }, g);
+  lbl.textContent = shortLabel(m);
+  const sub = el('text', { x: p.x + p.w / 2, y: p.y + p.h / 2 + 14, class: 'sublbl' }, g);
+  const fn = info.functions.length, cl = info.classes.length;
+  sub.textContent = cl ? `${fn} fn · ${cl} cls` : `${fn} fn`;
+  nodeEls[m] = g;
+});
+
+document.getElementById('foundN').textContent = `(${foundEdgeCount})`;
+
+/* ---------- interaction ---------- */
+const tip = document.getElementById('tip');
+let selected = null;
+
+function setFocus(m) {
+  svg.classList.add('focusmode');
+  edgeEls.forEach(p => {
+    const isOut = p.dataset.src === m, isIn = p.dataset.dst === m;
+    p.classList.toggle('out', isOut);
+    p.classList.toggle('in', isIn);
+    p.classList.toggle('show', (isOut || isIn) && p.classList.contains('found'));
+  });
+  Object.entries(nodeEls).forEach(([id, g]) => {
+    const nbr = (importsOut[m] || []).some(e => e.dst === id) || (importsIn[m] || []).some(e => e.src === id);
+    g.classList.toggle('hot', id === m);
+    g.classList.toggle('nbr', nbr);
+  });
+}
+function clearFocus() {
+  if (selected) { setFocus(selected); return; }
+  svg.classList.remove('focusmode');
+  edgeEls.forEach(p => p.classList.remove('out', 'in', 'show'));
+  Object.values(nodeEls).forEach(g => g.classList.remove('hot', 'nbr'));
+}
+
+Object.entries(nodeEls).forEach(([m, g]) => {
+  g.addEventListener('pointerenter', () => { setFocus(m); showTip(m); });
+  g.addEventListener('pointermove', ev => { tip.style.left = (ev.clientX + 14) + 'px'; tip.style.top = (ev.clientY + 14) + 'px'; });
+  g.addEventListener('pointerleave', () => { clearFocus(); tip.classList.remove('on'); });
+  g.addEventListener('focus', () => setFocus(m));
+  g.addEventListener('blur', clearFocus);
+  const activate = () => { selected = m; setFocus(m); renderModule(m); document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel')); g.classList.add('sel'); };
+  g.addEventListener('click', activate);
+  g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); activate(); } });
+});
+svg.addEventListener('click', ev => {
+  if (ev.target === svg) {
+    selected = null; clearFocus();
+    document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+    renderDefault();
+  }
+});
+
+function showTip(m) {
+  const out = (importsOut[m] || []).length, inn = (importsIn[m] || []).length;
+  tip.innerHTML = `<b>${m}</b><br><span class="t2">imports ${out} · imported by ${inn} · click for symbols</span>`;
+  tip.classList.add('on');
+}
+
+document.getElementById('tglFound').addEventListener('change', ev => svg.classList.toggle('show-found', ev.target.checked));
+document.getElementById('tglCli').addEventListener('change', ev => svg.classList.toggle('hide-cli', !ev.target.checked));
+
+/* ---------- detail card ---------- */
+const panel = document.getElementById('panel');
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function renderDefault() {
+  panel.innerHTML = `
+    <div class="phead"><h3>Pick a module</h3></div>
+    <p class="dim">Click any plate above to see its functions, classes, imports, and the call edges the index resolved.
+    Package init modules re-export their members, so a few plates hold no symbols of their own.</p>`;
+}
+
+function renderModule(m) {
+  const info = DATA.modules[m] || { functions: [], classes: [], bytes: 0 };
+  const file = m === 'attestral' ? 'attestral/__init__.py'
+    : (m === 'attestral.ingest' || m === 'attestral.rules')
+      ? 'attestral/' + m.replace('attestral.', '') + '/__init__.py'
+      : 'attestral/' + m.replace('attestral.', '').replace(/\./g, '/') + '.py';
+  const out = importsOut[m] || [], inn = importsIn[m] || [];
+  const callsOut = CALLS.filter(c => c.srcMod === m && c.dstMod !== m);
+  const callsIn = CALLS.filter(c => c.dstMod === m && c.srcMod !== m);
+  const callsInternal = CALLS.filter(c => c.srcMod === m && c.dstMod === m);
+  const kb = info.bytes ? (info.bytes / 1024).toFixed(1) + ' KB' : '';
+
+  const impLine = e => `<li class="impline"><a data-go="${e.dst}">${e.dst}</a>${e.lazy ? '<span class="lazychip">LAZY</span>' : ''}</li>`;
+  const impInLine = e => `<li class="impline"><a data-go="${e.src}">${e.src}</a>${e.lazy ? '<span class="lazychip">LAZY</span>' : ''}</li>`;
+  const symLine = s => `<li class="sym">${esc(s.name)} <span class="ln">:${s.line}</span>${s.sig ? `<span class="sig">${esc(s.sig)}</span>` : ''}</li>`;
+  const callLine = c => `<li class="callline"><b>${esc(c.src)}</b> &rarr; ${esc(c.dstMod === m ? c.dst : c.dstMod.replace('attestral.', '') + '.' + c.dst)}${c.n > 1 ? ` <span>×${c.n}</span>` : ''}</li>`;
+  const callInLine = c => `<li class="callline">${esc(c.srcMod.replace('attestral.', ''))}.<b>${esc(c.src)}</b> &rarr; ${esc(c.dst)}${c.n > 1 ? ` <span>×${c.n}</span>` : ''}</li>`;
+
+  const colSym = (info.classes.length ? `<h4>Classes (${info.classes.length})</h4><ul>${info.classes.map(symLine).join('')}</ul>` : '')
+    + (info.functions.length ? `<h4>Functions (${info.functions.length})</h4><ul>${info.functions.map(symLine).join('')}</ul>` : '')
+    + (!info.functions.length && !info.classes.length ? '<h4>Symbols</h4><p class="dim">Package init, re-exports only.</p>' : '');
+  const colImp = (out.length ? `<h4>Imports (${out.length})</h4><ul>${out.map(impLine).join('')}</ul>` : '')
+    + (inn.length ? `<h4>Imported by (${inn.length})</h4><ul>${inn.map(impInLine).join('')}</ul>` : '');
+  const colCalls = (callsOut.length ? `<h4>Resolved calls out (${callsOut.length})</h4><ul>${callsOut.map(callLine).join('')}</ul>` : '')
+    + (callsIn.length ? `<h4>Resolved calls in (${callsIn.length})</h4><ul>${callsIn.map(callInLine).join('')}</ul>` : '')
+    + (callsInternal.length ? `<h4>Internal calls (${callsInternal.length})</h4><ul>${callsInternal.map(callLine).join('')}</ul>` : '');
+
+  panel.innerHTML = `
+    <div class="phead">
+      <span class="stagechip">${stageOf(m)}</span>
+      <h3>${m}</h3>
+      <span class="path">${file}${kb ? ' · ' + kb : ''}</span>
+      <button class="backlink" type="button">clear selection</button>
+    </div>
+    <div class="cols">
+      <div>${colSym}</div>
+      <div>${colImp}</div>
+      <div>${colCalls}</div>
+    </div>`;
+
+  panel.querySelector('.backlink').addEventListener('click', () => {
+    selected = null; clearFocus();
+    document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+    renderDefault();
+  });
+  panel.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', () => {
+    const target = a.dataset.go;
+    if (nodeEls[target]) {
+      selected = target; setFocus(target); renderModule(target);
+      document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+      nodeEls[target].classList.add('sel');
+    }
+  }));
+}
+
+renderDefault();
+
+/* Prose counts are computed from DATA so regeneration cannot strand them. */
+(function () {
+  const ones = ['zero','one','two','three','four','five','six','seven','eight','nine',
+    'ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty'];
+  const spell = n => n < 20 ? ones[n]
+    : n < 60 ? tens[Math.floor(n / 10)] + (n % 10 ? '-' + ones[n % 10] : '')
+    : String(n);
+  const counts = {
+    'model-importers': DATA.imports.filter(e => e.dst === 'attestral.model').length,
+    'other-modules': Object.keys(DATA.modules).length - 1,
+  };
+  document.querySelectorAll('[data-spell]').forEach(el => {
+    const n = counts[el.dataset.spell];
+    if (n === undefined) return;
+    let word = spell(n);
+    if (el.hasAttribute('data-cap')) word = word.charAt(0).toUpperCase() + word.slice(1);
+    el.textContent = word;
+  });
+})();
+</script>
+
+<script>
+  (function(){
+    var root=document.documentElement, KEY='attestral-theme';
+    var mq=window.matchMedia('(prefers-color-scheme: dark)');
+    var btn=document.getElementById('themeToggle');
+    function active(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}
+    function paint(){if(btn)btn.textContent=active()==='dark'?'☀':'☾';}
+    if(btn)btn.addEventListener('click',function(){
+      var next=active()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      try{localStorage.setItem(KEY,next);}catch(e){}
+      paint();
+    });
+    mq.addEventListener('change',paint);
+    paint();
+  })();
+</script>
+
+</body>
+</html>

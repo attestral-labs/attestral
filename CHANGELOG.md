@@ -7,6 +7,26 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Website data regeneration scripts**: the architecture page's embedded code
+  graph and the docs page's baked payloads are now generated, not hand-baked.
+  `scripts/render_codegraph.py` re-extracts the module graph from
+  `.codegraph/codegraph.db` (plus an `ast` sweep that classifies lazy imports
+  by position, fixing flags the original bake got wrong) and re-injects it into
+  `website/architecture.html`; `scripts/render_docs_data.py` regenerates the
+  searchable rule index and the evidence-chain demo entries in
+  `website/docs.html` from the live rule packs and a real scan of
+  `examples/demo-project`. Both support `--check` as a drift guard and are part
+  of the release routine, like the fixture README re-scans.
+- **Interactive docs page**: `website/docs.html` now opens with a tabbed
+  terminal showing real captured output for the full loop (scan, explain,
+  compile, drift, verify), ships a searchable, filterable index of every
+  built-in rule with `attestral explain`-style detail cards, and an
+  evidence-chain tamper demo that recomputes the SHA-256 chain in the browser
+  with the exact algorithm `attestral verify` uses. Also fixes stale content:
+  the drift table now documents DRF-001 through DRF-007, the scan flag table
+  covers `--local`, `--ml`, `--judge`, `--waivers`, `-q`, and the `aibom`
+  format, and the roadmap no longer lists shipped HCL resolution as future
+  work.
 - **Internal attack paths**: the path synthesizer now also assembles the
   *internal* kill chain, where the entry is a tool that ingests
   attacker-influenceable content (a web fetcher, a SaaS reader, a memory store)
