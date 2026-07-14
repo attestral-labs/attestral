@@ -235,6 +235,7 @@
     <a href="#verify">attestral verify</a>
     <a href="#compile">attestral compile</a>
     <a href="#drift">attestral drift</a>
+    <a href="#validate">attestral validate</a>
     <a href="#sarif">Code scanning (SARIF)</a>
     <a href="#waivers">Baseline &amp; waivers</a>
     <a href="#judge">LLM-as-judge</a>
@@ -250,6 +251,12 @@
   <article>
     <h1>Documentation</h1>
     <p class="sub">Reference for the open-source Attestral CLI, the security scanner for AI agents and MCP servers. Everything here is licensed Apache&nbsp;2.0 and complete: nothing below requires an account, a key, or a server.</p>
+<pre><code><span class="c"># install and run the whole loop, offline, in under a minute</span>
+pip install attestral
+attestral scan ./my-project      <span class="c"># review the design</span>
+attestral validate ./my-project  <span class="c"># prove the attack path holds</span>
+attestral compile ./my-project -o policy.yaml   <span class="c"># turn the review into a runtime policy</span></code></pre>
+    <p class="sub">New here? Jump to <a href="#loop">the loop</a>, <a href="#validate">adversarial validation</a>, or the <a href="#rulepack">rule pack</a>, or just switch tabs below to watch it run on the repo's real fixtures.</p>
 
     <h2 id="demo" style="border-top:none;margin-top:0;padding-top:0">See it run</h2>
     <p>Every panel below is real output from the CLI against the fixtures that ship in the repo, not a mockup. Switch tabs to walk the whole loop: review a deliberately vulnerable agent, inspect a rule, compile the attested design into a policy, catch runtime drift against it, prove a whole attack path actually holds, and verify the evidence chain offline.</p>
@@ -481,6 +488,19 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
       <tr><td><code>DRF-007</code></td><td>medium</td><td>A server's call volume exceeds its attested budget.</td></tr>
     </table>
     <p><code>--fail-on-drift</code> exits non-zero on any finding, so drift checks run as a CI step or a cron job against yesterday's telemetry.</p>
+
+    <h2 id="validate">attestral validate</h2>
+    <p>New in v0.14.0. The other commands stop at findings. <code>attestral validate</code> takes the attack path the model already assembled and <b>walks it over the model's own edges to prove it holds</b>, entry to pivot to impact, then commits the proof to the evidence chain. A finding is an opinion; a walked, chained proof of the exact path is not.</p>
+<pre><code>attestral validate PATH [-o STEM] [--fail-on-proof]</code></pre>
+    <p>Each proven path becomes a <code>redteam</code>-origin finding: <code>ATL-RT-EXTERNAL</code> when an external caller can reach a sink, or <code>ATL-RT-INTERNAL</code> when a prompt injection can. A design with no complete path proves nothing, which is itself an attestable result. Pass <code>-o</code> to write the proof report plus an evidence chain <code>attestral verify</code> confirms offline; <code>--fail-on-proof</code> exits non-zero when any path is proven, so it gates CI.</p>
+    <table>
+      <tr><th>Tier</th><th>What it does</th><th>Status</th></tr>
+      <tr><td>Symbolic</td><td>Walks each path over the model's edges. Deterministic, zero-dependency, no execution, no network.</td><td>shipping now</td></tr>
+      <tr><td>Generative</td><td>An LLM drafts the concrete payload and predicted transcript for a path. No live target is touched.</td><td>roadmap</td></tr>
+      <tr><td>Executed</td><td>Runs the payload against a sandboxed target you own and captures the real transcript. Own-target-only.</td><td>roadmap</td></tr>
+    </table>
+    <p><b>Scope, by design.</b> The symbolic tier never touches a live system, and the executed tier will run only against a target whose fingerprint matches the attested model, with explicit authorization, in a sandbox, moving planted canaries rather than real secrets. Attestral proves the flaws in a design you own; it is not a point-it-at-any-endpoint attack tool, and it never will be.</p>
+    <p>Watch it render live: the <a href="proof.html">interactive proof walker</a> lets you toggle a fleet, animate the attack path across the trust boundary, and break a chain in your browser.</p>
 
     <h2 id="sarif">Code scanning (SARIF)</h2>
     <p>Scan with <code>--format sarif</code> and the review becomes SARIF 2.1.0, the format GitHub Code Scanning speaks. Findings show up in the Security tab and inline on the pull request, each mapped to a severity GitHub understands and tagged with its framework references.</p>

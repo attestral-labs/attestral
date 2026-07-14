@@ -239,6 +239,107 @@
   footer .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .foot-labs{display:flex;align-items:center;gap:9px}
   .foot a{color:var(--seal)}
+
+  /* metrics band */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .metric{background:var(--card);padding:26px 20px;text-align:center}
+  .metric .num{font-family:var(--display);font-size:clamp(2rem,4.6vw,2.9rem);line-height:1;color:var(--seal);font-weight:400}
+  .metric .lbl{font-family:var(--mono);font-size:.71rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin-top:11px}
+  .metric .sub{font-size:.78rem;color:var(--muted);margin-top:5px;line-height:1.4}
+  @media(max-width:720px){.metrics{grid-template-columns:repeat(2,1fr)}}
+
+  /* proof showcase */
+  .pshow{border:1px solid var(--rule);border-top:3px solid var(--seal);border-radius:6px;background:var(--card);overflow:hidden;box-shadow:0 12px 34px rgba(23,31,28,.10)}
+  .pshow-head{padding:18px 24px 0}
+  .pshow-walk{display:flex;align-items:stretch;gap:0;padding:20px 24px 8px;overflow-x:auto}
+  .ps-stage{flex:1;min-width:148px;border:1px solid var(--rule);border-radius:3px;padding:13px 15px;background:var(--paper);opacity:.3;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease,border-color .45s ease,box-shadow .45s ease}
+  .ps-stage.lit{opacity:1;transform:none;border-color:var(--seal);box-shadow:0 0 0 1px var(--seal) inset}
+  .ps-stage .role{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .ps-stage.lit .role{color:var(--seal)}
+  .ps-stage .who{font-family:var(--mono);font-size:.85rem;font-weight:500;color:var(--ink)}
+  .ps-stage .via{font-size:.76rem;color:var(--muted);margin-top:5px;line-height:1.4}
+  .ps-arrow{flex:none;align-self:center;padding:0 10px;font-family:var(--mono);color:var(--rule);font-size:1.15rem;transition:color .45s ease}
+  .ps-arrow.drawn{color:var(--seal)}
+  .pshow-foot{padding:4px 24px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .ps-stamp{display:inline-flex;align-items:center;gap:11px;opacity:0;transform:scale(.82) rotate(-5deg);transition:opacity .35s ease,transform .35s ease}
+  .ps-stamp.on{opacity:1;transform:none}
+  .ps-seal{font-family:var(--mono);font-size:.62rem;letter-spacing:.07em;color:#fff;background:var(--seal);border:2px solid #7C1B25;border-radius:3px;padding:6px 10px;line-height:1.25;transform:rotate(-3deg);box-shadow:0 2px 6px rgba(23,31,28,.2)}
+  .ps-hash{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .ps-hash b{color:var(--verify);font-weight:500}
+  .ps-replay{margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:2px;padding:5px 11px;cursor:pointer;flex:none}
+  .ps-replay:hover{border-color:var(--seal);color:var(--seal)}
+  @media(prefers-reduced-motion:reduce){.ps-stage{opacity:1;transform:none;transition:none}.ps-stamp{opacity:1;transform:none;transition:none}}
+
+  /* framework coverage grid */
+  .fw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .fw-card{background:var(--card);padding:22px 22px;transition:background .16s}
+  .fw-card:hover{background:var(--us-tint)}
+  .fw-card .fw-k{font-family:var(--mono);font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--seal);display:block;margin-bottom:8px}
+  .fw-card h3{font-size:.98rem;font-weight:600;margin-bottom:5px}
+  .fw-card p{font-size:.85rem;color:var(--muted)}
+
+  /* scroll progress bar */
+  .scrollbar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--seal);z-index:200;transition:width .08s linear}
+
+  /* hero network canvas */
+  main{position:relative}
+  #heroNet{position:absolute;top:0;left:0;width:100%;height:600px;z-index:0;pointer-events:none;
+    -webkit-mask-image:linear-gradient(to bottom,#000 52%,transparent);mask-image:linear-gradient(to bottom,#000 52%,transparent)}
+  .wrap.hero{position:relative;z-index:1}
+
+  /* interactive system-model graph */
+  .smodel{border:1px solid var(--rule);border-radius:6px;background:var(--card);overflow:hidden;box-shadow:0 12px 34px rgba(23,31,28,.10)}
+  .smodel-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+  .sm-hint{font-family:var(--mono);font-size:.76rem;color:var(--muted)}
+  .sm-hint b{font-weight:500}
+  .sm-trace{margin-left:auto;font-family:var(--body);font-weight:600;font-size:.86rem;padding:9px 18px;border:1.5px solid var(--seal);background:var(--seal);color:#fff;border-radius:3px;cursor:pointer;transition:background .15s;flex:none}
+  .sm-trace:hover{background:#7C1B25}
+  .sm-svg-wrap{padding:10px 10px 2px;overflow-x:auto}
+  .smodel svg{width:100%;height:auto;min-width:660px;display:block}
+  .sm-zone{fill:var(--us-tint);stroke:var(--rule);stroke-width:1}
+  .sm-zone.cloud{fill:rgba(31,106,74,.06)}
+  :root[data-theme="dark"] .sm-zone.cloud,@media (prefers-color-scheme:dark){.sm-zone.cloud{fill:rgba(95,190,144,.07)}}
+  .sm-zone-label{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;fill:var(--muted)}
+  .sm-boundary{stroke:var(--seal);stroke-width:1.5;stroke-dasharray:5 5;opacity:.55}
+  .sm-boundary-label{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;fill:var(--seal)}
+  .gedge{stroke:var(--rule);stroke-width:1.6;transition:stroke .25s,stroke-width .25s,opacity .25s}
+  .gedge.hot{stroke:var(--seal);stroke-width:2.6}
+  .gedge.dim{opacity:.2}
+  .gnode{cursor:pointer}
+  .gnode rect{fill:var(--card);stroke:var(--ink);stroke-width:1.5;transition:stroke .25s,fill .25s}
+  .gnode text{font-family:var(--mono);fill:var(--ink)}
+  .gnode .cap{fill:var(--muted);font-size:10px}
+  .gnode.lit rect{stroke:var(--seal);stroke-width:2.6;fill:var(--us-tint)}
+  .gnode.dim{opacity:.38}
+  .gpulse{fill:var(--seal);opacity:0}
+  .sm-legend{display:flex;gap:18px;flex-wrap:wrap;padding:12px 20px 16px;font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .sm-legend span{display:inline-flex;align-items:center;gap:7px}
+  .sm-legend i{width:18px;height:0;border-top:2px solid var(--rule);display:inline-block}
+  .sm-legend i.attack{border-top-color:var(--seal)}
+  .sm-legend i.zone{width:12px;height:12px;border:1px solid var(--rule);background:var(--us-tint);border-radius:2px}
+
+  /* scroll-driven pipeline */
+  .pipe-scroller{position:relative;height:340vh}
+  .pipe-sticky{position:sticky;top:0;min-height:100vh;display:flex;align-items:center}
+  .pipe-flow{position:relative;display:flex;justify-content:space-between;gap:6px;margin-bottom:30px}
+  .pipe-track{position:absolute;top:21px;left:7%;right:7%;height:2px;background:var(--rule)}
+  .pipe-prog{position:absolute;top:21px;left:7%;height:2px;background:var(--seal);width:0;transition:width .3s ease}
+  .pipe-stage{position:relative;z-index:1;flex:1;text-align:center;min-width:0}
+  .pipe-stage .dot{width:44px;height:44px;border-radius:50%;border:2px solid var(--rule);background:var(--card);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-family:var(--mono);font-size:.9rem;color:var(--muted);transition:border-color .25s,background .25s,color .25s,transform .25s,box-shadow .25s}
+  .pipe-stage.done .dot{border-color:var(--seal);color:var(--seal)}
+  .pipe-stage.active .dot{border-color:var(--seal);background:var(--seal);color:#fff;transform:scale(1.12);box-shadow:0 4px 14px rgba(150,34,46,.3)}
+  .pipe-stage .nm{font-family:var(--mono);font-size:.74rem;letter-spacing:.03em;color:var(--muted);transition:color .25s}
+  .pipe-stage.active .nm{color:var(--ink);font-weight:500}
+  .pipe-detail{border:1px solid var(--rule);border-left:3px solid var(--seal);border-radius:4px;background:var(--card);padding:26px 28px;min-height:168px}
+  .pipe-detail .pd-k{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--seal);display:block;margin-bottom:9px}
+  .pipe-detail h3{font-family:var(--display);font-weight:400;font-size:1.55rem;margin-bottom:11px}
+  .pipe-detail p{color:var(--muted);max-width:62ch;margin-bottom:14px}
+  .pipe-detail .pd-cmd{font-family:var(--mono);font-size:.85rem;background:var(--term-bg);color:#DDE2DD;padding:9px 14px;border-radius:3px;display:inline-block}
+  .pipe-detail .pd-cmd .p{color:#8FA398}
+  .pipe-fade{animation:pfade .4s ease}
+  @keyframes pfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media(max-width:760px){.pipe-scroller{height:auto}.pipe-sticky{position:static;min-height:auto;display:block}.pipe-stage .nm{font-size:.6rem}.pipe-detail{margin-top:6px}}
+  @media(prefers-reduced-motion:reduce){.pipe-fade{animation:none}.pipe-stage .dot,.pipe-prog{transition:none}}
 </style>
 <script>
   // Apply a saved theme before first paint to avoid a flash. With no saved
@@ -247,6 +348,7 @@
 </script>
 </head>
 <body>
+<div class="scrollbar" id="scrollbar" aria-hidden="true"></div>
 
 <header>
   <div class="wrap nav">
@@ -265,6 +367,7 @@
 </header>
 
 <main>
+  <canvas id="heroNet" aria-hidden="true"></canvas>
   <div class="wrap hero">
     <p class="eyebrow">AI agent &amp; MCP security</p>
     <h1>The security scanner for <em>AI agents</em> and MCP servers.</h1>
@@ -305,7 +408,7 @@
       <a class="ghstar" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>
     </div>
     <div class="badges" aria-label="Project facts">
-      <span class="badge">PyPI <b>v0.13.0</b></span>
+      <span class="badge">PyPI <b>v0.14.0</b></span>
       <span class="badge">Python <b>3.10+</b></span>
       <span class="badge">Zero required deps</span>
       <span class="badge">Runs <b>fully offline</b></span>
@@ -343,6 +446,91 @@
       <p class="chain-caption">Each entry commits to the one before it. If anyone edits a past finding, the head stops matching, and <code>attestral verify</code> will catch it offline. No server involved.</p>
     </div>
   </div>
+
+  <section id="metrics" style="padding:40px 0">
+    <div class="wrap">
+      <div class="metrics" id="metricsBand">
+        <div class="metric"><div class="num" data-to="183">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
+        <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
+        <div class="metric"><div class="num" data-to="7">0</div><div class="lbl">frameworks mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2</div></div>
+        <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="model">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">The moat</p>
+      <h2>It builds a model of your whole fleet, then reasons across it.</h2>
+      <p class="section-lede">Not a config-by-config scan. Attestral ingests your MCP servers, prompts, cloud, and Kubernetes into one graph of components, edges, and trust boundaries. That is how it sees the path a single injected sentence can take: from an untrusted input, through a shell, across the boundary into your cloud. Hover a node to see its reach, or trace the attack path.</p>
+      <div class="smodel">
+        <div class="smodel-bar">
+          <span class="sm-hint" id="smHint">hover any node to see its reach</span>
+          <button class="sm-trace" id="smTrace" type="button">Trace the attack path</button>
+        </div>
+        <div class="sm-svg-wrap">
+          <svg id="smSvg" viewBox="0 0 900 460" role="img" aria-label="System model graph: an agent runtime and a cloud trust boundary, with an attack path from an untrusted web tool through a shell into cloud storage.">
+            <rect class="sm-zone" x="16" y="54" width="580" height="384" rx="6"/>
+            <rect class="sm-zone cloud" x="636" y="54" width="248" height="384" rx="6"/>
+            <text class="sm-zone-label" x="32" y="78">agent runtime</text>
+            <text class="sm-zone-label" x="652" y="78">cloud</text>
+            <line class="sm-boundary" x1="616" y1="58" x2="616" y2="434"/>
+            <text class="sm-boundary-label" x="616" y="46" text-anchor="middle">trust boundary</text>
+            <line class="gedge" data-from="agent" data-to="web" data-attack="1" x1="120" y1="244" x2="300" y2="110"/>
+            <line class="gedge" data-from="agent" data-to="jira" x1="120" y1="244" x2="300" y2="244"/>
+            <line class="gedge" data-from="agent" data-to="shell" data-attack="1" x1="120" y1="244" x2="300" y2="378"/>
+            <line class="gedge" data-from="agent" data-to="notify" x1="120" y1="244" x2="480" y2="150"/>
+            <line class="gedge" data-from="agent" data-to="deploy" x1="120" y1="244" x2="480" y2="340"/>
+            <line class="gedge" data-from="shell" data-to="s3" data-attack="1" x1="300" y1="378" x2="770" y2="150"/>
+            <line class="gedge" data-from="shell" data-to="iam" x1="300" y1="378" x2="770" y2="330"/>
+            <line class="gedge" data-from="deploy" data-to="s3" x1="480" y1="340" x2="770" y2="150"/>
+            <g class="gnode" data-id="agent"><rect x="72" y="222" width="96" height="44" rx="6"/><text x="120" y="241" text-anchor="middle" font-size="12">orchestrator</text><text x="120" y="256" text-anchor="middle" class="cap">agent</text></g>
+            <g class="gnode" data-id="web"><rect x="252" y="88" width="96" height="44" rx="6"/><text x="300" y="107" text-anchor="middle" font-size="12">web-fetch</text><text x="300" y="122" text-anchor="middle" class="cap">network</text></g>
+            <g class="gnode" data-id="jira"><rect x="252" y="222" width="96" height="44" rx="6"/><text x="300" y="241" text-anchor="middle" font-size="12">jira</text><text x="300" y="256" text-anchor="middle" class="cap">saas_data</text></g>
+            <g class="gnode" data-id="shell"><rect x="252" y="356" width="96" height="44" rx="6"/><text x="300" y="375" text-anchor="middle" font-size="12">ops-shell</text><text x="300" y="390" text-anchor="middle" class="cap">shell</text></g>
+            <g class="gnode" data-id="notify"><rect x="432" y="128" width="96" height="44" rx="6"/><text x="480" y="147" text-anchor="middle" font-size="12">notify</text><text x="480" y="162" text-anchor="middle" class="cap">messaging</text></g>
+            <g class="gnode" data-id="deploy"><rect x="432" y="318" width="96" height="44" rx="6"/><text x="480" y="337" text-anchor="middle" font-size="12">deploy</text><text x="480" y="352" text-anchor="middle" class="cap">shell</text></g>
+            <g class="gnode" data-id="s3"><rect x="722" y="128" width="96" height="44" rx="6"/><text x="770" y="147" text-anchor="middle" font-size="12">s3 bucket</text><text x="770" y="162" text-anchor="middle" class="cap">cloud store</text></g>
+            <g class="gnode" data-id="iam"><rect x="722" y="308" width="96" height="44" rx="6"/><text x="770" y="327" text-anchor="middle" font-size="12">iam role</text><text x="770" y="342" text-anchor="middle" class="cap">cloud</text></g>
+            <circle class="gpulse" id="smPulse" r="6" cx="0" cy="0"/>
+          </svg>
+        </div>
+        <div class="sm-legend">
+          <span><i class="zone"></i> trust boundary</span>
+          <span><i></i> reach / dataflow</span>
+          <span><i class="attack"></i> attack path</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="prove">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">New in v0.14.0 · adversarial validation</p>
+      <h2>It no longer just flags the path. It proves it holds.</h2>
+      <p class="section-lede">A finding is an opinion. <code>attestral validate</code> takes the attack path it built from your system model and walks it over the model's own edges, proving whether it actually holds: entry, pivot, impact. The proof lands in the tamper-evident evidence chain. Watch one prove itself below, then open the fully interactive walker.</p>
+      <div class="pshow">
+        <div class="pshow-head">
+          <p class="eyebrow">ATL-RT-INTERNAL · a prompt injection reaches exfiltration</p>
+        </div>
+        <div class="pshow-walk" id="psWalk">
+          <div class="ps-stage" data-role="entry"><span class="role">entry</span><div class="who">jira-reader</div><div class="via">ingests untrusted input via saas_data</div></div>
+          <span class="ps-arrow" aria-hidden="true">&#8594;</span>
+          <div class="ps-stage" data-role="pivot"><span class="role">pivot</span><div class="who">ops-shell</div><div class="via">runs code via shell</div></div>
+          <span class="ps-arrow" aria-hidden="true">&#8594;</span>
+          <div class="ps-stage" data-role="impact"><span class="role">impact</span><div class="who">web-fetch</div><div class="via">exfiltrates via network</div></div>
+        </div>
+        <div class="pshow-foot">
+          <div class="ps-stamp" id="psStamp"><span class="ps-seal">PROVEN<br>TRAVERSABLE</span><span class="ps-hash">committed to the chain · <b>verify offline</b></span></div>
+          <button class="ps-replay" id="psReplay" type="button">replay</button>
+        </div>
+      </div>
+      <div class="cta-row" style="margin-top:26px">
+        <a class="btn primary" href="proof.html">Explore the live proof walker</a>
+        <a class="btn" href="proof.html#tiers">See the three tiers</a>
+      </div>
+    </div>
+  </section>
 
   <section id="try">
     <div class="wrap">
@@ -540,6 +728,30 @@ chain <span class="ok">VALID</span>
     </div>
   </section>
 
+  <section id="pipeline">
+    <div class="wrap">
+      <h2>One command, the whole loop.</h2>
+      <p class="section-lede">From raw config to a runtime policy that catches drift. Scroll through the pipeline: every stage is a real step in a single <code>attestral</code> run, and nothing is hidden between them.</p>
+    </div>
+    <div class="pipe-scroller" id="pipeScroller">
+      <div class="pipe-sticky">
+        <div class="wrap">
+          <div class="pipe-flow" id="pipeFlow">
+            <div class="pipe-track"></div>
+            <div class="pipe-prog" id="pipeProg"></div>
+            <div class="pipe-stage" data-i="0"><div class="dot">1</div><div class="nm">Ingest</div></div>
+            <div class="pipe-stage" data-i="1"><div class="dot">2</div><div class="nm">Model</div></div>
+            <div class="pipe-stage" data-i="2"><div class="dot">3</div><div class="nm">Review</div></div>
+            <div class="pipe-stage" data-i="3"><div class="dot">4</div><div class="nm">Evidence</div></div>
+            <div class="pipe-stage" data-i="4"><div class="dot">5</div><div class="nm">Compile</div></div>
+            <div class="pipe-stage" data-i="5"><div class="dot">6</div><div class="nm">Drift</div></div>
+          </div>
+          <div class="pipe-detail" id="pipeDetail"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="evidence">
     <div class="wrap">
       <h2>Built for the review board, not just the terminal.</h2>
@@ -593,6 +805,21 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
 &nbsp;&nbsp;[<span class="crit">CRITICAL</span>] DRF-001&nbsp;&nbsp;Unattested server observed at runtime&nbsp;&nbsp;(mcp_server.jira-sync)<br>
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] DRF-003&nbsp;&nbsp;Filesystem access outside attested roots&nbsp;&nbsp;(mcp_server.docs)<br>
 <span class="crit">DRIFT: deployment no longer matches the attested design</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="frameworks">
+    <div class="wrap">
+      <h2>Every finding cites a real control.</h2>
+      <p class="section-lede">A finding is not an opinion with a severity attached. Each one maps to a named framework an auditor already recognizes, so the review is evidence, not assertion. Attestral spans the agentic frameworks nobody else covers and the cloud controls everybody expects.</p>
+      <div class="fw-grid">
+        <div class="fw-card"><span class="fw-k">Agentic</span><h3>OWASP LLM &amp; Agentic Top 10</h3><p>Prompt injection, excessive agency, and the tool-fleet risks specific to agents.</p></div>
+        <div class="fw-card"><span class="fw-k">Adversary model</span><h3>MITRE ATLAS</h3><p>Adversarial ML tactics and techniques, mapped to the surfaces Attestral reviews.</p></div>
+        <div class="fw-card"><span class="fw-k">Federal</span><h3>NIST 800-53</h3><p>Access control, system integrity, and the control families audits are built on.</p></div>
+        <div class="fw-card"><span class="fw-k">Cloud</span><h3>CIS Benchmarks</h3><p>The essential AWS, Azure, GCP, and Kubernetes checks, each grounded in a real control.</p></div>
+        <div class="fw-card"><span class="fw-k">Attestation</span><h3>SOC 2</h3><p>Proof a control operated, not a claim it exists. The evidence chain is the artifact.</p></div>
+        <div class="fw-card"><span class="fw-k">Verification</span><h3>OWASP ASVS</h3><p>Application security verification requirements, cited per finding where they apply.</p></div>
       </div>
     </div>
   </section>
@@ -930,6 +1157,162 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('go');io.unobserve(e.target);}});
     },{threshold:.3});
     terms.forEach(function(t){io.observe(t);});
+  })();
+</script>
+<script>
+  // Metrics band: count up on first view (respects reduced motion).
+  (function(){
+    var band=document.getElementById('metricsBand');
+    if(!band)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    function run(){
+      band.querySelectorAll('.num').forEach(function(el){
+        var to=parseInt(el.getAttribute('data-to'),10)||0;
+        if(reduce){el.textContent=to;return;}
+        var start=null,dur=900;
+        (function step(ts){
+          if(ts===undefined){requestAnimationFrame(step);return;}
+          if(start===null)start=ts;
+          var p=Math.min((ts-start)/dur,1);
+          el.textContent=Math.round(p*(2-p)*to);
+          if(p<1)requestAnimationFrame(step);
+        })();
+      });
+    }
+    if('IntersectionObserver' in window){
+      var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();run();}});},{threshold:.4});
+      io.observe(band);
+    }else run();
+  })();
+  // Proof showcase: animate entry -> pivot -> impact -> stamp on view, with replay.
+  (function(){
+    var walk=document.getElementById('psWalk');
+    if(!walk)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var stages=walk.querySelectorAll('.ps-stage');
+    var arrows=walk.querySelectorAll('.ps-arrow');
+    var stamp=document.getElementById('psStamp');
+    var timers=[];
+    function clear(){timers.forEach(clearTimeout);timers=[];}
+    function reset(){stages.forEach(function(s){s.classList.remove('lit');});arrows.forEach(function(a){a.classList.remove('drawn');});if(stamp)stamp.classList.remove('on');}
+    function play(){
+      clear();reset();
+      if(reduce){stages.forEach(function(s){s.classList.add('lit');});arrows.forEach(function(a){a.classList.add('drawn');});if(stamp)stamp.classList.add('on');return;}
+      stages.forEach(function(s,i){
+        timers.push(setTimeout(function(){s.classList.add('lit');if(i>0&&arrows[i-1])arrows[i-1].classList.add('drawn');},i*520));
+      });
+      timers.push(setTimeout(function(){if(stamp)stamp.classList.add('on');},stages.length*520+200));
+    }
+    var rb=document.getElementById('psReplay');
+    if(rb)rb.addEventListener('click',play);
+    if('IntersectionObserver' in window){
+      var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();play();}});},{threshold:.35});
+      io.observe(walk);
+    }else play();
+  })();
+</script>
+<script>
+  // Scroll progress bar.
+  (function(){
+    var bar=document.getElementById('scrollbar'); if(!bar)return;
+    function upd(){var h=document.documentElement,sc=h.scrollTop||document.body.scrollTop,max=(h.scrollHeight-h.clientHeight)||1;bar.style.width=(100*sc/max)+'%';}
+    addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd();
+  })();
+  // Hero network: a slow drifting node-and-edge field behind the hero.
+  (function(){
+    var c=document.getElementById('heroNet'); if(!c)return;
+    var hero=document.querySelector('.wrap.hero');
+    if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+    var ctx=c.getContext('2d'),W=0,H=0,pts=[],raf=null,vis=true;
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    function stroke(){var dark=(document.documentElement.getAttribute('data-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'))==='dark';return dark?'224,107,118':'150,34,46';}
+    function size(){W=c.clientWidth;H=hero?Math.max(hero.offsetHeight,360):560;c.width=W*dpr;c.height=H*dpr;c.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);init();}
+    function init(){var n=Math.max(18,Math.min(44,Math.round(W/26)));pts=[];for(var i=0;i<n;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22});}
+    function frame(){
+      ctx.clearRect(0,0,W,H);var rgb=stroke();
+      for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+        for(var j=i+1;j<pts.length;j++){var q=pts[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);if(d<118){ctx.strokeStyle='rgba('+rgb+','+(0.13*(1-d/118)).toFixed(3)+')';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();}}
+        ctx.fillStyle='rgba('+rgb+',0.34)';ctx.beginPath();ctx.arc(p.x,p.y,1.7,0,6.2832);ctx.fill();}
+      raf=requestAnimationFrame(frame);
+    }
+    function start(){if(!raf&&vis)frame();}
+    function stop(){if(raf){cancelAnimationFrame(raf);raf=null;}}
+    size();window.addEventListener('resize',size);
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){vis=e.isIntersecting;if(vis)start();else stop();});},{threshold:0});io.observe(c);}else start();
+    start();
+  })();
+  // Interactive system-model graph: hover to see a node's reach, or trace the attack path.
+  (function(){
+    var svg=document.getElementById('smSvg'); if(!svg)return;
+    var nodes=svg.querySelectorAll('.gnode'),edges=svg.querySelectorAll('.gedge');
+    var pulse=document.getElementById('smPulse'),hint=document.getElementById('smHint');
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var C={agent:[120,244],web:[300,110],jira:[300,244],shell:[300,378],notify:[480,150],deploy:[480,340],s3:[770,150],iam:[770,330]};
+    var CAP={agent:'delegates to every tool',web:'ingests untrusted web content',jira:'reads SaaS tickets',shell:'runs arbitrary commands',notify:'sends messages outbound',deploy:'ships to prod',s3:'holds stored data',iam:'grants cloud access'};
+    var tracing=false,timers=[];
+    function nodeEl(id){return svg.querySelector('.gnode[data-id="'+id+'"]');}
+    function clearHL(){nodes.forEach(function(n){n.classList.remove('lit','dim');});edges.forEach(function(e){e.classList.remove('hot','dim');});}
+    function connected(a,target){for(var i=0;i<edges.length;i++){var f=edges[i].getAttribute('data-from'),t=edges[i].getAttribute('data-to');if((f===target&&t===a)||(t===target&&f===a))return true;}return false;}
+    nodes.forEach(function(n){
+      var id=n.getAttribute('data-id');
+      n.addEventListener('mouseenter',function(){
+        if(tracing)return;
+        nodes.forEach(function(m){var mid=m.getAttribute('data-id');m.classList.toggle('lit',m===n);m.classList.toggle('dim',m!==n&&!connected(mid,id));});
+        edges.forEach(function(e){var on=e.getAttribute('data-from')===id||e.getAttribute('data-to')===id;e.classList.toggle('hot',on);e.classList.toggle('dim',!on);});
+        if(hint)hint.textContent=id+' - '+(CAP[id]||'');
+      });
+      n.addEventListener('mouseleave',function(){if(tracing)return;clearHL();if(hint)hint.textContent='hover any node to see its reach';});
+    });
+    function lightEdge(f,t,delay){timers.push(setTimeout(function(){edges.forEach(function(e){var a=e.getAttribute('data-from'),b=e.getAttribute('data-to');if((a===f&&b===t)||(a===t&&b===f))e.classList.add('hot');});},delay));}
+    function animateDot(pathPts,dur,done){
+      var segs=[],total=0,i;
+      for(i=0;i<pathPts.length-1;i++){var dx=pathPts[i+1][0]-pathPts[i][0],dy=pathPts[i+1][1]-pathPts[i][1],L=Math.sqrt(dx*dx+dy*dy);segs.push(L);total+=L;}
+      var t0=null;pulse.style.opacity='1';
+      function step(ts){if(t0===null)t0=ts;var p=Math.min((ts-t0)/dur,1),d=p*total,acc=0,s=0;while(s<segs.length&&acc+segs[s]<d){acc+=segs[s];s++;}if(s>=segs.length)s=segs.length-1;var loc=segs[s]?(d-acc)/segs[s]:0,x=pathPts[s][0]+(pathPts[s+1][0]-pathPts[s][0])*loc,y=pathPts[s][1]+(pathPts[s+1][1]-pathPts[s][1])*loc;pulse.setAttribute('cx',x);pulse.setAttribute('cy',y);if(p<1)requestAnimationFrame(step);else{pulse.style.opacity='0';if(done)done();}}
+      requestAnimationFrame(step);
+    }
+    function finish(){if(hint)hint.innerHTML='<b style="color:var(--seal)">proven traversable</b>: web-fetch to ops-shell to cloud, across the trust boundary';tracing=false;}
+    function trace(){
+      timers.forEach(clearTimeout);timers=[];clearHL();pulse.style.opacity='0';tracing=true;
+      var seq=['web','agent','shell','s3'];
+      if(reduce){nodes.forEach(function(n){n.classList.toggle('lit',seq.indexOf(n.getAttribute('data-id'))>=0);});edges.forEach(function(e){if(e.getAttribute('data-attack'))e.classList.add('hot');});finish();return;}
+      seq.forEach(function(id,i){timers.push(setTimeout(function(){nodeEl(id).classList.add('lit');if(hint)hint.textContent='step '+(i+1)+': '+id+' - '+(CAP[id]||'');},i*640));});
+      lightEdge('agent','web',640);lightEdge('agent','shell',1280);lightEdge('shell','s3',1920);
+      animateDot([C.web,C.agent,C.shell,C.s3],2560,finish);
+    }
+    var btn=document.getElementById('smTrace');
+    if(btn)btn.addEventListener('click',trace);
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();timers.push(setTimeout(trace,450));}});},{threshold:.3});io.observe(svg);}
+  })();
+  // Scroll-driven pipeline: scrubbing the section advances the active stage.
+  (function(){
+    var scroller=document.getElementById('pipeScroller'),flow=document.getElementById('pipeFlow');
+    var prog=document.getElementById('pipeProg'),detail=document.getElementById('pipeDetail');
+    if(!scroller||!detail||!flow)return;
+    var STAGES=[
+      {k:'Step 1 · attestral scan',t:'Ingest',d:'Terraform, Kubernetes, MCP configs, system prompts, and agent settings are all discovered and parsed. No wiring, no annotations.',c:'attestral scan ./my-project'},
+      {k:'Step 2',t:'Model',d:'Everything becomes one system model: components, edges, and trust boundaries. This shared graph is what every later stage reasons over.',c:null},
+      {k:'Step 3',t:'Review',d:'Deterministic typed rules run first, then an optional local ML classifier for prompt injection, then an optional LLM layer. Every finding is labelled by its origin.',c:null},
+      {k:'Step 4 · attestral verify',t:'Evidence',d:'Findings, mitigations, and waivers commit to a SHA-256 hash chain. A waived finding is marked, never deleted. Verify it offline, years later.',c:'attestral verify review.json'},
+      {k:'Step 5 · attestral compile',t:'Compile',d:'The attested design compiles to a default-deny mcp-guard runtime policy, stamped with the review chain head. The review becomes the policy.',c:'attestral compile ./my-project -o policy.yaml'},
+      {k:'Step 6 · attestral drift',t:'Drift',d:'Runtime telemetry is diffed against the compiled policy. An unattested server, an out-of-scope path, a tool rug-pull: each is caught. Deployment and design can no longer quietly diverge.',c:'attestral drift policy.yaml events.jsonl'}
+    ];
+    var stages=flow.querySelectorAll('.pipe-stage'),cur=-1;
+    function render(i){
+      if(i===cur)return;cur=i;
+      stages.forEach(function(s){var si=+s.getAttribute('data-i');s.classList.toggle('active',si===i);s.classList.toggle('done',si<i);});
+      prog.style.width=(stages.length>1?(i/(stages.length-1))*86:0)+'%';
+      var st=STAGES[i];
+      detail.innerHTML='<span class="pd-k">'+st.k+'</span><h3>'+st.t+'</h3><p>'+st.d+'</p>'+(st.c?'<div class="pd-cmd"><span class="p">$</span> '+st.c+'</div>':'');
+      detail.classList.remove('pipe-fade');void detail.offsetWidth;detail.classList.add('pipe-fade');
+    }
+    function onScroll(){
+      var vh=window.innerHeight,total=scroller.offsetHeight-vh;
+      if(total<=0){render(0);return;}
+      var scrolled=Math.min(Math.max(-scroller.getBoundingClientRect().top,0),total);
+      render(Math.min(STAGES.length-1,Math.floor((scrolled/total)*STAGES.length)));
+    }
+    render(0);addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',onScroll);onScroll();
   })();
 </script>
 
