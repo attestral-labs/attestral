@@ -281,6 +281,15 @@
   /* scroll progress bar */
   .scrollbar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--seal);z-index:200;transition:width .08s linear}
 
+  /* section dot-nav */
+  .dotnav{position:fixed;right:22px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:14px}
+  @media(max-width:1100px){.dotnav{display:none}}
+  .dotnav a{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--muted);background:transparent;transition:background .2s,border-color .2s,transform .2s;position:relative}
+  .dotnav a:hover{border-color:var(--seal);transform:scale(1.25)}
+  .dotnav a.on{background:var(--seal);border-color:var(--seal)}
+  .dotnav a span{position:absolute;right:20px;top:50%;transform:translateY(-50%);white-space:nowrap;font-family:var(--mono);font-size:.68rem;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:3px 9px;opacity:0;pointer-events:none;transition:opacity .15s}
+  .dotnav a:hover span{opacity:1}
+
   /* hero network canvas */
   main{position:relative}
   #heroNet{position:absolute;top:0;left:0;width:100%;height:600px;z-index:0;pointer-events:none;
@@ -443,6 +452,16 @@
 </head>
 <body>
 <div class="scrollbar" id="scrollbar" aria-hidden="true"></div>
+<nav class="dotnav" id="dotnav" aria-label="Section navigation">
+  <a href="#top"><span>Overview</span></a>
+  <a href="#model"><span>System model</span></a>
+  <a href="#prove"><span>Proof</span></a>
+  <a href="#ml"><span>ML scoring</span></a>
+  <a href="#pipeline"><span>Pipeline</span></a>
+  <a href="#runtime"><span>Drift</span></a>
+  <a href="#labs"><span>Labs</span></a>
+  <a href="#start"><span>Start</span></a>
+</nav>
 
 <header>
   <div class="wrap nav">
@@ -462,7 +481,7 @@
 
 <main>
   <canvas id="heroNet" aria-hidden="true"></canvas>
-  <div class="wrap hero">
+  <div class="wrap hero" id="top">
     <p class="eyebrow">AI agent &amp; MCP security</p>
     <h1>The security scanner for <em>AI agents</em> and MCP servers.</h1>
     <p class="lede">Attestral reads your MCP configs, system prompts, and tool descriptions, builds one system model, and reviews the agentic surfaces most scanners never look at. It models the cloud and Kubernetes your agent runs on too, so it can see the trust boundary between them. Findings map to NIST, ASVS, SOC&nbsp;2, CIS, and OWASP Agentic, and land in a tamper-evident evidence chain.</p>
@@ -1584,6 +1603,16 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
     document.querySelectorAll('.ml-presets button').forEach(function(b){b.addEventListener('click',function(){input.value=EX[b.getAttribute('data-ex')]||'';show();});});
     input.addEventListener('input',show);
     input.value=EX.injection;show();
+  })();
+  // Section dot-nav: highlight the dot for the section nearest center.
+  (function(){
+    var nav=document.getElementById('dotnav'); if(!nav||!('IntersectionObserver' in window))return;
+    var links=nav.querySelectorAll('a'),secs=[];
+    links.forEach(function(a){var el=document.getElementById(a.getAttribute('href').slice(1));if(el)secs.push(el);});
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting){var id=e.target.id;links.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+id);});}});
+    },{rootMargin:'-45% 0px -45% 0px'});
+    secs.forEach(function(s){io.observe(s);});
   })();
   // Runtime drift sequence: stream events against the compiled policy.
   (function(){
