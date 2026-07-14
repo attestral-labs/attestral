@@ -110,6 +110,8 @@
   .refs{font-family:var(--mono);font-size:.8rem;line-height:1.95;margin:8px 0 0}
   .refs a{text-decoration:none} .refs a:hover{text-decoration:underline}
   @media(prefers-reduced-motion:no-preference){a,figure{transition:border-color .15s}}
+  ::selection{background:var(--seal);color:var(--paper)}
+  [id]{scroll-margin-top:24px}
 </style>
 <script>
   try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
@@ -184,24 +186,36 @@
     <p>DeBERTa keeps content and position as <strong>two separate vectors</strong>. When it works out how much word <em>i</em> should attend to word <em>j</em>, it adds up three distinct comparisons instead of one. The name of the model is literally this mechanism.</p>
     <figure>
       <div class="diagram">
-      <svg viewBox="0 0 620 300" role="img" aria-label="Attention between two words is the sum of three terms: content to content, content to position, and position to content.">
+      <svg viewBox="0 0 620 330" role="img" aria-label="Attention between two words is the sum of three terms: content to content, content to position, and position to content.">
         <text x="80" y="34" text-anchor="middle" font-size="13" font-weight="600">word i</text>
         <rect class="chip" x="30" y="46" width="100" height="30" rx="5"/><text x="80" y="66" text-anchor="middle" font-size="12">content(i)</text>
         <rect class="tok" x="30" y="82" width="100" height="30" rx="5"/><text x="80" y="102" text-anchor="middle" font-size="12" class="t-mut">position</text>
         <text x="540" y="34" text-anchor="middle" font-size="13" font-weight="600">word j</text>
         <rect class="chip" x="490" y="46" width="100" height="30" rx="5"/><text x="540" y="66" text-anchor="middle" font-size="12">content(j)</text>
         <rect class="tok" x="490" y="82" width="100" height="30" rx="5"/><text x="540" y="102" text-anchor="middle" font-size="12" class="t-mut">position</text>
+        <text x="310" y="132" text-anchor="middle" font-size="12" class="t-mut">attention(i, j) = term 1 + term 2 + term 3</text>
         <g font-size="12.5">
-          <rect class="tok" x="150" y="150" width="320" height="34" rx="6"/><text x="168" y="172" font-size="13" class="t-seal" font-weight="600">1</text><text x="196" y="172">content(i) &#183; content(j)</text><text x="452" y="172" text-anchor="end" class="t-mut">meaning &#8596; meaning</text>
-          <rect class="tok" x="150" y="196" width="320" height="34" rx="6"/><text x="168" y="218" font-size="13" class="t-seal" font-weight="600">2</text><text x="196" y="218">content(i) &#183; position(i&#8594;j)</text><text x="452" y="218" text-anchor="end" class="t-mut">meaning &#8596; where</text>
-          <rect class="tok" x="150" y="242" width="320" height="34" rx="6"/><text x="168" y="264" font-size="13" class="t-seal" font-weight="600">3</text><text x="196" y="264">position(j&#8594;i) &#183; content(j)</text><text x="452" y="264" text-anchor="end" class="t-mut">where &#8596; meaning</text>
+          <rect class="tok" x="150" y="150" width="320" height="46" rx="6"/>
+          <text x="168" y="169" font-size="13" class="t-seal" font-weight="600">1</text>
+          <text x="190" y="169">content(i) &#183; content(j)</text>
+          <text x="190" y="186" font-size="10.5" class="t-mut">meaning &#8596; meaning</text>
+          <rect class="tok" x="150" y="206" width="320" height="46" rx="6"/>
+          <text x="168" y="225" font-size="13" class="t-seal" font-weight="600">2</text>
+          <text x="190" y="225">content(i) &#183; position(i&#8594;j)</text>
+          <text x="190" y="242" font-size="10.5" class="t-mut">meaning &#8596; where</text>
+          <rect class="tok" x="150" y="262" width="320" height="46" rx="6"/>
+          <text x="168" y="281" font-size="13" class="t-seal" font-weight="600">3</text>
+          <text x="190" y="281">position(j&#8594;i) &#183; content(j)</text>
+          <text x="190" y="298" font-size="10.5" class="t-mut">where &#8596; meaning</text>
         </g>
         <g fill="none" class="stroke-rule" stroke-width="1.2">
-          <path d="M130,61 C210,61 130,167 150,167"/><path d="M490,61 C410,61 490,167 470,167"/>
-          <path d="M130,61 C220,61 150,213 150,213"/><path d="M490,97 C420,97 490,213 470,213"/>
-          <path d="M130,97 C220,97 150,259 150,259"/><path d="M490,61 C410,61 490,259 470,259"/>
+          <path d="M130,61 C156,61 150,120 150,173"/>
+          <path d="M130,67 C174,72 143,165 150,229"/>
+          <path d="M130,97 C166,101 141,225 150,285"/>
+          <path d="M490,61 C464,61 470,120 470,173"/>
+          <path d="M490,97 C454,101 477,175 470,229"/>
+          <path d="M490,67 C446,72 479,210 470,285"/>
         </g>
-        <text x="310" y="132" text-anchor="middle" font-size="12" class="t-mut">attention(i, j) = term 1 + term 2 + term 3</text>
       </svg>
       </div>
       <figcaption>Three terms, summed. A fourth, position-to-position, is dropped: once positions are <b>relative</b> it carries no useful signal. Separating meaning from place is what lets the model reason about each cleanly.</figcaption>

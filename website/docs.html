@@ -157,6 +157,12 @@
   .chain-note{font-size:.82rem;color:var(--muted);margin-top:12px;max-width:70ch}
   .resetbtn{font-family:var(--mono);font-size:.7rem;color:var(--muted);background:none;border:1px solid var(--rule);border-radius:2px;padding:3px 10px;cursor:pointer}
   .resetbtn:hover{color:var(--seal);border-color:var(--seal)}
+  ::selection{background:var(--seal);color:var(--paper)}
+  [id]{scroll-margin-top:24px}
+  .demo-body{scrollbar-width:thin;scrollbar-color:#3a453f transparent}
+  .demo-body::-webkit-scrollbar{width:8px;height:8px}
+  .demo-body::-webkit-scrollbar-thumb{background:#3a453f;border-radius:4px}
+  .demo-body::-webkit-scrollbar-track{background:transparent}
   @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 <script>
@@ -688,6 +694,25 @@ const CHAIN = [{"hash":"518807038e63820275b0e6da19b9da7e80df07b5e4585db356259f11
   }
   search.addEventListener('input', render);
   render();
+
+  /* Deep links: docs.html#ATL-103 opens that rule's card directly, so every
+     rule id elsewhere on the site can point at its explanation. */
+  function openFromHash() {
+    const m = (location.hash || '').match(/^#(ATL-\d+)$/i);
+    if (!m) return;
+    const id = m[1].toUpperCase();
+    if (!RULES.some(r => r.id === id)) return;
+    domain = 'All';
+    [...domWrap.children].forEach(c => c.setAttribute('aria-pressed', String(c.textContent === 'All')));
+    SEVS.forEach(s => sevOn.add(s));
+    [...sevWrap.children].forEach(c => c.setAttribute('aria-pressed', 'true'));
+    search.value = id;
+    open = id;
+    render();
+    document.getElementById('rulepack').scrollIntoView();
+  }
+  window.addEventListener('hashchange', openFromHash);
+  openFromHash();
 })();
 
 /* ---------- evidence chain tamper demo ---------- */
