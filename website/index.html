@@ -365,7 +365,7 @@
         <figure class="demo" aria-label="Browser review output">
           <div class="demo-bar" aria-hidden="true">
             <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-            <span class="demo-title">attestral · browser edition · 17 of 181 checks</span>
+            <span class="demo-title">attestral · browser edition · 17 of 183 checks</span>
           </div>
           <div class="demo-body try-out-body" id="tryOut" aria-live="polite"><span class="p">$</span> attestral scan <span class="dim">&lt;pasted config&gt;</span><br><span class="dim">waiting for a config. Load the example, or paste the mcpServers block your agent already uses.</span></div>
         </figure>
@@ -775,7 +775,7 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       html+="<br>"+sum+"<br>";
       var descs=comps.reduce(function(n,c){return n+c._tool_desc_count;},0);
       if(descs)html+='<span class="dim">'+descs+' tool description'+(descs===1?"":"s")+' detected: language surfaces need the CLI\'s --ml layer; this box checks structure only</span><br>';
-      html+='<span class="dim">17 of the pack\'s <a class="rlink dim" href="docs.html#rulepack">181 checks</a> ran in this tab · nothing was uploaded · pip install attestral for the rest</span>';
+      html+='<span class="dim">17 of the pack\'s <a class="rlink dim" href="docs.html#rulepack">183 checks</a> ran in this tab · nothing was uploaded · pip install attestral for the rest</span>';
       out.innerHTML=html;
     }
 
