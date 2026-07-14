@@ -7,9 +7,11 @@ proves nothing - the empty result is itself attestable.
 """
 from pathlib import Path
 
+from attestral import redteam
 from attestral.evidence import audit_chain, verify_chain
 from attestral.ingest import build_model
 from attestral.model import Severity
+from attestral.paths import all_attack_paths
 from attestral.redteam import build_proofs, proof_findings
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -54,3 +56,44 @@ def test_proofs_land_in_evidence_chain():
     assert all(f.rule_id.startswith("ATL-RT-") for f in findings)
     chain = audit_chain(findings)
     assert verify_chain(chain), "proofs must verify as a tamper-evident chain"
+
+
+def test_action_space_enumerates_more_than_the_collapsed_chain():
+    model = build_model(str(EXAMPLES / "vulnerable-agent"))
+    seqs = redteam.action_space(model)
+    assert seqs
+    assert all(s.entry and s.pivot and s.impact for s in seqs)
+    assert len(seqs) >= len(all_attack_paths(model))
+
+
+def test_verified_remediations_are_proven_by_resynthesis():
+    model = build_model(str(EXAMPLES / "vulnerable-agent"))
+    rems = redteam.verified_remediations(model)
+    assert rems
+    # at least one fix drops the path count to zero, verified by re-synthesis
+    assert any(r.eliminates_all and r.verified for r in rems)
+    assert all(r.paths_before > 0 for r in rems)
+
+
+def test_remediation_never_mutates_the_original_model():
+    model = build_model(str(EXAMPLES / "vulnerable-agent"))
+    before = len(all_attack_paths(model))
+    redteam.verified_remediations(model)
+    assert len(all_attack_paths(model)) == before
+
+
+def test_generative_tier_uses_injectable_query_and_skips_without_key():
+    import os
+
+    model = build_model(str(EXAMPLES / "vulnerable-agent"))
+    path = all_attack_paths(model)[0]
+    draft = redteam.draft_exploit(model, path, query=lambda p: "PREDICTED " + path.kind)
+    assert "PREDICTED" in draft.text and draft.note == "predicted, not executed"
+    saved = {k: os.environ.pop(k, None) for k in ("ANTHROPIC_API_KEY", "ATTESTRAL_LLM_API_KEY")}
+    try:
+        skip = redteam.draft_exploit(model, path)
+        assert skip.text == "" and "skipped" in skip.note
+    finally:
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v

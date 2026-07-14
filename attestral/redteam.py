@@ -16,6 +16,8 @@ build on the same proof schema. See research/adversarial-validation-spike.md.
 """
 from __future__ import annotations
 
+import copy
+import os
 from dataclasses import dataclass, field
 
 from attestral.model import Finding, Severity, SystemModel
@@ -186,3 +188,249 @@ def build_proofs(model: SystemModel) -> list[Proof]:
 def proof_findings(model: SystemModel) -> list[Finding]:
     """The proofs as evidence-chain-ready findings."""
     return [p.to_finding() for p in build_proofs(model)]
+
+
+# --------------------------------------------------------------------------
+# Action-space modeling: the tool-call sequences an agent can be induced into,
+# not just the one collapsed kill chain paths.py reports.
+# --------------------------------------------------------------------------
+
+def _caps_by_name(model: SystemModel) -> dict[str, set[str]]:
+    return {
+        c.name: set(c.attr("_capabilities") or [])
+        for c in list(model.by_type("mcp_server")) + list(model.by_type("subagent"))
+    }
+
+
+@dataclass
+class ActionSequence:
+    """One tool-call sequence an injection could induce: a way in, a way to run
+    code, a way out."""
+    kind: str            # internal | external
+    entry: str
+    pivot: str
+    impact: str
+
+    def describe(self) -> str:
+        return f"{self.entry} -> {self.pivot} -> {self.impact}"
+
+
+def action_space(model: SystemModel) -> list[ActionSequence]:
+    """The behavioral action space: every entry -> pivot -> impact sequence the
+    fleet can be induced into. Deterministic. Where paths.py collapses the fleet
+    into one named chain, this enumerates the distinct ways to walk it - the
+    breadth a per-config scanner never sees."""
+    caps = _caps_by_name(model)
+    cloud = {c.name for c in model.by_type("mcp_server") if c.attr("_has_cloud_credentials")}
+    sources = sorted(n for n, cs in caps.items() if cs & _ENTRY_TAINT_CAPS)
+    pivots = sorted(n for n, cs in caps.items() if cs & _PIVOT_CAPS)
+    impacts = sorted({n for n, cs in caps.items() if cs & _EGRESS_CAPS} | cloud)
+    public = sorted(
+        c.name for c in model.by_type("a2a_agent") if c.attr("_effectively_public")
+    )
+    seqs: list[ActionSequence] = []
+    for p in pivots:
+        for i in impacts:
+            for e in sources:
+                seqs.append(ActionSequence("internal", e, p, i))
+            for e in public:
+                seqs.append(ActionSequence("external", e, p, i))
+    return seqs
+
+
+# --------------------------------------------------------------------------
+# Verified remediation: the fix, plus deterministic proof it closes the path.
+# --------------------------------------------------------------------------
+
+@dataclass
+class Remediation:
+    action: str
+    capability: str
+    targets: list[str]
+    paths_before: int
+    paths_after: int
+
+    @property
+    def verified(self) -> bool:
+        return self.paths_after < self.paths_before
+
+    @property
+    def eliminates_all(self) -> bool:
+        return self.paths_after == 0
+
+
+def _model_without(model: SystemModel, cap: str, names: list[str]) -> SystemModel:
+    """A deep copy of the model with `cap` stripped from the named components
+    (and cloud credentials cleared when cap == 'cloud'), for what-if
+    re-synthesis. The original model is never mutated."""
+    m = copy.deepcopy(model)
+    targets = set(names)
+    for c in m.components:
+        if c.name not in targets:
+            continue
+        c.attributes["_capabilities"] = [
+            x for x in (c.attr("_capabilities") or []) if x != cap
+        ]
+        if cap == "cloud":
+            c.attributes["_has_cloud_credentials"] = False
+    return m
+
+
+def verified_remediations(model: SystemModel) -> list[Remediation]:
+    """For a design with a proven attack path, the candidate minimal fixes - each
+    verified by stripping the rung, re-synthesizing the model, and counting the
+    paths that remain. A fix that drops the count to zero is *proven* to close
+    the path, not merely recommended. Ranked by paths remaining."""
+    before = len(all_attack_paths(model))
+    if not before:
+        return []
+    caps = _caps_by_name(model)
+    cloud = [c.name for c in model.by_type("mcp_server") if c.attr("_has_cloud_credentials")]
+    out: list[Remediation] = []
+    pivots = sorted(n for n, cs in caps.items() if cs & _PIVOT_CAPS)
+    if pivots:
+        after = len(all_attack_paths(_model_without(model, "shell", pivots)))
+        out.append(Remediation(
+            f"Remove code execution (shell) from {', '.join(pivots)}",
+            "shell", pivots, before, after))
+    egress = sorted(n for n, cs in caps.items() if cs & _EGRESS_CAPS)
+    if egress:
+        m = _model_without(_model_without(model, "network", egress), "messaging", egress)
+        out.append(Remediation(
+            f"Scope or remove the outbound channel on {', '.join(egress)}",
+            "network/messaging", egress, before, len(all_attack_paths(m))))
+    if cloud:
+        after = len(all_attack_paths(_model_without(model, "cloud", cloud)))
+        out.append(Remediation(
+            f"Move cloud credentials off {', '.join(cloud)} to a scoped broker",
+            "cloud credentials", cloud, before, after))
+    out.sort(key=lambda r: r.paths_after)
+    return out
+
+
+# --------------------------------------------------------------------------
+# Generative exploit proof (tier 1): an LLM drafts the predicted exploit for a
+# proven path. No execution, no live target. Opt-in; graceful without a key.
+# --------------------------------------------------------------------------
+
+_TIER1_SYSTEM = (
+    "You are a defensive security assistant helping an engineer validate a flaw "
+    "in THEIR OWN attested agent design. For the given proven attack path, draft "
+    "a concise, benign proof of concept so they can prioritise the fix: (1) the "
+    "shape of the injection text that would enter at the entry tool, using a "
+    "harmless canary marker in place of any real secret and no destructive "
+    "action; (2) the predicted tool-call sequence from entry to sink; (3) the "
+    "transcript the agent would produce. Label it clearly as PREDICTED, NOT "
+    "EXECUTED. Never produce anything that would work against a system the reader "
+    "does not own."
+)
+
+
+@dataclass
+class ExploitDraft:
+    kind: str
+    text: str
+    note: str
+
+
+def _default_query():
+    """An Anthropic-backed `(prompt) -> str` callable, or None when unavailable
+    (no key, or the extra is not installed) - the layer then skips gracefully."""
+    key = os.environ.get("ATTESTRAL_LLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+    if not key:
+        return None
+    try:
+        import anthropic
+    except ImportError:
+        return None
+    client = anthropic.Anthropic(api_key=key)
+
+    def query(prompt: str) -> str:
+        msg = client.messages.create(
+            model="claude-sonnet-4-6", max_tokens=900, system=_TIER1_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+
+    return query
+
+
+def draft_exploit(model: SystemModel, path: AttackPath, query=None) -> ExploitDraft:
+    """Tier 1: an LLM drafts the predicted exploit for a proven path - the
+    injection shape, the predicted tool-call sequence, the expected transcript.
+    No execution, no live target, labeled predicted. `query` is an injectable
+    `(prompt) -> str` callable (so tests need no key); without one it returns a
+    skip note."""
+    if query is None:
+        query = _default_query()
+    if query is None:
+        return ExploitDraft(
+            path.kind, "",
+            'generative tier skipped: set ANTHROPIC_API_KEY or `pip install "attestral[llm]"`')
+    prompt = (
+        f"Proven {path.kind} attack path in the reviewed design:\n"
+        f"  entry  ({path.entry.label}): {', '.join(path.entry.components)}\n"
+        f"  pivot  (code execution): {', '.join(path.pivot.components)}\n"
+        f"  impact ({path.impact.label}): {', '.join(path.impact.components)}\n\n"
+        "Draft the predicted proof of concept as instructed."
+    )
+    return ExploitDraft(path.kind, query(prompt), "predicted, not executed")
+
+
+# --------------------------------------------------------------------------
+# Terminal rendering for the deeper tiers.
+# --------------------------------------------------------------------------
+
+def render_action_space(model: SystemModel, *, color: bool | None = None, limit: int = 12) -> str:
+    from attestral.report_terminal import _bold, _dim, _paint, supports_color
+    if color is None:
+        color = supports_color()
+    seqs = action_space(model)
+    if not seqs:
+        return ""
+    lines = [_paint(f"Action space ({len(seqs)} inducible sequences)", "1;31", color)]
+    for s in seqs[:limit]:
+        arrow = f"{_bold(s.entry, color)} -> {_bold(s.pivot, color)} -> {_bold(s.impact, color)}"
+        lines.append(f"  {_dim(s.kind + ':', color)} {arrow}")
+    if len(seqs) > limit:
+        lines.append(_dim(f"  ... and {len(seqs) - limit} more", color))
+    return "\n".join(lines)
+
+
+def render_remediations(model: SystemModel, *, color: bool | None = None) -> str:
+    from attestral.report_terminal import _bold, _dim, _paint, supports_color
+    if color is None:
+        color = supports_color()
+    rems = verified_remediations(model)
+    if not rems:
+        return ""
+    lines = [_paint(f"Verified remediations ({len(rems)})", "32", color)]
+    for r in rems:
+        if r.eliminates_all:
+            verdict = _paint("PROVEN: closes every path", "32", color)
+        elif r.verified:
+            verdict = _paint(f"reduces {r.paths_before} -> {r.paths_after} paths", "33", color)
+        else:
+            verdict = _dim("no effect on the path", color)
+        lines.append(f"  {_bold(r.action, color)}")
+        lines.append(f"    {_dim('verify:', color)} strip {r.capability}, re-synthesize -> {verdict}")
+    return "\n".join(lines)
+
+
+def render_exploits(model: SystemModel, *, color: bool | None = None, query=None) -> str:
+    from attestral.report_terminal import _bold, _dim, _paint, supports_color
+    if color is None:
+        color = supports_color()
+    paths = all_attack_paths(model)
+    if not paths:
+        return ""
+    lines = [_paint("Generative exploit proofs (tier 1 - predicted, not executed)", "1;31", color)]
+    for p in paths:
+        d = draft_exploit(model, p, query=query)
+        lines.append(f"  {_bold(p.kind + ' path', color)}:")
+        if d.text:
+            for ln in d.text.splitlines():
+                lines.append(f"    {ln}")
+        else:
+            lines.append(f"    {_dim(d.note, color)}")
+    return "\n".join(lines)

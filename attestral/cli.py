@@ -397,19 +397,42 @@ def drift(policy_file: str, events_file: str, fail_on_drift: bool) -> None:
               help="Write the proof report (<stem>.md) and evidence chain (<stem>.json).")
 @click.option("--fail-on-proof", is_flag=True,
               help="Exit non-zero if any exploit path is proven traversable (CI gate).")
-def validate(path: str, output: str | None, fail_on_proof: bool) -> None:
+@click.option("--remediate", is_flag=True,
+              help="Show the minimal fix for each proven path, each verified by re-synthesis.")
+@click.option("--action-space", "action_space_flag", is_flag=True,
+              help="Enumerate the tool-call sequences the fleet can be induced into.")
+@click.option("--generate", is_flag=True,
+              help="Tier 1: an LLM drafts the predicted exploit per path (needs an API key). Never executed.")
+def validate(path: str, output: str | None, fail_on_proof: bool,
+             remediate: bool, action_space_flag: bool, generate: bool) -> None:
     """Prove whether the attack paths in PATH's attested design actually hold.
 
     Symbolic tier: walks each assembled attack path over the model's own edges,
     with no execution and no network, and commits each proven path to the
-    evidence chain as an attestable proof. The generative and executed tiers
-    build on the same proof (research/adversarial-validation-spike.md).
+    evidence chain as an attestable proof. --remediate shows the fix verified to
+    close the path; --action-space enumerates the inducible sequences; --generate
+    drafts the predicted (never executed) exploit. See the spike for the tiers.
     """
-    from attestral.redteam import build_proofs
+    from attestral import redteam
     from attestral.report_terminal import render_proofs
     model = build_model(path)
-    proofs = build_proofs(model)
+    proofs = redteam.build_proofs(model)
     click.echo(render_proofs(proofs))
+
+    if action_space_flag:
+        block = redteam.render_action_space(model)
+        if block:
+            click.echo("")
+            click.echo(block)
+    if remediate:
+        block = redteam.render_remediations(model)
+        if block:
+            click.echo("")
+            click.echo(block)
+    if generate:
+        click.echo("")
+        click.echo("drafting predicted exploits (tier 1)…", err=True)
+        click.echo(redteam.render_exploits(model))
     if output:
         findings = [p.to_finding() for p in proofs]
         Path(f"{output}.md").write_text(render_markdown(model, findings, path))
