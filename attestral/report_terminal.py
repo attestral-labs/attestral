@@ -114,6 +114,33 @@ def render_attack_paths(model: "SystemModel", *, color: bool | None = None) -> s
     return "\n".join(lines)
 
 
+def render_proofs(proofs: list, *, color: bool | None = None) -> str:
+    """Render tier-0 adversarial-validation proofs as a proof document: for each
+    proven path, the numbered walk (component and the mechanism that reaches it),
+    the trust boundaries it spans, and the verdict. When the list is empty, a
+    positive line the caller can attest to: no path holds."""
+    if color is None:
+        color = supports_color()
+    if not proofs:
+        return _paint(
+            "Adversarial validation: no exploit path is traversable in the attested design.",
+            "32", color,  # green
+        )
+    lines = [_paint(f"Adversarial validation ({len(proofs)} proven)", _SEV_COLOR["critical"], color)]
+    for p in proofs:
+        sev = p.severity.value
+        lines.append("")
+        lines.append(f"  {_paint(p.rule_id, _SEV_COLOR[sev], color)}  {_bold(p.title(), color)}")
+        for i, s in enumerate(p.steps, 1):
+            role = _dim(f"{s.role}:", color)
+            comp = _bold(s.component, color)
+            lines.append(f"    {i}. {role} {comp}  {_dim('- ' + s.via, color)}")
+        lines.append(f"    {_dim('boundaries:', color)} {', '.join(p.boundaries)}")
+        lines.append(f"    {_dim('verdict:', color)} {p.outcome}")
+        lines.append(f"    {_dim('fix:', color)} {_one_line(p.remediation())}")
+    return "\n".join(lines)
+
+
 def render_scan(
     model: "SystemModel",
     findings: list["Finding"],

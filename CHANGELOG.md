@@ -6,7 +6,29 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Changed
+- **LLM-as-judge, reworked for reliability**: the judge now defaults to
+  `claude-opus-4-8` with adaptive thinking and a schema-constrained verdict
+  (structured outputs on supported models), so a well-formed result is
+  guaranteed rather than parsed hopefully. A `--judge-panel N` run is now a real
+  cross-examination, each panelist reviews through a distinct adversarial lens
+  (exploitability, compensating-control false positive, blast radius) instead of
+  polling one identical prompt N times. Errors are no longer swallowed: a fatal
+  error (bad key, no model access) stops the run and is reported with the real
+  message, and any finding a transient error leaves unverified is surfaced. New
+  `--judge-effort` (low..max) tunes rigor per run.
+
 ### Added
+- **Adversarial validation, tier 0 (`attestral validate`)**: a new command and
+  `attestral/redteam.py` module that walks each assembled attack path over the
+  model's own edges and turns it into a *proof of traversability* - naming the
+  capability at each rung and the trust boundaries the walk crosses - then
+  commits it to the evidence chain as a `redteam`-origin finding
+  (`ATL-RT-EXTERNAL`/`ATL-RT-INTERNAL`). Symbolic tier: deterministic, zero-dep,
+  no execution, no network; a design with no complete path proves nothing (an
+  attestable negative). The generative and executed tiers build on the same
+  proof schema (`research/adversarial-validation-spike.md`). Tests:
+  `tests/test_redteam.py`.
 - **Guardrails-consistency review**: the agent-config ingester now parses NeMo
   Guardrails configurations (`rails:`/`colang_version`/engine-bearing `models:`
   YAML, with explicit negatives for Kubernetes, compose, waiver, and MCP files)

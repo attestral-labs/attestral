@@ -84,6 +84,75 @@ def test_parse_verdict_tolerates_code_fences_and_rejects_bad_verdicts():
     assert _parse_verdict("not json") is None
 
 
+def test_parse_verdict_extracts_json_wrapped_in_prose():
+    # A reasoning model that adds a sentence around the JSON must still parse.
+    text = 'Here is my assessment.\n{"verdict":"false_positive","confidence":0.6,"reasoning":"sandboxed"} Done.'
+    v = _parse_verdict(text)
+    assert v["verdict"] == "false_positive" and v["confidence"] == 0.6
+
+
+def test_parse_verdict_clamps_out_of_range_confidence():
+    assert _parse_verdict('{"verdict":"confirmed","confidence":1.9}')["confidence"] == 1.0
+    assert _parse_verdict('{"verdict":"confirmed","confidence":-0.5}')["confidence"] == 0.0
+
+
+def test_panel_uses_diverse_lenses_so_votes_are_independent():
+    # Each panelist must receive a different payload (a real cross-examination),
+    # not the same prompt polled N times.
+    m, f = _model_and_finding()
+    seen = []
+
+    def recording_query(payload: str) -> str:
+        seen.append(payload)
+        return '{"verdict":"confirmed","confidence":0.8,"reasoning":"real"}'
+
+    judge_findings(m, [f], JudgeConfig(panel=3), query=recording_query)
+    assert len(seen) == 3
+    assert len(set(seen)) == 3            # three distinct lenses, not one repeated
+
+
+def test_single_judge_gets_the_unframed_payload():
+    m, f = _model_and_finding()
+    seen = []
+
+    def recording_query(payload: str) -> str:
+        seen.append(payload)
+        return '{"verdict":"confirmed","confidence":0.8,"reasoning":"real"}'
+
+    judge_findings(m, [f], JudgeConfig(panel=1), query=recording_query)
+    assert "Review lens" not in seen[0]   # a lone judge sees the base context only
+
+
+def test_fatal_error_stops_the_run_and_reports_the_reason():
+    # An auth/model-access error recurs on every finding: bail fast, surface it,
+    # and leave findings untouched rather than silently producing nothing.
+    m, f = _model_and_finding()
+
+    class Boom(Exception):
+        status_code = 404
+
+    def dead_query(payload: str) -> str:
+        raise Boom("model not found: claude-bogus")
+
+    notes = judge_findings(m, [f], JudgeConfig(), query=dead_query)
+    assert notes and "judge failed" in notes[0] and "model not found" in notes[0]
+    assert f.judge_verdict == ""          # nothing was mutated
+
+
+def test_unverified_findings_are_surfaced_not_swallowed():
+    # A transient error that leaves a finding with zero votes must be reported,
+    # not hidden behind an empty result.
+    m, f = _model_and_finding()
+
+    def flaky_query(payload: str) -> str:
+        raise RuntimeError("connection reset")   # transient: no status_code
+
+    notes = judge_findings(m, [f], JudgeConfig(panel=1), query=flaky_query)
+    assert notes and "could not be verified" in notes[0]
+    assert "connection reset" in notes[0]
+    assert f.judge_verdict == ""
+
+
 def test_verdict_is_recorded_in_the_evidence_chain():
     _, f = _model_and_finding()
     apply_verdict(f, "needs_review", 0.5, "unclear", JudgeConfig())

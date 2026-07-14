@@ -214,6 +214,7 @@
     <nav class="nav-links" aria-label="Main">
       <a href="index.html#how">How it works</a>
       <a href="index.html#start">Get started</a>
+      <a href="proof.html">Proof</a>
       <a href="docs.html" aria-current="page">Docs</a>
       <a href="ml-deberta.html">ML layer</a>
       <a href="architecture.html">Architecture</a>
@@ -251,7 +252,7 @@
     <p class="sub">Reference for the open-source Attestral CLI, the security scanner for AI agents and MCP servers. Everything here is licensed Apache&nbsp;2.0 and complete: nothing below requires an account, a key, or a server.</p>
 
     <h2 id="demo" style="border-top:none;margin-top:0;padding-top:0">See it run</h2>
-    <p>Every panel below is real output from the CLI against the fixtures that ship in the repo, not a mockup. Switch tabs to walk the whole loop: review a deliberately vulnerable agent, inspect a rule, compile the attested design into a policy, catch runtime drift against it, and verify the evidence chain offline.</p>
+    <p>Every panel below is real output from the CLI against the fixtures that ship in the repo, not a mockup. Switch tabs to walk the whole loop: review a deliberately vulnerable agent, inspect a rule, compile the attested design into a policy, catch runtime drift against it, prove a whole attack path actually holds, and verify the evidence chain offline.</p>
 
     <figure class="demo" aria-label="Terminal: real Attestral output for scan, explain, compile, drift, and verify">
       <div class="demo-bar" aria-hidden="true">
@@ -263,6 +264,7 @@
         <button class="tab" role="tab" id="tab-explain" aria-controls="panel-explain" aria-selected="false">explain</button>
         <button class="tab" role="tab" id="tab-compile" aria-controls="panel-compile" aria-selected="false">compile</button>
         <button class="tab" role="tab" id="tab-drift" aria-controls="panel-drift" aria-selected="false">drift</button>
+        <button class="tab" role="tab" id="tab-validate" aria-controls="panel-validate" aria-selected="false">validate</button>
         <button class="tab" role="tab" id="tab-verify" aria-controls="panel-verify" aria-selected="false">verify</button>
       </div>
 
@@ -360,6 +362,23 @@
 <span>4 events · 3 drift findings</span>
       </div>
 
+      <div class="demo-body" id="panel-validate" role="tabpanel" aria-labelledby="tab-validate" hidden>
+<div class="demo-cmdrow"><span><span class="p">$</span> <b>attestral validate examples/vulnerable-agent</b></span><button class="copybtn" data-copy="attestral validate examples/vulnerable-agent" type="button">copy</button></div>
+<span>Adversarial validation (1 proven)</span>
+<span> </span>
+<span>  <b>ATL-RT-INTERNAL</b>  Proven traversable: a prompt injection can reach exfiltration</span>
+<span>    1. <span class="p">entry:</span>  jira   <span class="dim">- ingests untrusted input via saas_data</span></span>
+<span>    2. <span class="p">entry:</span>  web    <span class="dim">- ingests untrusted input via network</span></span>
+<span>    3. <span class="p">pivot:</span>  deploy <span class="dim">- runs code via shell</span></span>
+<span>    4. <span class="p">pivot:</span>  shell  <span class="dim">- runs code via shell</span></span>
+<span>    5. <span class="crit">impact:</span> web    <span class="dim">- exfiltrates via network</span></span>
+<span>    <span class="dim">boundaries: agent_runtime</span></span>
+<span>    verdict: <span class="crit">traversable</span></span>
+<span>    <span class="p">fix:</span> Break the chain: remove any one rung. Drop the code-execution capability on deploy, scope or remove...</span>
+<span> </span>
+<span><span class="dim"># the path the scan only displayed is now walked over the model's own edges</span></span>
+<span><span class="dim"># and committed to the evidence chain as an attestable proof - no LLM, offline.</span></span>
+      </div>
       <div class="demo-body" id="panel-verify" role="tabpanel" aria-labelledby="tab-verify" hidden>
 <div class="demo-cmdrow"><span><span class="p">$</span> <b>attestral verify report.json</b></span><button class="copybtn" data-copy="attestral verify report.json" type="button">copy</button></div>
 <span><span class="ok">chain VALID</span></span>
@@ -487,8 +506,9 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
 <pre><code>export ATTESTRAL_JUDGE_API_KEY=...        <span class="c"># or reuse ANTHROPIC_API_KEY</span>
 attestral scan . --judge --judge-panel 3 <span class="c"># 3 judges vote per finding</span>
 attestral scan . --judge --judge-suppress</code></pre>
-    <p>The judge never deletes a finding. By default it only annotates. With <code>--judge-suppress</code>, a high-confidence <code>false_positive</code> becomes a machine-generated waiver whose reason is the judge's reasoning: suppressed from the gate, but kept on the record like any human waiver. A panel of judges (<code>--judge-panel N</code>) votes, and the majority verdict wins, which blunts any single model's error.</p>
-    <div class="note">The judge layer needs an API key and the <code>anthropic</code> package (<code>pip install "attestral[llm]"</code>). Like the elicitation layer, its output is clearly separated from the deterministic core.</div>
+    <p>The judge never deletes a finding. By default it only annotates. With <code>--judge-suppress</code>, a high-confidence <code>false_positive</code> becomes a machine-generated waiver whose reason is the judge's reasoning: suppressed from the gate, but kept on the record like any human waiver.</p>
+    <p>A panel (<code>--judge-panel N</code>) is a real cross-examination, not the same prompt polled N times: each panelist reviews through a different adversarial lens, one for exploitability, one for a compensating-control false positive, one for blast radius, and the majority verdict wins, which blunts any single angle's error. The verdict itself is schema-constrained, so a well-formed result is guaranteed rather than parsed hopefully, and if a call fails the scan says so instead of quietly returning nothing. Tune rigor per run with <code>--judge-effort</code> (<code>low</code> through <code>max</code>).</p>
+    <div class="note">The judge layer needs an API key and the <code>anthropic</code> package (<code>pip install "attestral[llm]"</code>). It defaults to <code>claude-opus-4-8</code>; override with <code>--judge-model</code>. Like the elicitation layer, its output is clearly separated from the deterministic core.</div>
 
     <h2 id="rulepack">The rule pack</h2>
     <p>Every deterministic check ships in the open, in plain YAML, and each cites the control it enforces. This is the complete built-in pack, searchable. Click a rule for the same detail <code>attestral explain</code> prints.</p>

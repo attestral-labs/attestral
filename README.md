@@ -186,8 +186,10 @@ flowchart LR
     A --> C["attestral compile<br/><b>enforce</b>"]
     C --> D["attestral drift<br/><b>detect</b>"]
     D -->|"design changed?<br/>re-attest"| A
+    A --> V["attestral validate<br/><b>prove the exploit path holds</b>"]
     style A fill:#96222E,color:#fff
     style B fill:#1F6A4A,color:#fff
+    style V fill:#96222E11,stroke:#96222E
 ```
 
 ### The four commands
@@ -222,6 +224,11 @@ attestral compile ./my-project -o policy.yaml
 
 # DRIFT: diff runtime telemetry against the attested design
 attestral drift policy.yaml events.jsonl --fail-on-drift
+
+# VALIDATE: prove whether the assembled attack paths actually hold
+# (tier 0: symbolic walk over the model's edges, no execution, no network)
+attestral validate ./my-project
+attestral validate ./my-project -o proof --fail-on-proof   # write proof.md + chain, gate CI
 ```
 
 ### Install and run the whole loop (60 seconds)

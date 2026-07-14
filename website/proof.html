@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proof, not findings - Attestral adversarial validation</title>
+<meta name="description" content="Attestral doesn't just flag the attack path. It walks it and proves it holds, then commits the proof to a tamper-evident evidence chain. Watch a live proof render in your browser, then run it on your own fleet with attestral validate.">
+<link rel="canonical" href="https://attestral.vercel.app/proof.html">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Attestral">
+<meta property="og:title" content="Proof, not findings - Attestral adversarial validation">
+<meta property="og:description" content="Attestral walks the attack path and proves it holds, then chains the proof so an auditor can verify it offline. Watch it render live, then run attestral validate on your own fleet.">
+<meta property="og:url" content="https://attestral.vercel.app/proof.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Proof, not findings - Attestral adversarial validation">
+<meta name="twitter:description" content="A static finding is arguable. A walked, chained proof of the exact path is not. Watch it render in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --term-bar:#232B26; --us-tint:rgba(150,34,46,.045);
+    --display:'Libre Caslon Text',Georgia,serif;
+    --body:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --term-bar:#161B12; --us-tint:rgba(224,107,118,.07);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+    --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+    --term-bg:#0B0E08; --term-bar:#161B12; --us-tint:rgba(224,107,118,.07);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)}
+  code{font-family:var(--mono);font-size:.9em}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+
+  /* header */
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;letter-spacing:.01em;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .nav-links{display:flex;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--ink);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal);border-bottom:2px solid var(--seal);padding-bottom:2px}
+  @media(max-width:620px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
+
+  /* hero */
+  .hero{padding:74px 0 26px}
+  .eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .eyebrow b{color:var(--seal);font-weight:500}
+  h1{font-family:var(--display);font-weight:400;font-size:clamp(2.1rem,5.2vw,3.7rem);line-height:1.12;margin:16px 0 20px;max-width:16ch}
+  h1 em{font-style:italic;color:var(--seal)}
+  .lede{max-width:60ch;color:var(--muted);font-size:1.07rem}
+  .lede b{color:var(--ink);font-weight:600}
+  .cmd{display:inline-flex;align-items:center;gap:16px;background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.98rem;padding:12px 14px 12px 18px;border-radius:3px;max-width:100%;overflow-x:auto;margin-top:28px}
+  .cmd .dollar{color:#8FA398}
+  .cmd button{background:transparent;border:1px solid #3a453f;color:#9fb0a7;font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:6px 11px;border-radius:3px;cursor:pointer;transition:color .15s,border-color .15s}
+  .cmd button:hover{color:#fff;border-color:#5a655f}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
+  .badge{font-family:var(--mono);font-size:.72rem;letter-spacing:.02em;color:var(--muted);border:1px solid var(--rule);background:var(--card);padding:5px 12px;border-radius:100px}
+  .badge b{color:var(--verify);font-weight:500}
+  .badge.new b{color:var(--seal)}
+
+  /* sections */
+  section{padding:64px 0;border-top:1px solid var(--rule)}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.6rem,3.4vw,2.35rem);line-height:1.18;margin-bottom:14px;max-width:26ch}
+  .section-lede{color:var(--muted);max-width:64ch;margin-bottom:36px}
+  .section-lede b{color:var(--ink);font-weight:600}
+
+  /* the walker */
+  .lab{border:1px solid var(--rule);border-radius:6px;background:var(--card);overflow:hidden;box-shadow:0 12px 34px rgba(23,31,28,.10)}
+  .lab-bar{display:flex;align-items:center;gap:8px;background:var(--term-bar);padding:11px 16px}
+  .lab-bar .dot{width:11px;height:11px;border-radius:50%;background:#3a453f;flex:none}
+  .lab-bar .dot.r{background:#E5697A}.lab-bar .dot.y{background:#E2A65B}.lab-bar .dot.g{background:#7CC7A1}
+  .lab-title{margin-left:10px;font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;color:#8FA398}
+  .lab-body{padding:22px 22px 26px}
+  .lab-intro{font-size:.9rem;color:var(--muted);margin-bottom:16px}
+  .lab-intro code{color:var(--ink)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:6px}
+  .chip{font-family:var(--mono);font-size:.8rem;text-align:left;color:var(--muted);background:var(--paper);border:1px solid var(--rule);border-radius:2px;padding:7px 13px;cursor:pointer;transition:border-color .12s,color .12s,background .12s}
+  .chip:hover{border-color:var(--seal)}
+  .chip[aria-pressed="true"]{color:var(--ink);border-color:var(--ink);background:var(--us-tint)}
+  .chip .cap{display:block;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  .chip .danger{color:var(--seal)}
+  .lab-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 0 8px}
+  .runbtn{font-family:var(--body);font-weight:600;font-size:.95rem;padding:11px 24px;border:1.5px solid var(--seal);background:var(--seal);color:#fff;border-radius:3px;cursor:pointer;transition:background .15s}
+  .runbtn:hover{background:#7C1B25}
+  .runbtn:disabled{opacity:.55;cursor:default}
+  .run-note{font-size:.82rem;color:var(--muted)}
+
+  /* proof output */
+  #proofOut{margin-top:10px;display:flex;flex-direction:column;gap:20px}
+  .proof{border:1px solid var(--rule);border-radius:4px;background:var(--paper);padding:0;overflow:hidden}
+  .proof.crit{border-top:3px solid var(--seal)}
+  .proof.high{border-top:3px solid #E2A65B}
+  .proof-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+  .proof-id{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;padding:3px 9px;border-radius:2px;color:#fff}
+  .proof-id.crit{background:var(--seal)}.proof-id.high{background:#B9791F}
+  .proof-title{font-weight:600;font-size:.98rem}
+  .walk{display:flex;align-items:stretch;gap:0;padding:22px 18px;overflow-x:auto}
+  .stage{flex:1;min-width:150px;border:1px solid var(--rule);border-radius:3px;padding:12px 14px;background:var(--card);opacity:.32;transform:translateY(6px);transition:opacity .4s ease,transform .4s ease,border-color .4s ease,box-shadow .4s ease}
+  .stage.lit{opacity:1;transform:none;border-color:var(--seal);box-shadow:0 0 0 1px var(--seal) inset}
+  .stage .role{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .stage.lit .role{color:var(--seal)}
+  .stage .who{font-family:var(--mono);font-size:.86rem;font-weight:500;color:var(--ink);overflow-wrap:anywhere}
+  .stage .via{font-size:.78rem;color:var(--muted);margin-top:5px;line-height:1.4}
+  .warrow{flex:none;align-self:center;padding:0 10px;font-family:var(--mono);color:var(--rule);font-size:1.15rem;transition:color .4s ease}
+  .warrow.drawn{color:var(--seal)}
+  .proof-foot{padding:0 18px 18px;display:flex;flex-direction:column;gap:8px}
+  .pf-row{font-size:.84rem;color:var(--muted)}
+  .pf-row b{color:var(--ink);font-weight:600;font-family:var(--mono);font-size:.8rem}
+  .verdict-stamp{display:inline-flex;align-items:center;gap:9px;align-self:flex-start;margin-top:4px;opacity:0;transform:scale(.8) rotate(-6deg);transition:opacity .35s ease,transform .35s ease}
+  .verdict-stamp.on{opacity:1;transform:none}
+  .vs-seal{font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;color:#fff;background:var(--seal);border:2px solid #7C1B25;border-radius:3px;padding:6px 11px;transform:rotate(-3deg);box-shadow:0 2px 6px rgba(23,31,28,.2)}
+  .vs-label{font-size:.86rem;color:var(--ink)}
+  .clean{padding:26px 18px;text-align:center;color:var(--verify);font-family:var(--mono);font-size:.9rem;border:1px dashed var(--verify);border-radius:4px;background:rgba(31,106,74,.05)}
+  @media(prefers-reduced-motion:reduce){
+    .stage{opacity:1;transform:none;transition:none}
+    .verdict-stamp{opacity:1;transform:none;transition:none}
+  }
+
+  /* evidence chain */
+  .chain-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden;margin-top:8px}
+  .centry{background:var(--card);padding:15px 16px;border-top:3px solid var(--ink)}
+  .centry.broken{border-top-color:var(--seal);background:var(--us-tint)}
+  .centry .n{font-family:var(--mono);font-size:.66rem;letter-spacing:.05em;color:var(--muted)}
+  .centry .rid{font-family:var(--mono);font-size:.8rem;font-weight:500;margin:6px 0 8px;color:var(--ink)}
+  .centry .sev{font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;border-radius:2px;margin-left:6px}
+  .sev-critical{background:var(--seal);color:#fff}.sev-high{background:#B9791F;color:#fff}.sev-low{background:var(--muted);color:#fff}
+  .centry .hrow{font-family:var(--mono);font-size:.72rem;color:var(--muted);word-break:break-all;line-height:1.6}
+  .centry .hrow b{color:var(--ink);font-weight:500}
+  .centry .hrow b.bad{color:var(--seal)}
+  .tbtn{margin-top:10px;font-family:var(--mono);font-size:.68rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:2px;padding:5px 9px;cursor:pointer;transition:border-color .15s,color .15s}
+  .tbtn:hover:not(:disabled){border-color:var(--seal);color:var(--seal)}
+  .tbtn:disabled{opacity:.5;cursor:default}
+  .chain-verdict{font-family:var(--mono);font-size:.82rem;color:var(--verify);margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .chain-verdict.bad{color:var(--seal)}
+  .chain-reset{font-family:var(--mono);font-size:.7rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:2px;padding:4px 10px;cursor:pointer}
+
+  /* terminal (CLI parity) */
+  .term{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.75;padding:20px 22px;border-radius:4px;overflow-x:auto;margin-top:10px}
+  .term .p{color:#8FA398}.term .crit{color:#E5697A}.term .high{color:#E2A65B}.term .ok{color:#7CC7A1}.term .dim{color:#6E7D73}.term b{color:#fff;font-weight:600}
+
+  /* tiers + cards */
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .col{background:var(--card);padding:24px 22px}
+  .col .k{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--seal);display:block;margin-bottom:9px}
+  .col .k.soon{color:var(--muted)}
+  .col h3{font-size:1.02rem;font-weight:600;margin-bottom:8px}
+  .col p{font-size:.9rem;color:var(--muted)}
+  .col .stat{font-family:var(--mono);font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;margin-top:12px;display:inline-block;padding:3px 9px;border-radius:2px}
+  .stat.live{color:var(--verify);border:1px solid var(--verify)}
+  .stat.next{color:var(--muted);border:1px solid var(--rule)}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+
+  .callout{border:1px solid var(--rule);border-left:3px solid var(--verify);border-radius:4px;background:var(--card);padding:20px 24px;margin-top:8px}
+  .callout h3{font-size:1rem;font-weight:600;margin-bottom:8px}
+  .callout p{font-size:.9rem;color:var(--muted)}
+  .callout p+p{margin-top:8px}
+
+  .flinch{background:var(--us-tint);border:1px solid var(--rule);border-radius:6px;padding:34px 30px;text-align:center}
+  .flinch h2{margin:0 auto 12px}
+  .flinch .section-lede{margin:0 auto 24px}
+  .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:13px 26px;text-decoration:none;font-weight:600;font-size:.95rem;border:1.5px solid var(--ink);color:var(--ink);background:transparent;transition:background .15s,color .15s;border-radius:3px}
+  .btn:hover{background:var(--ink);color:var(--paper)}
+  .btn.primary{background:var(--seal);border-color:var(--seal);color:#fff}
+  .btn.primary:hover{background:#7C1B25}
+
+  ::selection{background:var(--seal);color:var(--paper)}
+  [id]{scroll-margin-top:24px}
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .55s ease, transform .55s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+  /* footer */
+  footer{border-top:1px solid var(--rule);padding:44px 0 56px;font-size:.85rem;color:var(--muted)}
+  footer .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .foot-labs{display:flex;align-items:center;gap:9px}
+  .foot a{color:var(--seal)}
+</style>
+<script>
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#start">Get started</a>
+      <a href="proof.html" aria-current="page">Proof</a>
+      <a href="docs.html">Docs</a>
+      <a href="ml-deberta.html">ML layer</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <p class="eyebrow"><b>New</b> · adversarial validation · <code>attestral validate</code></p>
+    <h1><em>Proof</em>, not findings.</h1>
+    <p class="lede">Every other scanner stops at "this looks risky." Attestral takes the attack path it assembled from your system model, <b>walks it over the model's own edges, and proves it holds</b> - entry, pivot, impact, stage by stage - then commits the proof to a tamper-evident evidence chain. A static finding is arguable. A walked, chained proof of the exact path is not.</p>
+    <div class="cmd"><span class="dollar">$</span> <span>attestral validate .</span> <button type="button" data-copy="attestral validate .">Copy</button></div>
+    <div class="badges">
+      <span class="badge new">Tier 0 · <b>symbolic</b></span>
+      <span class="badge">Deterministic</span>
+      <span class="badge">Zero deps</span>
+      <span class="badge">Runs <b>fully offline</b></span>
+      <span class="badge">Never executes anything</span>
+    </div>
+  </div>
+
+  <section id="walker">
+    <div class="wrap">
+      <h2>Watch a proof render. Then try to break it.</h2>
+      <p class="section-lede">This is a real fleet: a support agent with a web fetcher, a ticket reader, a shell, and a deploy tool. One tool description carries a hidden instruction to read <code>~/.ssh/id_rsa</code> and post it out. Hit <b>Run validation</b> and watch the path get walked. Then toggle a server off and watch the proof die: remove any one rung and the exploit is gone. That is the whole point. <b>The fix is one toggle, and now you can see it.</b></p>
+
+      <div class="lab">
+        <div class="lab-bar" aria-hidden="true">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="lab-title">attestral validate · in-browser proof engine</span>
+        </div>
+        <div class="lab-body">
+          <p class="lab-intro">The fleet (toggle any server, then re-run). Capability tags mirror the MCP ingester; the walk mirrors <code>attestral/paths.py</code> and <code>attestral/redteam.py</code>.</p>
+          <div class="chips" id="chips" role="group" aria-label="Toggle servers in the fleet"></div>
+          <div class="lab-actions">
+            <button class="runbtn" id="runBtn" type="button">Run validation</button>
+            <span class="run-note" id="runNote">Nothing leaves this tab. No config is uploaded.</span>
+          </div>
+          <div id="proofOut" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="chain">
+    <div class="wrap">
+      <h2>The proof is chained, so an auditor can verify it offline.</h2>
+      <p class="section-lede">Each proof commits to a SHA-256 hash chain exactly as <code>attestral verify</code> does: entry <em>N</em> hashes its canonical JSON together with the hash of entry <em>N-1</em>, from a zero genesis. The head is the integrity commitment for the run. Recomputed live below from the proofs above. <b>Tamper with one entry and the whole chain gives it away.</b></p>
+      <div class="chain-grid" id="chainEntries"></div>
+      <div class="chain-verdict" id="chainVerdict"><span>chain VALID</span><button class="chain-reset" id="chainReset" type="button" hidden>reset</button></div>
+      <p class="section-lede" style="margin-top:20px;font-size:.86rem">A waived proof is never deleted, only marked. A proven path that you accept and document stays in the chain with its justification, so the record shows what was known and when. That is what makes it audit-grade rather than a scan log.</p>
+    </div>
+  </section>
+
+  <section id="cli">
+    <div class="wrap">
+      <h2>The same thing, in your terminal.</h2>
+      <p class="section-lede">Real output from <code>attestral validate examples/vulnerable-agent</code>. The browser engine above is a faithful port; the CLI is the source of truth, and it also writes the proof report and the evidence chain when you pass <code>-o</code>.</p>
+      <div class="term" aria-label="attestral validate terminal output">
+<span class="p">$</span> attestral validate examples/vulnerable-agent<br>
+<span class="crit">Adversarial validation (1 proven)</span><br>
+<br>
+&nbsp;&nbsp;<span class="crit">ATL-RT-INTERNAL</span>&nbsp;&nbsp;<b>Proven traversable: a prompt injection can reach exfiltration</b><br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. <span class="dim">entry:</span> <b>jira</b>&nbsp;&nbsp;<span class="dim">- ingests untrusted input via saas_data</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. <span class="dim">entry:</span> <b>web</b>&nbsp;&nbsp;<span class="dim">- ingests untrusted input via network</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;3. <span class="dim">pivot:</span> <b>deploy</b>&nbsp;&nbsp;<span class="dim">- runs code via shell</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;4. <span class="dim">pivot:</span> <b>shell</b>&nbsp;&nbsp;<span class="dim">- runs code via shell</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;5. <span class="dim">impact:</span> <b>web</b>&nbsp;&nbsp;<span class="dim">- exfiltrates via network</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">boundaries:</span> agent_runtime<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verdict:</span> traversable<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">fix:</span> Break the chain: remove any one rung. Drop the code-execution capability on deploy...<br>
+<br>
+<span class="p">$</span> attestral validate examples/vulnerable-agent -o proof --fail-on-proof<br>
+wrote proof.md · proof.json<br>
+<span class="p">$</span> attestral verify proof.json<br>
+chain <span class="ok">VALID</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="tiers">
+    <div class="wrap">
+      <h2>Three tiers. One proof schema.</h2>
+      <p class="section-lede">The symbolic tier ships today and is what you just watched. The generative and executed tiers build on the exact same proof, and degrade gracefully: the tier you have installed is the tier you get, and a missing key or extra is never an error.</p>
+      <div class="cols">
+        <div class="col">
+          <span class="k">Tier 0 · symbolic</span>
+          <h3>Prove the path holds</h3>
+          <p>Walk each attack path over the model's own edges. Deterministic, zero-dependency, no execution, no network. It proves the path is structurally traversable and names every rung. A design with no complete path proves nothing, which is itself an attestable result.</p>
+          <span class="stat live">shipping now</span>
+        </div>
+        <div class="col">
+          <span class="k soon">Tier 1 · generative</span>
+          <h3>Draft the payload</h3>
+          <p>An LLM turns a specific path into the concrete artifact that would traverse it: the injection text, the predicted tool-call sequence, the transcript it expects. No live target is touched. Honestly labeled predicted, not executed.</p>
+          <span class="stat next">on the roadmap</span>
+        </div>
+        <div class="col">
+          <span class="k soon">Tier 2 · executed</span>
+          <h3>Capture the transcript</h3>
+          <p>Drive a sandboxed instance of a target you own with the drafted payload and record the real transcript. Own-target-only by construction, gated, sandboxed, benign canaries. The visceral "here is the working exploit" artifact.</p>
+          <span class="stat next">on the roadmap</span>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:20px">
+        <h3>Scope, by design</h3>
+        <p>The symbolic tier never touches a live system at all. It reasons over the model you already attested. The executed tier will run only against a target whose fingerprint matches that attested model and only with explicit authorization, in a sandbox, moving planted canaries rather than real secrets. Attestral proves the flaws in a design you own so you can close them. It is not a point-it-at-any-endpoint attack tool, and it never will be.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="flinch">
+    <div class="wrap">
+      <div class="flinch">
+        <h2>Does this make you flinch?</h2>
+        <p class="section-lede">Point it at your own fleet. If the proof makes you reach for the config, that is the signal a static finding could never give you. It reads only what you point it at, runs on your laptop, and sends nothing anywhere.</p>
+        <div class="cmd" style="margin:0 auto 24px;max-width:max-content"><span class="dollar">$</span> <span>pip install attestral &amp;&amp; attestral validate .</span> <button type="button" data-copy="pip install attestral && attestral validate .">Copy</button></div>
+        <div class="cta-row">
+          <a class="btn primary" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>
+          <a class="btn" href="docs.html">Read the docs</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>Attestral: the security scanner for AI agents and MCP servers.<br><code>pip install attestral</code> · Open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a></div>
+    <div class="foot-labs"><svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><g fill="var(--ink)"><circle cx="50" cy="50" r="40"/></g><circle cx="50" cy="50" r="27.5" fill="none" stroke="var(--paper)" stroke-width="2.2"/><g stroke="var(--paper)" stroke-width="6.5" stroke-linecap="round"><path d="M50.00,67.00 L50.00,33.00"/><path d="M35.28,58.50 L64.72,41.50"/><path d="M35.28,41.50 L64.72,58.50"/></g></svg>An Attestral Labs project · © 2026 · Apache 2.0</div>
+  </div>
+</footer>
+
+<script>
+  // Theme toggle (icon shows the theme you would switch TO).
+  (function(){
+    var root=document.documentElement, KEY='attestral-theme';
+    var mq=window.matchMedia('(prefers-color-scheme:dark)');
+    var btn=document.getElementById('themeToggle');
+    if(!btn) return;
+    function active(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}
+    function render(){btn.textContent=active()==='dark'?'☀':'☾';}
+    btn.addEventListener('click',function(){
+      var next=active()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      try{localStorage.setItem(KEY,next);}catch(e){}
+      render();
+    });
+    mq.addEventListener('change',render);
+    render();
+  })();
+  // Copy buttons.
+  document.querySelectorAll('[data-copy]').forEach(function(b){
+    b.addEventListener('click',function(){
+      navigator.clipboard.writeText(b.dataset.copy).then(function(){
+        var t=b.textContent; b.textContent='Copied ✓';
+        setTimeout(function(){b.textContent=t;},1400);
+      });
+    });
+  });
+  // Scroll reveal.
+  (function(){
+    var els=document.querySelectorAll('section .wrap > h2, section .wrap > .section-lede');
+    if(!('IntersectionObserver' in window)){return;}
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    },{threshold:.12});
+    els.forEach(function(el){ el.classList.add('reveal'); io.observe(el); });
+  })();
+</script>
+
+<script>
+  // In-browser adversarial validation. The capability roles and the path walk
+  // mirror attestral/paths.py and attestral/redteam.py: entry taint caps ->
+  // shell pivot -> egress/cloud impact; external entry is a public A2A endpoint.
+  // Everything runs in this tab.
+  (function(){
+    var reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var ENTRY_TAINT=['network','saas_data','memory'], EGRESS=['network','messaging'];
+
+    // The fleet. Each server is derived to a capability set, as the ingester does.
+    var SERVERS=[
+      {id:'web',   name:'web-fetch',   caps:['network'],   label:'network', danger:'carries a hidden injection in a tool description'},
+      {id:'jira',  name:'jira-reader', caps:['saas_data'], label:'saas data'},
+      {id:'shell', name:'ops-shell',   caps:['shell'],     label:'execution'},
+      {id:'deploy',name:'deploy',      caps:['shell'],     label:'execution'},
+      {id:'aws',   name:'aws-tools',   caps:[], cloud:true, label:'cloud creds'},
+      {id:'partner',name:'partner-ops',caps:[], a2a:true,   label:'public A2A'}
+    ];
+    var ON={web:true,jira:true,shell:true,deploy:true,aws:false,partner:false};
+
+    function active(){return SERVERS.filter(function(s){return ON[s.id];});}
+    function has(caps,set){return caps.some(function(c){return set.indexOf(c)>=0;});}
+
+    function impactVia(s){
+      var eg=s.caps.filter(function(c){return EGRESS.indexOf(c)>=0;});
+      if(eg.length && s.cloud) return 'exfiltrates via '+eg[0]+', and holds cloud credentials';
+      if(eg.length) return 'exfiltrates via '+eg[0];
+      if(s.cloud) return 'reaches cloud via stored credentials';
+      return 'moves data out';
+    }
+    function entryVia(kind,s){
+      if(kind==='external') return 'exposed as a public A2A endpoint';
+      var hit=s.caps.filter(function(c){return ENTRY_TAINT.indexOf(c)>=0;});
+      return hit.length ? 'ingests untrusted input via '+hit[0] : 'ingests untrusted input';
+    }
+
+    function buildProof(kind, entries, pivots, impacts){
+      var steps=[], bounds={agent_runtime:1};
+      entries.forEach(function(s){steps.push({role:'entry',who:s.name,via:entryVia(kind,s)});});
+      if(kind==='external') bounds['internet (public A2A)']=1;
+      pivots.forEach(function(s){steps.push({role:'pivot',who:s.name,via:'runs code via shell'});});
+      impacts.forEach(function(s){steps.push({role:'impact',who:s.name,via:impactVia(s)}); if(s.cloud) bounds['cloud']=1;});
+      var egressAny=impacts.some(function(s){return has(s.caps,EGRESS);});
+      var cloudAny=impacts.some(function(s){return s.cloud;});
+      var label=[egressAny?'exfiltration':null,cloudAny?'cloud pivot':null].filter(Boolean).join(' / ');
+      return {
+        kind:kind,
+        rule_id: kind==='external'?'ATL-RT-EXTERNAL':'ATL-RT-INTERNAL',
+        severity: kind==='external'?'critical':'high',
+        title: 'Proven traversable: '+(kind==='external'?'an external caller':'a prompt injection')+' can reach '+label,
+        steps:steps,
+        boundaries:Object.keys(bounds),
+        impact_label:label
+      };
+    }
+
+    function computeProofs(){
+      var a=active();
+      var sources=a.filter(function(s){return has(s.caps,ENTRY_TAINT);});
+      var pivots =a.filter(function(s){return s.caps.indexOf('shell')>=0;});
+      var egress =a.filter(function(s){return has(s.caps,EGRESS);});
+      var cloud  =a.filter(function(s){return s.cloud;});
+      var impacts=egress.concat(cloud.filter(function(s){return egress.indexOf(s)<0;}));
+      var publics=a.filter(function(s){return s.a2a;});
+      var out=[];
+      if(publics.length && pivots.length && impacts.length) out.push(buildProof('external',publics,pivots,impacts));
+      if(sources.length && pivots.length && impacts.length) out.push(buildProof('internal',sources,pivots,impacts));
+      return out;
+    }
+
+    // ---- render fleet chips
+    var chips=document.getElementById('chips');
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    SERVERS.forEach(function(s){
+      var b=document.createElement('button');
+      b.type='button';b.className='chip';b.setAttribute('aria-pressed',String(!!ON[s.id]));
+      b.innerHTML=esc(s.name)+'<span class="cap'+(s.danger?' danger':'')+'">'+esc(s.label)+(s.danger?' · injected':'')+'</span>';
+      b.addEventListener('click',function(){
+        ON[s.id]=!ON[s.id]; b.setAttribute('aria-pressed',String(!!ON[s.id])); run();
+      });
+      chips.appendChild(b);
+    });
+
+    // ---- render + animate proofs
+    var out=document.getElementById('proofOut');
+    var proofsNow=[];
+    function groupByRole(steps){
+      var g={entry:[],pivot:[],impact:[]};
+      steps.forEach(function(st){g[st.role].push(st);});
+      return g;
+    }
+    function stageHTML(role,items){
+      if(!items.length) return '';
+      var who=items.map(function(i){return esc(i.who);}).join(', ');
+      var via=items[0].via; // representative mechanism for the rung
+      return '<div class="stage" data-role="'+role+'"><span class="role">'+role+'</span>'+
+             '<div class="who">'+who+'</div><div class="via">'+esc(via)+'</div></div>';
+    }
+    function proofHTML(p,idx){
+      var g=groupByRole(p.steps);
+      var sevcls=p.severity==='critical'?'crit':'high';
+      var fix='Break the chain: remove any one rung. Drop shell on the pivot, scope the egress, or gate the entry.';
+      return '<div class="proof '+sevcls+'" data-idx="'+idx+'">'+
+        '<div class="proof-head"><span class="proof-title">'+esc(p.title)+'</span>'+
+        '<span class="proof-id '+sevcls+'">'+p.rule_id+'</span></div>'+
+        '<div class="walk">'+
+          stageHTML('entry',g.entry)+'<span class="warrow" aria-hidden="true">&#8594;</span>'+
+          stageHTML('pivot',g.pivot)+'<span class="warrow" aria-hidden="true">&#8594;</span>'+
+          stageHTML('impact',g.impact)+
+        '</div>'+
+        '<div class="proof-foot">'+
+          '<div class="pf-row">crosses '+p.boundaries.length+' trust boundar'+(p.boundaries.length===1?'y':'ies')+': <b>'+esc(p.boundaries.join(', '))+'</b></div>'+
+          '<div class="verdict-stamp"><span class="vs-seal">PROVEN<br>TRAVERSABLE</span><span class="vs-label">verdict: <b>traversable</b></span></div>'+
+          '<div class="pf-row" style="margin-top:6px">fix: '+esc(fix)+'</div>'+
+        '</div></div>';
+    }
+
+    function animate(){
+      var proofEls=out.querySelectorAll('.proof');
+      proofEls.forEach(function(pe,pi){
+        var stages=pe.querySelectorAll('.stage');
+        var arrows=pe.querySelectorAll('.warrow');
+        var stamp=pe.querySelector('.verdict-stamp');
+        var base=reduce?0:pi*260;
+        stages.forEach(function(st,si){
+          setTimeout(function(){
+            st.classList.add('lit');
+            if(si>0 && arrows[si-1]) arrows[si-1].classList.add('drawn');
+          }, reduce?0:base+si*430);
+        });
+        setTimeout(function(){ if(stamp) stamp.classList.add('on'); }, reduce?0:base+stages.length*430+180);
+      });
+    }
+
+    function run(){
+      proofsNow=computeProofs();
+      if(!proofsNow.length){
+        out.innerHTML='<div class="clean">no exploit path is traversable in this design. removing a rung worked: the chain is broken.</div>';
+        buildChain([]);
+        return;
+      }
+      out.innerHTML=proofsNow.map(proofHTML).join('');
+      animate();
+      buildChain(proofsNow);
+    }
+
+    // ---- evidence chain (SHA-256, same construction as attestral verify)
+    var GENESIS='0'.repeat(64);
+    var wrap=document.getElementById('chainEntries');
+    var verdict=document.getElementById('chainVerdict');
+    var reset=document.getElementById('chainReset');
+    var short=function(h){return h.slice(0,10)+'…';};
+    var tampered=new Set();
+    var findingsNow=[];
+
+    function canonFinding(p){
+      // A trimmed, deterministic view of the redteam Finding, key-sorted.
+      return {
+        component_id:'model', origin:'redteam', recommendation:'break the chain: remove one rung',
+        rule_id:p.rule_id, severity:p.severity, source:'system model', title:p.title
+      };
+    }
+    function canon(o){ // sorted-key JSON, stable across runs
+      var keys=Object.keys(o).sort();
+      return '{'+keys.map(function(k){return JSON.stringify(k)+': '+JSON.stringify(o[k]);}).join(', ')+'}';
+    }
+    function payloadOf(i){
+      var f=Object.assign({},findingsNow[i]);
+      if(tampered.has(i)) f.severity='low';
+      return canon(f);
+    }
+    async function sha256(text){
+      if(!(window.crypto&&crypto.subtle)) return 'unavailable-needs-https-context'+text.length;
+      var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));
+      return [].slice.call(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    }
+    var recordedHashes=[];
+    async function computeRecorded(){
+      recordedHashes=[]; var prev=GENESIS;
+      for(var i=0;i<findingsNow.length;i++){ var h=await sha256(prev+canon(findingsNow[i])); recordedHashes.push({hash:h,prev:prev}); prev=h; }
+    }
+    async function recompute(){
+      var prev=GENESIS, firstBreak=-1, rows=[];
+      for(var i=0;i<findingsNow.length;i++){
+        var rec=await sha256(prev+payloadOf(i));
+        var ok=(recordedHashes[i].prev===prev)&&(rec===recordedHashes[i].hash);
+        if(!ok&&firstBreak<0) firstBreak=i;
+        rows.push({rec:rec,ok:ok}); prev=rec;
+      }
+      renderCards(rows);
+      var bad=firstBreak>=0;
+      verdict.classList.toggle('bad',bad);
+      verdict.firstElementChild.textContent = bad
+        ? 'chain INVALID · entry '+(firstBreak+1)+' no longer matches the record, and every entry after it inherits the break'
+        : 'chain VALID · '+findingsNow.length+' entr'+(findingsNow.length===1?'y':'ies')+' recomputed in this browser · head '+short(recordedHashes.length?recordedHashes[recordedHashes.length-1].hash:GENESIS);
+      reset.hidden=!bad;
+    }
+    function cardHTML(i,row){
+      var f=JSON.parse(payloadOf(i));
+      var rec=row?row.rec:recordedHashes[i].hash;
+      var ok=row?row.ok:true;
+      return '<div class="centry'+(ok?'':' broken')+'">'+
+        '<div class="n">entry '+(i+1)+' · prev '+short(i===0?GENESIS:recordedHashes[i-1].hash)+'</div>'+
+        '<div class="rid">'+f.rule_id+' <span class="sev sev-'+f.severity+'">'+f.severity+'</span></div>'+
+        '<div class="hrow">recorded <b>'+short(recordedHashes[i].hash)+'</b><br>recomputed <b class="'+(ok?'':'bad')+'">'+short(rec)+'</b></div>'+
+        '<button class="tbtn" type="button" data-i="'+i+'" '+((tampered.has(i)||f.severity==='low')?'disabled':'')+'>'+
+        (tampered.has(i)?'tampered':'tamper: severity → low')+'</button></div>';
+    }
+    function renderCards(rows){
+      wrap.innerHTML=findingsNow.map(function(_,i){return cardHTML(i,rows&&rows[i]);}).join('');
+      wrap.querySelectorAll('.tbtn').forEach(function(b){b.addEventListener('click',function(){tampered.add(Number(b.dataset.i));recompute();});});
+    }
+    async function buildChain(proofs){
+      tampered.clear();
+      findingsNow=proofs.map(canonFinding);
+      if(!findingsNow.length){
+        wrap.innerHTML='<div class="centry" style="border-top-color:var(--verify)"><div class="n">no findings</div><div class="rid">clean design</div><div class="hrow">nothing to chain. an empty proof set is itself an attestable result.</div></div>';
+        verdict.classList.remove('bad');
+        verdict.firstElementChild.textContent='chain VALID · 0 entries · no path was proven';
+        reset.hidden=true; return;
+      }
+      await computeRecorded();
+      recompute();
+    }
+    reset.addEventListener('click',function(){tampered.clear();recompute();});
+
+    document.getElementById('runBtn').addEventListener('click',run);
+    run(); // render on load
+  })();
+</script>
+
+</body>
+</html>
