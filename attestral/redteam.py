@@ -249,6 +249,8 @@ class Remediation:
     targets: list[str]
     paths_before: int
     paths_after: int
+    aars_before: float = 0.0
+    aars_after: float = 0.0
 
     @property
     def verified(self) -> bool:
@@ -257,6 +259,15 @@ class Remediation:
     @property
     def eliminates_all(self) -> bool:
         return self.paths_after == 0
+
+
+def _max_agentic_aars(model: SystemModel) -> float:
+    """The highest OWASP AIVSS agentic risk score across the model's findings -
+    the posture number a fix should move down."""
+    from attestral.aivss import scored
+    from attestral.rules import RuleEngine
+    rows = scored(model, RuleEngine().evaluate(model))
+    return rows[0][0].score if rows else 0.0
 
 
 def _model_without(model: SystemModel, cap: str, names: list[str]) -> SystemModel:
@@ -286,25 +297,34 @@ def verified_remediations(model: SystemModel) -> list[Remediation]:
         return []
     caps = _caps_by_name(model)
     cloud = [c.name for c in model.by_type("mcp_server") if c.attr("_has_cloud_credentials")]
-    out: list[Remediation] = []
+    aars_before = _max_agentic_aars(model)
+
+    # (action, capability label, targets, strip operations to apply)
+    candidates: list[tuple[str, str, list[str], list[tuple[str, list[str]]]]] = []
     pivots = sorted(n for n, cs in caps.items() if cs & _PIVOT_CAPS)
     if pivots:
-        after = len(all_attack_paths(_model_without(model, "shell", pivots)))
-        out.append(Remediation(
+        candidates.append((
             f"Remove code execution (shell) from {', '.join(pivots)}",
-            "shell", pivots, before, after))
+            "shell", pivots, [("shell", pivots)]))
     egress = sorted(n for n, cs in caps.items() if cs & _EGRESS_CAPS)
     if egress:
-        m = _model_without(_model_without(model, "network", egress), "messaging", egress)
-        out.append(Remediation(
+        candidates.append((
             f"Scope or remove the outbound channel on {', '.join(egress)}",
-            "network/messaging", egress, before, len(all_attack_paths(m))))
+            "network/messaging", egress, [("network", egress), ("messaging", egress)]))
     if cloud:
-        after = len(all_attack_paths(_model_without(model, "cloud", cloud)))
-        out.append(Remediation(
+        candidates.append((
             f"Move cloud credentials off {', '.join(cloud)} to a scoped broker",
-            "cloud credentials", cloud, before, after))
-    out.sort(key=lambda r: r.paths_after)
+            "cloud credentials", cloud, [("cloud", cloud)]))
+
+    out: list[Remediation] = []
+    for action, label, targets, ops in candidates:
+        fixed = model
+        for cap, names in ops:
+            fixed = _model_without(fixed, cap, names)
+        out.append(Remediation(
+            action, label, targets, before, len(all_attack_paths(fixed)),
+            aars_before, _max_agentic_aars(fixed)))
+    out.sort(key=lambda r: (r.paths_after, r.aars_after))
     return out
 
 
@@ -414,6 +434,9 @@ def render_remediations(model: SystemModel, *, color: bool | None = None) -> str
             verdict = _dim("no effect on the path", color)
         lines.append(f"  {_bold(r.action, color)}")
         lines.append(f"    {_dim('verify:', color)} strip {r.capability}, re-synthesize -> {verdict}")
+        if r.aars_before != r.aars_after:
+            drop = _paint(f"{r.aars_after:.1f}", "32", color)
+            lines.append(f"    {_dim('posture:', color)} worst agentic risk AARS {r.aars_before:.1f} -> {drop}")
     return "\n".join(lines)
 
 

@@ -14,7 +14,10 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   - `--remediate` gives the minimal fix for each proven path, each **verified by
     re-synthesis**: strip the rung, rebuild the model, confirm the path is gone.
     A fix that drops the path count to zero is *proven* to close it, not merely
-    advised. Deterministic; the original model is never mutated.
+    advised. Each fix also reports the **risk-posture delta** - the worst OWASP
+    AIVSS agentic score (AARS) before vs after - and fixes are ranked by how far
+    they lower it, so the highest-leverage change comes first. Deterministic; the
+    original model is never mutated.
   - `--generate` (opt-in, needs an API key) has an LLM draft the *predicted*
     exploit for a proven path - injection shape, tool-call sequence, transcript -
     labeled predicted, never executed, scoped to the design you own. Graceful

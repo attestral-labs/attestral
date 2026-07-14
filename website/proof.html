@@ -301,15 +301,17 @@ chain <span class="ok">VALID</span>
     <div class="wrap">
       <p class="eyebrow" style="color:var(--seal)">New · <code>attestral validate --remediate</code></p>
       <h2>It proves the fix, not just the flaw.</h2>
-      <p class="section-lede">A finding tells you something is wrong. Attestral goes further: for each proven path it names the minimal fix and <b>verifies it by re-synthesis</b> - it strips the rung, rebuilds the whole system model, and re-runs the proof to confirm the path is actually gone. Not "this is risky," but "here is the one change, and here is proof it closes it."</p>
+      <p class="section-lede">A finding tells you something is wrong. Attestral goes further: for each proven path it names the minimal fix and <b>verifies it by re-synthesis</b> - it strips the rung, rebuilds the whole system model, and re-runs the proof to confirm the path is actually gone. Not "this is risky," but "here is the one change, and here is proof it closes it." It ranks the fixes by how far each drops your worst agentic risk score, so the highest-leverage change comes first.</p>
       <div class="term" aria-label="attestral validate --remediate output">
 <span class="p">$</span> attestral validate examples/vulnerable-agent --remediate<br>
 <br>
 <span class="ok">Verified remediations (2)</span><br>
+&nbsp;&nbsp;<b>Scope or remove the outbound channel on web</b><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip network/messaging, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">posture:</span> worst agentic risk AARS 10.0 -&gt; <span class="ok">7.6</span><br>
 &nbsp;&nbsp;<b>Remove code execution (shell) from deploy, shell</b><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip shell, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span><br>
-&nbsp;&nbsp;<b>Scope or remove the outbound channel on web</b><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip network/messaging, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">posture:</span> worst agentic risk AARS 10.0 -&gt; <span class="ok">9.3</span>
       </div>
       <p class="section-lede" style="margin-top:20px;font-size:.9rem"><code>--action-space</code> goes wider still: it enumerates the tool-call sequences the fleet can be <em>induced into</em>, not just the one collapsed chain, the behavioral surface a per-config scanner never sees.</p>
     </div>

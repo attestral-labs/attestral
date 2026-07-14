@@ -73,6 +73,9 @@ def test_verified_remediations_are_proven_by_resynthesis():
     # at least one fix drops the path count to zero, verified by re-synthesis
     assert any(r.eliminates_all and r.verified for r in rems)
     assert all(r.paths_before > 0 for r in rems)
+    # a fix must not raise the agentic risk posture, and at least one lowers it
+    assert all(r.aars_after <= r.aars_before for r in rems)
+    assert any(r.aars_after < r.aars_before for r in rems)
 
 
 def test_remediation_never_mutates_the_original_model():
