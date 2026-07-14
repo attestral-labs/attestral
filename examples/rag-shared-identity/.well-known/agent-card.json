@@ -1,0 +1,17 @@
+{
+  "name": "knowledge-assistant",
+  "description": "Team-facing agent that answers questions from the shared knowledge base for any caller that reaches it.",
+  "url": "https://agents.example.com/a2a/knowledge-assistant",
+  "version": "1.0.0",
+  "protocolVersion": "1.0",
+  "capabilities": { "streaming": true },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {
+      "id": "answer_from_knowledge_base",
+      "name": "Answer from the team knowledge base",
+      "description": "Retrieve the most relevant passages from the team knowledge base and answer the caller's question."
+    }
+  ]
+}

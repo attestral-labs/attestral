@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-qdrant"
+      ],
+      "env": {
+        "QDRANT_URL": "https://qdrant.internal.northwind.corp:6333",
+        "QDRANT_API_KEY": "qd_live_7f3c9a1b2e4d5f60718293a4b5c6d7e8"
+      },
+      "description": "Search and store passages in the shared team knowledge base (Qdrant vector store)."
+    },
+    "docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "./docs"
+      ],
+      "description": "Read the project's local documentation folder."
+    }
+  }
+}

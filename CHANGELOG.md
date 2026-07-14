@@ -6,6 +6,33 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **Guardrails-consistency review**: the agent-config ingester now parses NeMo
+  Guardrails configurations (`rails:`/`colang_version`/engine-bearing `models:`
+  YAML, with explicit negatives for Kubernetes, compose, waiver, and MCP files)
+  into `guardrails_config` components with derived rail attributes. Two rules
+  reason over them: **ATL-212 (high)** pairs a rails config with an
+  auto-approved shell-capable tool - the rails govern the dialog channel while
+  execution runs outside it, a contradiction neither file shows on its own -
+  and **ATL-124 (medium)** flags rails that declare input flows but no output
+  flows, so replies leave un-railed (OWASP LLM05:2025, NIST SI-15). Fixture:
+  `examples/guardrails-gap/`.
+- **Shared-identity data access (ATL-211, high)**: a new model-level
+  `model_shared_identity_reach` matcher pairs a publicly callable A2A endpoint
+  with a data-access server that reaches its store through one static service
+  credential (`_shared_static_credential`, derived by the MCP ingester when a
+  server has env secrets plus a database/memory/saas_data capability). Every
+  external caller reads with the same downstream identity, so per-caller
+  entitlements cannot be enforced at the store; the remediation is per-caller
+  token exchange (RFC 8693). Neither side is a finding alone - only the system
+  model sees the pair. Fixture: `examples/rag-shared-identity/`.
+- **Azure AI Search exposure (ATL-336, high)**: flags
+  `azurerm_search_service` with public network access enabled - for agent
+  stacks this is the RAG retrieval index as a knowledge-base exposure and
+  poisoning surface.
+- The MCP ingester's memory/vector-store capability hints now also recognize
+  `pgvector` and `faiss` backends.
+
 ## [0.13.0] - 2026-07-13
 
 ### Added

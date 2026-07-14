@@ -249,6 +249,37 @@ class RuleEngine:
                 "agent that reaches the card can pivot into the cloud account."
             )
             return [self._finding(rule, "model:external_cloud_reach", "system model", detail=detail)]
+        elif "model_shared_identity_reach" in match:
+            # The identity-propagation gap at the data layer: an effectively-
+            # public A2A endpoint means many distinct external callers, and a
+            # data-access server that reaches its store through one static env
+            # credential means every one of those callers reads with the same
+            # downstream identity - so the store can never enforce per-caller
+            # entitlements. Neither side is the finding alone; only the
+            # assembled model shows the crossing. One finding per flagged
+            # server, so remediation lands on the component that owns the
+            # credential (mirrors ATL-205's per-server attribution).
+            if match["model_shared_identity_reach"] is not True:
+                return []  # malformed spec: fail closed
+            public = [c for c in model.by_type("a2a_agent")
+                      if c.attr("_effectively_public")]
+            if not public:
+                return []
+            endpoints = ", ".join(sorted(c.name for c in public))
+            findings = []
+            for c in _distinct_servers(model) + list(model.by_type("subagent")):
+                if not c.attr("_shared_static_credential"):
+                    continue
+                findings.append(self._finding(
+                    rule, c.id, c.source,
+                    detail=(
+                        f"Public A2A endpoint(s) [{endpoints}] front data "
+                        f"server '{c.name}', which reaches its store through "
+                        "one static service credential - every external "
+                        "caller reads with the same downstream identity."
+                    ),
+                ))
+            return findings
         elif "model_attack_path" in match:
             # The assembled kill chain: entry (external A2A) -> pivot (code
             # execution) -> impact (exfiltration/cloud), all in one runtime.
@@ -263,6 +294,40 @@ class RuleEngine:
                 p.describe() for p in paths
             ) + "."
             return [self._finding(rule, "model:attack_path", "system model", detail=detail)]
+        elif "model_railed_dialog_unrailed_execution" in match:
+            # A guardrails config rails the dialog channel while an
+            # auto-approved shell-capable tool acts entirely outside it. The
+            # rails are real - but they govern conversation, not tool side
+            # effects, so the safety they imply never reaches the agent's most
+            # dangerous capability. Only the system model sees both surfaces:
+            # the rails config knows nothing of the tool fleet, and the fleet
+            # config knows nothing of the rails. One finding per offending
+            # execution component, naming both sides.
+            if match["model_railed_dialog_unrailed_execution"] is not True:
+                return []  # malformed spec: fail closed
+            rails = sorted(model.by_type("guardrails_config"), key=lambda c: c.name)
+            if not rails:
+                return []
+            rail_names = ", ".join(dict.fromkeys(c.name for c in rails))
+            findings = []
+            seen: set[tuple[str, str]] = set()
+            for c, caps in _capability_components(model):
+                if "shell" not in caps or not c.attr("_auto_approve"):
+                    continue
+                key = (c.id, c.source)
+                if key in seen:
+                    continue
+                seen.add(key)
+                findings.append(self._finding(
+                    rule, c.id, c.source,
+                    detail=(
+                        f"Guardrails config(s) [{rail_names}] rail the dialog "
+                        f"channel, but auto-approved execution tool '{c.name}' "
+                        "runs shell commands outside them with no human "
+                        "checkpoint."
+                    ),
+                ))
+            return findings
         elif "model_tool_name_collision" in match:
             # Two servers claiming one tool name: the client's routing decides
             # which implementation answers, so a lower-trust server can shadow

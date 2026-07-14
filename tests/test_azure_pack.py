@@ -1,4 +1,4 @@
-"""Coverage for the Azure rule pack (rules/azure_pack.yaml, ATL-317..ATL-335).
+"""Coverage for the Azure rule pack (rules/azure_pack.yaml, ATL-317..ATL-336).
 
 Mirrors tests/test_aws_pack.py: build a model from the fixture and assert every
 new Azure id fires, that the fixture trips no unexpected core rule, and that no
@@ -9,8 +9,8 @@ from attestral.rules import RuleEngine
 
 FIXTURE = "examples/azure-pack"
 
-# Every id the pack ships, ATL-317 through ATL-335 inclusive.
-PACK_IDS = {f"ATL-{n:03d}" for n in range(317, 336)}
+# Every id the pack ships, ATL-317 through ATL-336 inclusive.
+PACK_IDS = {f"ATL-{n:03d}" for n in range(317, 337)}
 
 
 def _ids():

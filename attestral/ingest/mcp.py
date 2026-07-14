@@ -47,7 +47,8 @@ _CAPABILITY_HINTS = {
     # (Kim et al. 2026, V6) and a source of private data the agent reads back
     # across sessions, so it also counts toward the exfiltration trifecta.
     "memory": ("mem0", "server-memory", "memory-server", "knowledge-graph",
-               "chroma", "pinecone", "weaviate", "qdrant", "milvus", "vectorstore"),
+               "chroma", "pinecone", "weaviate", "qdrant", "milvus", "vectorstore",
+               "pgvector", "faiss"),
 }
 
 # Embedded advisory DB: MCP packages with a KNOWN CVE, and the inclusive maximum
@@ -191,6 +192,15 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             if any(h in surface for h in hints):
                 caps.add(cap)
         attrs["_capabilities"] = sorted(caps)
+        # Identity-propagation gap: a data-access server (database / memory /
+        # saas_data) whose env holds a secret reaches the store through ONE
+        # static service identity, so every agent caller looks the same
+        # downstream and per-user entitlements cannot be enforced there.
+        # Feeds the model-level shared-identity rule (with an exposed A2A
+        # endpoint as the multi-caller side). Set only when true, like
+        # _confused_deputy above.
+        if attrs["_env_has_secrets"] and caps & {"database", "memory", "saas_data"}:
+            attrs["_shared_static_credential"] = True
         # Known-CVE supply-chain check (ATL-117): does the launch pin a package
         # version with a published advisory?
         cve = _known_cve(launch.split())

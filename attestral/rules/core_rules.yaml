@@ -912,3 +912,40 @@ rules:
     description: An effectively-public A2A endpoint shares a runtime with a tool server that holds cloud credentials, so an external agent that reaches the card can delegate a task that drives the cloud-credentialed tool and pivot into the cloud account - a caller-to-endpoint-to-tool-to-cloud path no per-component check can see. This is the inter-agent delegation escalation the A2A/RFC 8693 guidance exists to prevent - a broad credential reachable across the agent boundary instead of a scoped, exchanged token.
     recommendation: Require authentication on the A2A endpoint and exchange the caller's identity for a narrowly-scoped, short-lived downstream token (OAuth 2.0 Token Exchange, RFC 8693) rather than co-locating a broad cloud credential with an externally-reachable agent.
     frameworks: ["OWASP-ASI07:2026", "OWASP-ASI03:2026", "MCP Security Best Practices 2025-06-18", "NIST AC-4"]
+
+  # --- Shared-identity / RAG wave: the identity-propagation gap between a
+  # --- multi-caller agent endpoint and a single-credential data store.
+  # --- Fixture: examples/rag-shared-identity/.
+
+  - id: ATL-211
+    title: Public agent endpoint fronts a data store through one shared static credential
+    severity: high
+    target: model
+    match: { model_shared_identity_reach: true }
+    description: A publicly callable A2A endpoint fronts a data-access server that reaches its store through a single static service credential, so every external caller reads with the same downstream identity and per-caller entitlements can never be enforced at the store.
+    recommendation: Exchange each caller's identity for a scoped, short-lived downstream credential (OAuth 2.0 Token Exchange, RFC 8693) or enforce per-caller authorization at retrieval; never front a shared-identity store with a public endpoint.
+    frameworks: ["OWASP-ASI03:2026", "NIST AC-6", "NIST IA-2", "MCP Security Best Practices 2025-06-18"]
+
+  # --- Guardrails coverage wave: NeMo Guardrails configs enter the system
+  # --- model as guardrails_config components. Rails constrain the DIALOG
+  # --- channel only - the tool fleet acts outside them - so these rules
+  # --- cross-check the railed surface against the un-railed one.
+  # --- Fixture: examples/guardrails-gap/.
+
+  - id: ATL-124
+    title: Guardrails validate input but never output
+    severity: medium
+    target: guardrails_config
+    match: { attr_equals: { _output_unrailed: true } }
+    description: The rails config declares input flows but no output flows, so the rails inspect what enters the dialog and never what leaves it - a manipulated reply (a leaked secret, an exfiltrating markdown link, an injected instruction to a downstream consumer) exits un-railed.
+    recommendation: Add output rails symmetric with the input side (rails.output.flows, e.g. self check output) so every reply is validated before it leaves the model.
+    frameworks: ["OWASP LLM05:2025 Improper Output Handling", "OWASP LLM02 Sensitive Information Disclosure", "NIST SI-15"]
+
+  - id: ATL-212
+    title: Dialog is railed but an auto-approved shell tool acts outside the rails
+    severity: high
+    target: model
+    match: { model_railed_dialog_unrailed_execution: true }
+    description: The team installed a guardrails layer and it is real - but it governs conversation, while an auto-approved shell-capable tool executes commands with no human checkpoint entirely outside the railed channel, so the safety the rails imply does not extend to the agent's most dangerous capability. Neither config can see the other; only the system model holds both. The finding names the rails config and the execution tool.
+    recommendation: Require human approval on execution tools (remove blanket auto-approve) or enforce tool-level policy where the tools run - dialog rails cannot see tool side effects.
+    frameworks: ["OWASP-ASI03:2026", "OWASP-ASI05:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]

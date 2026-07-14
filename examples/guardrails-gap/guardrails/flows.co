@@ -1,0 +1,9 @@
+define user ask off topic
+  "how do I hotwire a car"
+
+define bot refuse off topic
+  "I can only help with product questions."
+
+define flow off topic
+  user ask off topic
+  bot refuse off topic

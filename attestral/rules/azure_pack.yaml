@@ -1,4 +1,4 @@
-# Attestral Azure rule pack (ATL-317..ATL-335)
+# Attestral Azure rule pack (ATL-317..ATL-336)
 #
 # High-signal IaC misconfiguration checks for Microsoft Azure, grounded in the
 # CIS Microsoft Azure Foundations Benchmark and the CIS Azure Kubernetes Service
@@ -205,3 +205,14 @@ rules:
     description: The namespace accepts shared access signature keys for auth, so a single leaked connection string grants non-attributable, non-revocable access to publish to and consume from its event hubs.
     recommendation: Set local_authentication_enabled = false and authenticate clients via Entra ID with scoped RBAC roles so access is per-identity, audited and revocable.
     frameworks: ["NIST AC-6", "NIST IA-5", "SOC2 CC6.1"]
+
+  # --- AI Search ------------------------------------------------------------
+
+  - id: ATL-336
+    title: Azure AI Search service allows public network access
+    severity: high
+    target: azurerm_search_service
+    match: { attr_equals: { public_network_access_enabled: true } }
+    description: The search service - typically the retrieval index behind a RAG agent - is reachable from the public internet, so anyone holding a leaked admin or query key can read, rewrite or poison the indexed knowledge base from anywhere.
+    recommendation: Set public_network_access_enabled = false and reach the service through private endpoints, or at minimum scope allowed_ips to known ranges.
+    frameworks: ["NIST SC-7", "NIST AC-3", "SOC2 CC6.6"]

@@ -1,5 +1,5 @@
 # Intentionally insecure Azure fixtures for the Attestral azure_pack.yaml pack
-# (ATL-317..ATL-335). Every resource below is minimal and authored to trigger
+# (ATL-317..ATL-336). Every resource below is minimal and authored to trigger
 # exactly the pack rule(s) noted in the comments, without tripping the core
 # Azure rules (ATL-301..316) that live in core_rules.yaml.
 #
@@ -127,4 +127,14 @@ resource "azurerm_eventhub_namespace" "eh" {
   location                     = "eastus"
   sku                          = "Standard"
   local_authentication_enabled = true     # ATL-335
+}
+
+# --- AI Search: RAG retrieval index reachable from the public internet -------
+# Fires ATL-336.
+resource "azurerm_search_service" "rag" {
+  name                          = "acme-rag-search"
+  resource_group_name           = "acme-rg"
+  location                      = "eastus"
+  sku                           = "standard"
+  public_network_access_enabled = true    # ATL-336
 }
