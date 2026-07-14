@@ -254,10 +254,12 @@
     <p class="sub">Reference for the open-source Attestral CLI, the security scanner for AI agents and MCP servers. Everything here is licensed Apache&nbsp;2.0 and complete: nothing below requires an account, a key, or a server.</p>
 <pre><code><span class="c"># install and run the whole loop, offline, in under a minute</span>
 pip install attestral
-attestral scan ./my-project      <span class="c"># review the design</span>
-attestral validate ./my-project  <span class="c"># prove the attack path holds</span>
-attestral compile ./my-project -o policy.yaml   <span class="c"># turn the review into a runtime policy</span></code></pre>
-    <p class="sub">New here? Jump to <a href="#loop">the loop</a>, <a href="#validate">adversarial validation</a>, or the <a href="#rulepack">rule pack</a>, or just switch tabs below to watch it run on the repo's real fixtures.</p>
+attestral scan ./my-project               <span class="c"># review the design (16 findings on the demo)</span>
+attestral validate ./my-project           <span class="c"># prove the attack path actually holds</span>
+attestral verify review.json              <span class="c"># chain VALID, offline</span>
+attestral compile ./my-project -o policy.yaml     <span class="c"># turn the review into a default-deny policy</span>
+attestral drift policy.yaml events.jsonl  <span class="c"># catch when runtime diverges from the design</span></code></pre>
+    <p class="sub">Prefer clicking to installing? <a href="playground.html"><strong>Run the whole loop live in the Playground</strong></a>, real CLI output streamed in your browser. Or jump to <a href="#loop">the loop</a>, <a href="#validate">adversarial validation</a>, or the <a href="#rulepack">rule pack</a>.</p>
 
     <h2 id="demo" style="border-top:none;margin-top:0;padding-top:0">See it run</h2>
     <p>Every panel below is real output from the CLI against the fixtures that ship in the repo, not a mockup. Switch tabs to walk the whole loop: review a deliberately vulnerable agent, inspect a rule, compile the attested design into a policy, catch runtime drift against it, prove a whole attack path actually holds, and verify the evidence chain offline.</p>
@@ -432,7 +434,7 @@ flowchart LR
     <h2 id="install">Install</h2>
 <pre><code>pip install attestral
 attestral --version</code></pre>
-    <p>Python 3.10+. The core has two dependencies (<code>click</code>, <code>pyyaml</code>). Optional extras: <code>[llm]</code> adds the <code>anthropic</code> package for elicitation and the judge; <code>[onnx]</code> adds a light, model-grade prompt-injection classifier without torch; <code>[ml]</code> adds the full local DeBERTa tier (<code>transformers</code>, <code>torch</code>). <code>--ml</code> always works even with no extra installed: it degrades to a zero-dependency heuristic tier.</p>
+    <p>Python 3.10+. The core has two dependencies (<code>click</code>, <code>pyyaml</code>). Optional extras: <code>[llm]</code> adds the <code>anthropic</code> package for elicitation and the judge; <code>[onnx]</code> adds a light, model-grade prompt-injection classifier without torch; <code>[ml]</code> adds the full local DeBERTa tier (<code>transformers</code>, <code>torch</code>). the heuristic prompt-injection tier runs by default with no extra installed; <code>--ml</code> / <code>--ml-engine</code> upgrades to a model-grade tier.</p>
     <p>Try the full loop on the bundled demo:</p>
 <pre><code>git clone https://github.com/attestral-labs/attestral && cd attestral
 attestral scan examples/demo-project
@@ -455,7 +457,8 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
       <tr><td><code>--local</code></td><td>Scan the MCP configs already installed on this machine (Claude Desktop, Cursor, VS Code, Windsurf) instead of a PATH.</td></tr>
       <tr><td><code>-o, --output</code></td><td>Write report files to this stem. Without <code>-o</code> or <code>--format</code>, results only print; nothing is written to disk.</td></tr>
       <tr><td><code>--format</code></td><td><code>md</code> for the human report, <code>json</code> for the chained evidence, <code>both</code>, <code>sarif</code> for GitHub Code Scanning, or <code>aibom</code> for a CycloneDX 1.6 AI-BOM of the agent stack.</td></tr>
-      <tr><td><code>--ml</code></td><td>Score agentic text surfaces (tool descriptions, system prompts) for prompt injection. Runs with zero extra installs; <code>--ml-engine</code> picks the tier. Findings are tagged <code>origin: ml</code>. See the <a href="ml-deberta.html">ML layer</a> page.</td></tr>
+      <tr><td><code>--ml</code> / <code>--no-ml</code></td><td>The zero-dependency heuristic prompt-injection tier runs <strong>by default</strong>. <code>--no-ml</code> turns it off; <code>--ml</code> / <code>--ml-engine</code> upgrades to the ONNX or DeBERTa tier. Findings tagged <code>origin: ml</code>. See the <a href="ml-deberta.html">ML layer</a> page.</td></tr>
+      <tr><td><code>--aivss</code></td><td>Rank agentic findings by an OWASP AIVSS Agentic AI Risk Score (AARS), each mapped to an OWASP Agentic (ASI) / LLM Top-10 category. AARS measures agentic amplification, a different axis from CVSS severity.</td></tr>
       <tr><td><code>--llm</code></td><td>Adds LLM threat elicitation on top of the deterministic layer. Requires <code>ANTHROPIC_API_KEY</code>. Findings are tagged <code>origin: llm</code> and never mixed silently with rule findings.</td></tr>
       <tr><td><code>--judge</code></td><td>Cross-examine findings with an LLM judge; see <a href="#judge">LLM-as-judge</a>.</td></tr>
       <tr><td><code>--waivers</code></td><td>YAML of documented waivers; <code>attestral-waivers.yaml</code> at the scan root is picked up automatically.</td></tr>
