@@ -1,0 +1,14 @@
+# NeMo Guardrails configuration for the support agent's dialog channel.
+# Input is railed; output is not - and the MCP tool fleet (mcp.json) is
+# invisible to these rails entirely.
+colang_version: "1.0"
+
+models:
+  - type: main
+    engine: openai
+    model: gpt-4o
+
+rails:
+  input:
+    flows:
+      - self check input

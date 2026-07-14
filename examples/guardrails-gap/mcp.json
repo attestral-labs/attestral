@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "shell": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec mcp-shell-server"
+      ],
+      "autoApprove": [
+        "run_command"
+      ],
+      "description": "Run build and maintenance commands on the host."
+    },
+    "docs": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem@2025.1.14",
+        "/srv/docs"
+      ],
+      "description": "Read product documentation so answers stay grounded."
+    }
+  }
+}

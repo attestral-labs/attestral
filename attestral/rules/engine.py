@@ -294,6 +294,40 @@ class RuleEngine:
                 p.describe() for p in paths
             ) + "."
             return [self._finding(rule, "model:attack_path", "system model", detail=detail)]
+        elif "model_railed_dialog_unrailed_execution" in match:
+            # A guardrails config rails the dialog channel while an
+            # auto-approved shell-capable tool acts entirely outside it. The
+            # rails are real - but they govern conversation, not tool side
+            # effects, so the safety they imply never reaches the agent's most
+            # dangerous capability. Only the system model sees both surfaces:
+            # the rails config knows nothing of the tool fleet, and the fleet
+            # config knows nothing of the rails. One finding per offending
+            # execution component, naming both sides.
+            if match["model_railed_dialog_unrailed_execution"] is not True:
+                return []  # malformed spec: fail closed
+            rails = sorted(model.by_type("guardrails_config"), key=lambda c: c.name)
+            if not rails:
+                return []
+            rail_names = ", ".join(dict.fromkeys(c.name for c in rails))
+            findings = []
+            seen: set[tuple[str, str]] = set()
+            for c, caps in _capability_components(model):
+                if "shell" not in caps or not c.attr("_auto_approve"):
+                    continue
+                key = (c.id, c.source)
+                if key in seen:
+                    continue
+                seen.add(key)
+                findings.append(self._finding(
+                    rule, c.id, c.source,
+                    detail=(
+                        f"Guardrails config(s) [{rail_names}] rail the dialog "
+                        f"channel, but auto-approved execution tool '{c.name}' "
+                        "runs shell commands outside them with no human "
+                        "checkpoint."
+                    ),
+                ))
+            return findings
         elif "model_tool_name_collision" in match:
             # Two servers claiming one tool name: the client's routing decides
             # which implementation answers, so a lower-trust server can shadow
