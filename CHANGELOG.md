@@ -6,6 +6,8 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-14
+
 ### Added
 - **Agentic AI Risk Score (`attestral scan --aivss`).** New `attestral/aivss.py`
   scores agentic findings with an OWASP AIVSS Agentic AI Risk Score (AARS) and
