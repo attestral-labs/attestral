@@ -37,8 +37,10 @@ def main() -> None:
 @click.option("--waivers", "waivers_path", type=click.Path(exists=True), default=None,
               help="YAML of documented waivers (auto-discovered as attestral-waivers.yaml).")
 @click.option("--judge", is_flag=True, help="Verify findings with an LLM judge (needs an API key).")
-@click.option("--judge-model", default="claude-sonnet-4-6", help="Model for the judge layer.")
+@click.option("--judge-model", default="claude-opus-4-8", help="Model for the judge layer.")
 @click.option("--judge-panel", type=int, default=1, help="Judges per finding; majority vote.")
+@click.option("--judge-effort", type=click.Choice(["low", "medium", "high", "xhigh", "max"]),
+              default="medium", help="Judge reasoning effort. Higher is more rigorous and costs more.")
 @click.option("--judge-suppress", is_flag=True,
               help="Auto-waive high-confidence false positives (kept on the record).")
 @click.option("--ml", is_flag=True,
@@ -56,7 +58,7 @@ def main() -> None:
 @click.pass_context
 def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: str, llm: bool,
          fail_on: str | None, waivers_path: str | None, judge: bool, judge_model: str,
-         judge_panel: int, judge_suppress: bool, ml: bool, ml_engine: str | None,
+         judge_panel: int, judge_effort: str, judge_suppress: bool, ml: bool, ml_engine: str | None,
          ml_model: str | None, ml_revision: str | None, ml_threshold: float,
          quiet: bool) -> None:
     """Scan PATH (Terraform, Kubernetes, MCP configs) and review its security design.
@@ -113,7 +115,8 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
         if not quiet:
             click.echo("cross-examining findings with the judge…", err=True)
         from attestral.judge import JudgeConfig, judge_findings
-        cfg = JudgeConfig(model=judge_model, panel=judge_panel, suppress=judge_suppress)
+        cfg = JudgeConfig(model=judge_model, panel=judge_panel, effort=judge_effort,
+                          suppress=judge_suppress)
         for note in judge_findings(model, findings, cfg):
             click.echo(f"  ! {note}", err=True)
 
@@ -361,6 +364,38 @@ def drift(policy_file: str, events_file: str, fail_on_drift: bool) -> None:
     click.echo(f"{len(events)} events · {len(findings)} drift findings")
     if findings and fail_on_drift:
         click.echo("DRIFT: deployment no longer matches the attested design", err=True)
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("-o", "--output", default=None,
+              help="Write the proof report (<stem>.md) and evidence chain (<stem>.json).")
+@click.option("--fail-on-proof", is_flag=True,
+              help="Exit non-zero if any exploit path is proven traversable (CI gate).")
+def validate(path: str, output: str | None, fail_on_proof: bool) -> None:
+    """Prove whether the attack paths in PATH's attested design actually hold.
+
+    Symbolic tier: walks each assembled attack path over the model's own edges,
+    with no execution and no network, and commits each proven path to the
+    evidence chain as an attestable proof. The generative and executed tiers
+    build on the same proof (research/adversarial-validation-spike.md).
+    """
+    from attestral.redteam import build_proofs
+    from attestral.report_terminal import render_proofs
+    model = build_model(path)
+    proofs = build_proofs(model)
+    click.echo(render_proofs(proofs))
+    if output:
+        findings = [p.to_finding() for p in proofs]
+        Path(f"{output}.md").write_text(render_markdown(model, findings, path))
+        Path(f"{output}.json").write_text(
+            json.dumps({"target": path, "chain": audit_chain(findings)}, indent=2)
+        )
+        click.echo(f"wrote {output}.md · {output}.json")
+    if fail_on_proof and proofs:
+        click.echo("PROVEN: at least one exploit path is traversable in the "
+                   "attested design", err=True)
         sys.exit(1)
 
 

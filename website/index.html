@@ -254,6 +254,7 @@
     <nav class="nav-links" aria-label="Main">
       <a href="#how">How it works</a>
       <a href="#start">Get started</a>
+      <a href="proof.html">Proof</a>
       <a href="docs.html">Docs</a>
       <a href="ml-deberta.html">ML layer</a>
       <a href="architecture.html">Architecture</a>
@@ -478,6 +479,30 @@
       <h2>Design review is where security is cheapest. It is also where the tooling is oldest.</h2>
       <p class="section-lede">The enterprise threat modeling market just consolidated into a single private-equity-owned vendor, priced for the Fortune&nbsp;500 and built on decade-old architecture. Everyone else reviews designs in spreadsheets and wiki templates: slow, inconsistent, and with nothing to show an auditor. And the fastest-growing attack surface, AI agents and their tools, is the part legacy platforms understand least.</p>
       <p class="ledger-quote">A security review you can't prove happened is an opinion, not a control.</p>
+    </div>
+  </section>
+
+  <section id="regulated">
+    <div class="wrap">
+      <h2>For the teams who review before they ship.</h2>
+      <p class="section-lede">Banks, insurers, and compliance teams under audit review architecture on purpose, because for them a flaw found after an agent reaches production is not a code fix. It is change management, re-certification, and an incident write-up. The same flaw caught in the design review is a one-line config change. Attestral is built for that review: it reads the agent design the way a security architect would, and it produces something an auditor can actually verify.</p>
+      <div class="cols">
+        <div class="col">
+          <span class="k">Grounded in real threats</span>
+          <h3>Named, not hypothetical</h3>
+          <p>The risks are cataloged: prompt injection and excessive agency in the OWASP Agentic and LLM top-tens, adversary tactics in MITRE ATLAS, the lethal trifecta across a tool fleet, live MCP CVEs like CVE-2025-6514. Attestral checks for the specific ones your design actually exposes.</p>
+        </div>
+        <div class="col">
+          <span class="k">Evidence, not assertions</span>
+          <h3>What an auditor accepts</h3>
+          <p>SOC 2 and NIST 800-53 want proof a control operated, not a claim that it exists. Findings carry those references and OWASP Agentic, and the hash-chained review is the artifact you hand over. The EU AI Act and model-risk expectations both push this diligence before a system ships, not after.</p>
+        </div>
+        <div class="col">
+          <span class="k">Design time and run time</span>
+          <h3>And prove it stays true</h3>
+          <p>A design review is only worth its paper if production still matches it. The reviewed model compiles to a runtime policy bound to the review's chain head, and <code>attestral drift</code> flags anything the review never saw. One attested artifact, checked at design time and verified in production.</p>
+        </div>
+      </div>
     </div>
   </section>
 

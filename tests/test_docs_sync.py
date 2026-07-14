@@ -27,6 +27,7 @@ DIAGRAM_KEYWORDS = {
     "model.py": "SystemModel",
     "rules/engine.py": "Deterministic rules",
     "paths.py": "attack path",
+    "redteam.py": "exploit path",
     "manifest.py": "manifest",
     "ml.py": "ML",
     "llm.py": "LLM",
