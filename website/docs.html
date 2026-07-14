@@ -215,6 +215,7 @@
       <a href="index.html#how">How it works</a>
       <a href="index.html#start">Get started</a>
       <a href="proof.html">Proof</a>
+      <a href="playground.html">Playground</a>
       <a href="docs.html" aria-current="page">Docs</a>
       <a href="ml-deberta.html">ML layer</a>
       <a href="architecture.html">Architecture</a>
@@ -253,10 +254,12 @@
     <p class="sub">Reference for the open-source Attestral CLI, the security scanner for AI agents and MCP servers. Everything here is licensed Apache&nbsp;2.0 and complete: nothing below requires an account, a key, or a server.</p>
 <pre><code><span class="c"># install and run the whole loop, offline, in under a minute</span>
 pip install attestral
-attestral scan ./my-project      <span class="c"># review the design</span>
-attestral validate ./my-project  <span class="c"># prove the attack path holds</span>
-attestral compile ./my-project -o policy.yaml   <span class="c"># turn the review into a runtime policy</span></code></pre>
-    <p class="sub">New here? Jump to <a href="#loop">the loop</a>, <a href="#validate">adversarial validation</a>, or the <a href="#rulepack">rule pack</a>, or just switch tabs below to watch it run on the repo's real fixtures.</p>
+attestral scan ./my-project               <span class="c"># review the design (16 findings on the demo)</span>
+attestral validate ./my-project           <span class="c"># prove the attack path actually holds</span>
+attestral verify review.json              <span class="c"># chain VALID, offline</span>
+attestral compile ./my-project -o policy.yaml     <span class="c"># turn the review into a default-deny policy</span>
+attestral drift policy.yaml events.jsonl  <span class="c"># catch when runtime diverges from the design</span></code></pre>
+    <p class="sub">Prefer clicking to installing? <a href="playground.html"><strong>Run the whole loop live in the Playground</strong></a>, real CLI output streamed in your browser. Or jump to <a href="#loop">the loop</a>, <a href="#validate">adversarial validation</a>, or the <a href="#rulepack">rule pack</a>.</p>
 
     <h2 id="demo" style="border-top:none;margin-top:0;padding-top:0">See it run</h2>
     <p>Every panel below is real output from the CLI against the fixtures that ship in the repo, not a mockup. Switch tabs to walk the whole loop: review a deliberately vulnerable agent, inspect a rule, compile the attested design into a policy, catch runtime drift against it, prove a whole attack path actually holds, and verify the evidence chain offline.</p>
@@ -278,7 +281,7 @@ attestral compile ./my-project -o policy.yaml   <span class="c"># turn the revie
       <div class="demo-body" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan">
 <div class="demo-cmdrow"><span><span class="p">$</span> <b>attestral scan examples/vulnerable-agent</b></span><button class="copybtn" data-copy="attestral scan examples/vulnerable-agent" type="button">copy</button></div>
 <span>attestral · examples/vulnerable-agent</span>
-<span>6 components · 14 findings · <span class="crit">4 critical</span> · <span class="high">7 high</span> · <span class="med">3 medium</span></span>
+<span>6 components · 16 findings · <span class="crit">4 critical</span> · <span class="high">8 high</span> · <span class="med">4 medium</span></span>
 <span> </span>
 <span><b>Attack paths (1)</b></span>
 <span>  internal chain:</span>
@@ -300,7 +303,7 @@ attestral compile ./my-project -o policy.yaml   <span class="c"># turn the revie
 <span>    <span class="p">fix:</span> Split the workflow so no single agent session combines private-data access with unrestricted egress...</span>
 <span>    <span class="dim">run: attestral explain ATL-202</span></span>
 <span> </span>
-<span><span class="high">HIGH (7)</span></span>
+<span><span class="high">HIGH (8)</span></span>
 <span>  <b>ATL-101</b>  MCP server uses non-TLS transport  <span class="dim">(mcp_server.jira)</span></span>
 <span>    <span class="p">fix:</span> Serve the MCP endpoint over HTTPS/WSS only.</span>
 <span>    <span class="dim">run: attestral explain ATL-101</span></span>
@@ -322,8 +325,10 @@ attestral compile ./my-project -o policy.yaml   <span class="c"># turn the revie
 <span>  <b>ATL-207</b>  Unsafe data flow - untrusted input can reach a sensitive action  <span class="dim">(model:taint_flow)</span></span>
 <span>    <span class="p">fix:</span> Break the path - keep untrusted-input tools and execution tools in separate agent sessions, or inte...</span>
 <span>    <span class="dim">run: attestral explain ATL-207</span></span>
+<span>  <b>ATL-ML-001</b>  Prompt-injection text detected in tool 'fetch_page' description  <span class="dim">(mcp_server.web)</span></span>
+<span>    <span class="dim">run: attestral explain ATL-ML-001</span></span>
 <span> </span>
-<span><span class="med">MEDIUM (3)</span></span>
+<span><span class="med">MEDIUM (4)</span></span>
 <span>  <b>ATL-104</b>  Secrets passed to MCP server via environment  <span class="dim">(mcp_server.jira)</span></span>
 <span>    <span class="p">fix:</span> Use a secret manager or OS keychain; never place raw credentials where tool output can echo them.</span>
 <span>    <span class="dim">run: attestral explain ATL-104</span></span>
@@ -333,6 +338,8 @@ attestral compile ./my-project -o policy.yaml   <span class="c"># turn the revie
 <span>  <b>ATL-107</b>  MCP server grants outbound network or browser access  <span class="dim">(mcp_server.web)</span></span>
 <span>    <span class="p">fix:</span> Constrain the tool to an allowlist of destinations; deny access to internal metadata endpoints and...</span>
 <span>    <span class="dim">run: attestral explain ATL-107</span></span>
+<span>  <b>ATL-ML-001</b>  Prompt-injection text detected in system_prompt 'system-prompt'  <span class="dim">(system_prompt.system-prompt)</span></span>
+<span>    <span class="dim">run: attestral explain ATL-ML-001</span></span>
 <span><span class="dim">(no files written - add -o to save a report)</span></span>
       </div>
 
@@ -394,7 +401,7 @@ attestral compile ./my-project -o policy.yaml   <span class="c"># turn the revie
 <span><span class="dim"># offline, no account. try the same check live in the evidence-chain section.</span></span>
       </div>
     </figure>
-    <p class="demo-cap">The scan is <code>examples/vulnerable-agent</code>: two small config files, fourteen design findings, three of them fleet-level. Compile and drift run against <code>examples/demo-project</code>. To see how a scan flows through the package itself, the <a href="architecture.html">architecture page</a> draws the pipeline from Attestral's own code graph.</p>
+    <p class="demo-cap">The scan is <code>examples/vulnerable-agent</code>: two small config files, sixteen design findings, three of them fleet-level and two caught by the default prompt-injection classifier. Compile and drift run against <code>examples/demo-project</code>. To see how a scan flows through the package itself, the <a href="architecture.html">architecture page</a> draws the pipeline from Attestral's own code graph.</p>
 
     <h2 id="pipeline">Pipeline</h2>
     <p>A scan flows through three stages: ingest your agent (MCP configs, system prompts, tool descriptions) and the cloud it runs on into one model, review in layers (each finding tagged by origin), and commit to a tamper-evident evidence chain. The deterministic core is never silently mixed with model reasoning.</p>
@@ -427,7 +434,7 @@ flowchart LR
     <h2 id="install">Install</h2>
 <pre><code>pip install attestral
 attestral --version</code></pre>
-    <p>Python 3.10+. The core has two dependencies (<code>click</code>, <code>pyyaml</code>). Optional extras: <code>[llm]</code> adds the <code>anthropic</code> package for elicitation and the judge; <code>[onnx]</code> adds a light, model-grade prompt-injection classifier without torch; <code>[ml]</code> adds the full local DeBERTa tier (<code>transformers</code>, <code>torch</code>). <code>--ml</code> always works even with no extra installed: it degrades to a zero-dependency heuristic tier.</p>
+    <p>Python 3.10+. The core has two dependencies (<code>click</code>, <code>pyyaml</code>). Optional extras: <code>[llm]</code> adds the <code>anthropic</code> package for elicitation and the judge; <code>[onnx]</code> adds a light, model-grade prompt-injection classifier without torch; <code>[ml]</code> adds the full local DeBERTa tier (<code>transformers</code>, <code>torch</code>). the heuristic prompt-injection tier runs by default with no extra installed; <code>--ml</code> / <code>--ml-engine</code> upgrades to a model-grade tier.</p>
     <p>Try the full loop on the bundled demo:</p>
 <pre><code>git clone https://github.com/attestral-labs/attestral && cd attestral
 attestral scan examples/demo-project
@@ -450,7 +457,8 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
       <tr><td><code>--local</code></td><td>Scan the MCP configs already installed on this machine (Claude Desktop, Cursor, VS Code, Windsurf) instead of a PATH.</td></tr>
       <tr><td><code>-o, --output</code></td><td>Write report files to this stem. Without <code>-o</code> or <code>--format</code>, results only print; nothing is written to disk.</td></tr>
       <tr><td><code>--format</code></td><td><code>md</code> for the human report, <code>json</code> for the chained evidence, <code>both</code>, <code>sarif</code> for GitHub Code Scanning, or <code>aibom</code> for a CycloneDX 1.6 AI-BOM of the agent stack.</td></tr>
-      <tr><td><code>--ml</code></td><td>Score agentic text surfaces (tool descriptions, system prompts) for prompt injection. Runs with zero extra installs; <code>--ml-engine</code> picks the tier. Findings are tagged <code>origin: ml</code>. See the <a href="ml-deberta.html">ML layer</a> page.</td></tr>
+      <tr><td><code>--ml</code> / <code>--no-ml</code></td><td>The zero-dependency heuristic prompt-injection tier runs <strong>by default</strong>. <code>--no-ml</code> turns it off; <code>--ml</code> / <code>--ml-engine</code> upgrades to the ONNX or DeBERTa tier. Findings tagged <code>origin: ml</code>. See the <a href="ml-deberta.html">ML layer</a> page.</td></tr>
+      <tr><td><code>--aivss</code></td><td>Rank agentic findings by an OWASP AIVSS Agentic AI Risk Score (AARS), each mapped to an OWASP Agentic (ASI) / LLM Top-10 category. AARS measures agentic amplification, a different axis from CVSS severity.</td></tr>
       <tr><td><code>--llm</code></td><td>Adds LLM threat elicitation on top of the deterministic layer. Requires <code>ANTHROPIC_API_KEY</code>. Findings are tagged <code>origin: llm</code> and never mixed silently with rule findings.</td></tr>
       <tr><td><code>--judge</code></td><td>Cross-examine findings with an LLM judge; see <a href="#judge">LLM-as-judge</a>.</td></tr>
       <tr><td><code>--waivers</code></td><td>YAML of documented waivers; <code>attestral-waivers.yaml</code> at the scan root is picked up automatically.</td></tr>
@@ -601,7 +609,7 @@ attestral scan . --judge --judge-suppress</code></pre>
 <pre><code>pip install "attestral[terraform]"</code></pre>
 
     <h2 id="roadmap">Roadmap</h2>
-    <p>Everything documented above ships today: the deterministic rule pack you can search on this page, SARIF, waivers, the <strong>optional ML layer</strong> (three tiers of prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>), and the LLM-as-judge verifier. Next up, roughly in order: more cloud and Kubernetes rules, PR design-diffing, and richer drift telemetry adapters. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
+    <p>Everything documented above ships today: the deterministic rule pack you can search on this page, SARIF, waivers, the <strong>ML layer</strong> (a zero-dependency heuristic tier that runs by default, plus optional ONNX and DeBERTa tiers; prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>), and the LLM-as-judge verifier. Next up, roughly in order: more cloud and Kubernetes rules, PR design-diffing, and richer drift telemetry adapters. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
   </article>
 </div>
 

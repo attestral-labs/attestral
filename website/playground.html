@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playground - run Attestral end to end</title>
+<meta name="description" content="Run the whole Attestral loop in your browser: scan, validate, compile, drift, verify. Every line is real captured CLI output, streamed like a live session.">
+<link rel="canonical" href="https://attestral.vercel.app/playground.html">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Attestral Playground - run the whole loop in your browser">
+<meta property="og:description" content="Scan, validate, compile, drift, verify. Real CLI output, streamed like a live session. pip install attestral.">
+<meta property="og:url" content="https://attestral.vercel.app/playground.html">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --term-bar:#232B26; --us-tint:rgba(150,34,46,.045);
+    --display:'Libre Caslon Text',Georgia,serif; --body:'Public Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129; --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16; --term-bg:#0B0E08; --term-bar:#161B12; --us-tint:rgba(224,107,118,.07);}}
+  :root[data-theme="dark"]{--paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129; --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16; --term-bg:#0B0E08; --term-bar:#161B12; --us-tint:rgba(224,107,118,.07);}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)} code{font-family:var(--mono);font-size:.9em}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;letter-spacing:.01em;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)} .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .nav-links{display:flex;gap:22px;font-size:.92rem;flex-wrap:wrap}
+  .nav-links a{color:var(--ink);text-decoration:none} .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal);border-bottom:2px solid var(--seal);padding-bottom:2px}
+  @media(max-width:640px){.nav{flex-wrap:wrap;gap:6px 16px}.nav-links{gap:12px 16px}}
+  .hero{padding:70px 0 20px}
+  .eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .eyebrow b{color:var(--seal);font-weight:500}
+  h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,5vw,3.4rem);line-height:1.12;margin:16px 0 18px;max-width:18ch}
+  h1 em{font-style:italic;color:var(--seal)}
+  .lede{max-width:60ch;color:var(--muted);font-size:1.05rem} .lede b{color:var(--ink);font-weight:600}
+
+  /* playground terminal */
+  .pg{margin-top:34px;border:1px solid var(--rule);border-radius:7px;overflow:hidden;box-shadow:0 14px 40px rgba(23,31,28,.14)}
+  .pg-bar{display:flex;align-items:center;gap:8px;background:var(--term-bar);padding:11px 16px}
+  .pg-bar .dot{width:11px;height:11px;border-radius:50%;background:#3a453f;flex:none}
+  .pg-bar .dot.r{background:#E5697A}.pg-bar .dot.y{background:#E2A65B}.pg-bar .dot.g{background:#7CC7A1}
+  .pg-title{margin-left:10px;font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;color:#8FA398}
+  .pg-live{margin-left:auto;font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8FA398;display:inline-flex;align-items:center;gap:6px}
+  .pg-live::before{content:'';width:7px;height:7px;border-radius:50%;background:#7CC7A1;box-shadow:0 0 6px #7CC7A1}
+  .pg-body{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.65;padding:18px 20px;height:420px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#3a453f transparent}
+  .pg-body::-webkit-scrollbar{width:8px}.pg-body::-webkit-scrollbar-thumb{background:#3a453f;border-radius:4px}
+  .pg-cmd{padding:8px 0 2px} .pg-cmd b{color:#fff;font-weight:600}
+  .pgp{color:#8FA398}
+  .pg-line{opacity:0;transform:translateY(3px);transition:opacity .18s ease,transform .18s ease;white-space:pre-wrap;word-break:break-word}
+  .pg-line.in{opacity:1;transform:none}
+  .pg-line.crit{color:#E5697A}.pg-line.high{color:#E2A65B}.pg-line.med{color:#DAC26A}.pg-line.ok{color:#7CC7A1}.pg-line.dim{color:#6E7D73}.pg-line.b{color:#fff;font-weight:600}.pg-line.p{color:#8FA398}
+  .pgcaret{display:inline-block;width:7px;height:13px;background:#DDE2DD;vertical-align:-2px;animation:pgblink 1s steps(1) infinite;margin-left:2px}
+  @keyframes pgblink{50%{opacity:0}}
+  @media(prefers-reduced-motion:reduce){.pg-line{opacity:1;transform:none}.pgcaret{animation:none}}
+  .pg-controls{background:var(--card);border-top:1px solid var(--rule);padding:16px 18px}
+  .pg-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .pg-chip{font-family:var(--mono);font-size:.76rem;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:3px;padding:8px 13px;cursor:pointer;transition:border-color .12s,color .12s,background .12s;text-align:left}
+  .pg-chip:hover{border-color:var(--seal)} .pg-chip .k{color:var(--seal)}
+  .pg-chip:disabled{opacity:.45;cursor:default}
+  .pg-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+  .pg-run{font-family:var(--body);font-weight:600;font-size:.88rem;padding:9px 20px;border:1.5px solid var(--seal);background:var(--seal);color:#fff;border-radius:3px;cursor:pointer;transition:background .15s}
+  .pg-run:hover{background:#7C1B25} .pg-run:disabled{opacity:.5;cursor:default}
+  .pg-ghost{font-family:var(--mono);font-size:.72rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:3px;padding:8px 13px;cursor:pointer}
+  .pg-note{font-size:.82rem;color:var(--muted);margin-top:14px;max-width:64ch}
+  .pg-note code{color:var(--ink)}
+
+  section{padding:64px 0;border-top:1px solid var(--rule)}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,3.2vw,2.2rem);line-height:1.2;margin-bottom:14px;max-width:26ch}
+  .section-lede{color:var(--muted);max-width:62ch;margin-bottom:30px} .section-lede b{color:var(--ink);font-weight:600}
+  .real{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  @media(max-width:720px){.real{grid-template-columns:1fr}}
+  .real-c{background:var(--card);padding:24px 22px}
+  .real-c .n{font-family:var(--display);font-size:2rem;color:var(--seal);line-height:1}
+  .real-c .r{font-family:var(--mono);font-size:.8rem;color:var(--ink);margin:8px 0 4px}
+  .real-c .s{font-size:.82rem;color:var(--muted)}
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+  .btn{display:inline-block;padding:13px 26px;text-decoration:none;font-weight:600;font-size:.95rem;border:1.5px solid var(--ink);color:var(--ink);background:transparent;border-radius:3px;transition:background .15s,color .15s}
+  .btn:hover{background:var(--ink);color:var(--paper)}
+  .btn.primary{background:var(--seal);border-color:var(--seal);color:#fff} .btn.primary:hover{background:#7C1B25}
+  .cmdline{display:inline-flex;align-items:center;gap:14px;background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.95rem;padding:12px 16px;border-radius:3px;margin-top:8px}
+  .cmdline .dollar{color:#8FA398}
+  ::selection{background:var(--seal);color:var(--paper)}
+  footer{border-top:1px solid var(--rule);padding:44px 0 56px;font-size:.85rem;color:var(--muted)}
+  footer .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .foot-labs{display:flex;align-items:center;gap:9px} .foot a{color:var(--seal)}
+</style>
+<script>try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="index.html#how">How it works</a>
+      <a href="proof.html">Proof</a>
+      <a href="playground.html" aria-current="page">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="ml-deberta.html">ML layer</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="wrap hero">
+    <p class="eyebrow"><b>Playground</b> · the whole loop, live</p>
+    <h1>Run Attestral. <em>Right here.</em></h1>
+    <p class="lede">Every line below is <b>real captured CLI output</b>, streamed like a live session. Click a command to run it, or hit <b>run the full loop</b> and watch a design go from scan, to a proven attack path, to a runtime policy, to caught drift. No install needed to look; <code>pip install attestral</code> when you want it on your own repo.</p>
+
+    <div class="pg">
+      <div class="pg-bar" aria-hidden="true">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="pg-title">attestral · playground</span>
+        <span class="pg-live">live</span>
+      </div>
+      <div class="pg-body" id="pgBody" aria-live="polite"></div>
+      <div class="pg-controls">
+        <div class="pg-chips" id="pgChips"></div>
+        <div class="pg-actions">
+          <button class="pg-run" id="pgLoop" type="button">▶ run the full loop</button>
+          <button class="pg-ghost" id="pgClear" type="button">clear</button>
+          <span class="pg-note" style="margin:0">Output is captured from the real CLI against the repo's example fixtures.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="real">
+    <div class="wrap">
+      <h2>It's not just fixtures. Point it at a real repo.</h2>
+      <p class="section-lede">The playground runs on the example fixtures, but the tool is the same one you install. Here is what a first scan actually returns on real, public MCP servers, in about a second, with zero configuration.</p>
+      <div class="real">
+        <div class="real-c"><div class="n">18</div><div class="r">github-mcp-server</div><div class="s">findings in 0.3s. Unauthenticated remote server, secrets in env, one name resolving to two launch targets.</div></div>
+        <div class="real-c"><div class="n">9</div><div class="r">mongodb-mcp-server</div><div class="s">findings in 1.0s. High and medium issues across five modeled components.</div></div>
+        <div class="real-c"><div class="n">208</div><div class="r">aws-mcp</div><div class="s">findings in 1.0s, five critical. A cloud-heavy repo where the model surfaces the real signal in the noise.</div></div>
+      </div>
+      <p class="pg-note">Run it on your own: <code>pip install attestral &amp;&amp; attestral scan .</code>. It reads only what you point it at, runs on your laptop, sends nothing anywhere.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>
+        <a class="btn" href="docs.html">Read the docs</a>
+        <a class="btn" href="proof.html">See the proof walker</a>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap foot">
+    <div>Attestral: the security scanner for AI agents and MCP servers.<br><code>pip install attestral</code> · Open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a></div>
+    <div class="foot-labs"><svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" fill="var(--ink)"/><circle cx="50" cy="50" r="27.5" fill="none" stroke="var(--paper)" stroke-width="2.2"/><g stroke="var(--paper)" stroke-width="6.5" stroke-linecap="round"><path d="M50,67 L50,33"/><path d="M35.28,58.5 L64.72,41.5"/><path d="M35.28,41.5 L64.72,58.5"/></g></svg>An Attestral Labs project · © 2026 · Apache 2.0</div>
+  </div>
+</footer>
+<script>
+  (function(){var root=document.documentElement,KEY='attestral-theme',mq=window.matchMedia('(prefers-color-scheme:dark)'),btn=document.getElementById('themeToggle');if(!btn)return;function a(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}function r(){btn.textContent=a()==='dark'?'☀':'☾';}btn.addEventListener('click',function(){var n=a()==='dark'?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem(KEY,n);}catch(e){}r();});mq.addEventListener('change',r);r();})();
+</script>
+<script>
+  // The playground: real captured CLI output, streamed like a live session.
+  (function(){
+    var body=document.getElementById('pgBody'),chipsEl=document.getElementById('pgChips');
+    if(!body)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    function L(c,t){return {c:c,t:t};}
+    var CMD={
+      scan:{label:'scan',sub:'review a design',cmd:'attestral scan examples/vulnerable-agent',out:[
+        L('','attestral · examples/vulnerable-agent'),
+        L('b','6 components · 16 findings · 4 critical · 8 high · 4 medium'),
+        L('',''),
+        L('crit','Attack paths (1)'),
+        L('dim','  internal chain:'),
+        L('dim','    entry:  untrusted input ingested by a tool  [jira, web]'),
+        L('dim','    pivot:  code execution  [deploy, shell]'),
+        L('dim','    impact: exfiltration  [web]'),
+        L('',''),
+        L('crit','CRITICAL (4)'),
+        L('','  ATL-202  Tool fleet forms an exfiltration chain (lethal trifecta)  (model)'),
+        L('','  ATL-103  Shell-capable MCP server configured  (mcp_server.shell)'),
+        L('','  ATL-108  Agent tool calls auto-approved without a human checkpoint  (mcp_server.shell)'),
+        L('high','HIGH (8)'),
+        L('','  ATL-ML-001  Prompt-injection text hidden in a tool description  (mcp_server.web)'),
+        L('','  ATL-207  Untrusted input can reach a sensitive action  (model)'),
+        L('dim','  … 16 findings total · run  attestral explain <ID>  for any')
+      ]},
+      validate:{label:'validate',sub:'prove the path',cmd:'attestral validate examples/vulnerable-agent',out:[
+        L('crit','Adversarial validation (1 proven)'),
+        L('',''),
+        L('b','  ATL-RT-INTERNAL  Proven traversable: a prompt injection can reach exfiltration'),
+        L('dim','    1. entry:  jira    - ingests untrusted input via saas_data'),
+        L('dim','    2. entry:  web     - ingests untrusted input via network'),
+        L('dim','    3. pivot:  shell   - runs code via shell'),
+        L('dim','    4. impact: web     - exfiltrates via network'),
+        L('dim','    boundaries: agent_runtime'),
+        L('crit','    verdict: traversable'),
+        L('dim','    fix: break the chain - remove any one rung')
+      ]},
+      compile:{label:'compile',sub:'enforce as policy',cmd:'attestral compile examples/demo-project -o policy.yaml',out:[
+        L('','wrote policy.yaml  ·  default deny  ·  1 allowed, 3 denied'),
+        L('crit','  [DENY ] filesystem   (denied by attested design review: ATL-102)'),
+        L('crit','  [DENY ] shell        (denied by attested design review: ATL-103)'),
+        L('crit','  [DENY ] internal-api (denied by attested design review: ATL-101)'),
+        L('ok','  [ALLOW] docs')
+      ]},
+      drift:{label:'drift',sub:'catch runtime drift',cmd:'attestral drift policy.yaml runtime-events.jsonl --fail-on-drift',out:[
+        L('crit','  [CRITICAL] DRF-002  Denied server invoked at runtime        (mcp_server.shell)'),
+        L('crit','  [CRITICAL] DRF-001  Unattested server observed at runtime   (mcp_server.jira-sync)'),
+        L('high','  [HIGH    ] DRF-003  Filesystem access outside attested roots (mcp_server.docs)'),
+        L('','4 events · 3 drift findings'),
+        L('crit','DRIFT: deployment no longer matches the attested design   (exit 1)')
+      ]},
+      verify:{label:'verify',sub:'chain integrity',cmd:'attestral verify review.json',out:[
+        L('ok','chain VALID'),
+        L('dim','  exit 0 · edit any past finding and this flips to INVALID, offline')
+      ]},
+      explain:{label:'explain',sub:'any rule',cmd:'attestral explain ATL-103',out:[
+        L('b','ATL-103  ·  critical'),
+        L('','Shell-capable MCP server configured'),
+        L('',''),
+        L('dim','The agent can execute arbitrary shell commands; a single prompt injection becomes code execution.'),
+        L('p','Recommendation'),
+        L('dim','  Replace generic shell access with narrowly scoped, allowlisted tools; gate with human approval.'),
+        L('p','Frameworks'),
+        L('dim','  OWASP-AgSec TOOL-1 · NIST AC-6 · OWASP-ASI05:2026')
+      ]},
+      real:{label:'scan a real repo',sub:'not a fixture',cmd:'attestral scan github-mcp-server',out:[
+        L('','attestral · github-mcp-server   (a real public MCP server)'),
+        L('b','33 components · 18 findings · 8 high · 10 medium'),
+        L('high','HIGH (8)'),
+        L('','  ATL-109  Remote MCP server without authentication  (mcp_server.github)'),
+        L('','  ATL-206  One MCP server name resolves to different launch targets  (model:server:github)'),
+        L('med','MEDIUM (10)'),
+        L('','  ATL-104  Secrets passed to MCP server via environment  (mcp_server.github)'),
+        L('dim','  scanned a real public repo in 0.3s · zero configuration')
+      ]}
+    };
+    var ORDER=['scan','validate','compile','drift','verify','explain','real'];
+    var LOOP=['scan','validate','compile','drift','verify'];
+    var running=false;
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function scroll(){body.scrollTop=body.scrollHeight;}
+    function chips(on){chipsEl.querySelectorAll('button').forEach(function(b){b.disabled=!on;});document.getElementById('pgLoop').disabled=!on;}
+    function typeCmd(cmd,done){
+      var el=document.createElement('div');el.className='pg-cmd';body.appendChild(el);
+      if(reduce){el.innerHTML='<span class="pgp">$</span> <b>'+esc(cmd)+'</b>';scroll();done();return;}
+      var i=0;(function step(){el.innerHTML='<span class="pgp">$</span> <b>'+esc(cmd.slice(0,i))+'</b><span class="pgcaret"></span>';scroll();i++;if(i<=cmd.length)setTimeout(step,16);else{el.innerHTML='<span class="pgp">$</span> <b>'+esc(cmd)+'</b>';done();}})();
+    }
+    function streamOut(lines,done){
+      var i=0;(function step(){
+        if(i>=lines.length){done();return;}
+        var l=lines[i],d=document.createElement('div');d.className='pg-line'+(l.c?' '+l.c:'');d.textContent=l.t||' ';body.appendChild(d);
+        if(reduce)d.classList.add('in');else requestAnimationFrame(function(){d.classList.add('in');});
+        scroll();i++;setTimeout(step,reduce?0:80);
+      })();
+    }
+    function blank(){var d=document.createElement('div');d.className='pg-line in';d.textContent=' ';body.appendChild(d);scroll();}
+    function run(id,done){
+      if(running){return;}running=true;chips(false);
+      var c=CMD[id];typeCmd(c.cmd,function(){streamOut(c.out,function(){blank();running=false;chips(true);if(done)done();});});
+    }
+    function runSeq(ids){
+      if(running)return;var i=0;(function next(){if(i>=ids.length)return;run(ids[i],function(){i++;setTimeout(next,reduce?0:450);});})();
+    }
+    // build chips
+    ORDER.forEach(function(id){
+      var b=document.createElement('button');b.type='button';b.className='pg-chip';
+      b.innerHTML='<span class="k">attestral '+CMD[id].label+'</span>';
+      b.addEventListener('click',function(){run(id);});
+      chipsEl.appendChild(b);
+    });
+    document.getElementById('pgLoop').addEventListener('click',function(){runSeq(LOOP);});
+    document.getElementById('pgClear').addEventListener('click',function(){if(running)return;body.innerHTML='';});
+    // auto-run the first command on load so the terminal isn't empty
+    setTimeout(function(){run('scan');},400);
+  })();
+</script>
+</body>
+</html>

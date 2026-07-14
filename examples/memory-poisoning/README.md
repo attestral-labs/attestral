@@ -13,13 +13,13 @@ run** of the agent. Attestral treats them as first-class components
   not track world-writability, so the test sets the mode explicitly; see
   `tests/test_memory_poisoning.py`.)
 
-- **Language (ML layer, `--ml`):** the *content* of the file scored for
+- **Language (ML layer, on by default):** the *content* of the file scored for
   injection / exfiltration text. The `CLAUDE.md` here hides an HTML-comment
   instruction telling the agent to read `~/.aws/credentials` and smuggle it
   into a tool call - classic indirect injection embedded in standing memory.
 
 ```bash
-attestral scan examples/memory-poisoning --ml
+attestral scan examples/memory-poisoning   # the heuristic tier runs by default
 ```
 
 ## Research

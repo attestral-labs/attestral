@@ -7,13 +7,17 @@ hand, at release. This test scans every fixture and asserts the plain-scan
 summary its README documents matches the live scan, so drift fails the moment
 it happens.
 
-ML-tier counts (any summary line under an `--ml` command) are deliberately not
-checked: they are tier-dependent by design, so pinning them would be wrong.
+The heuristic ML tier now runs by default, so the canonical count includes it;
+it is deterministic, so it stays pinnable. Model-tier counts (any summary line
+under an explicit `--ml`/`--ml-engine onnx|deberta` command) are still not
+checked: those are tier-dependent by design, so pinning them would be wrong.
 """
 import re
 from pathlib import Path
 
 from attestral.ingest import build_model
+from attestral.ml import MLConfig
+from attestral.ml import scan as ml_scan
 from attestral.report_terminal import render_scan
 from attestral.rules import RuleEngine
 
@@ -24,6 +28,10 @@ SUMMARY_RE = re.compile(r'^\d+ components? · \d+ findings?(?: · .+)?$')
 def _live_summary(fixture_dir: Path) -> str:
     model = build_model(str(fixture_dir))
     findings = RuleEngine().evaluate(model)
+    # The heuristic ML tier runs by default (deterministic), so it is part of the
+    # canonical count a plain `attestral scan` prints and a README pins.
+    ml_findings, _ = ml_scan(model, MLConfig(engine="heuristic"))
+    findings += ml_findings
     rendered = render_scan(model, findings, fixture_dir.name, color=False)
     for line in rendered.splitlines():
         if SUMMARY_RE.match(line.strip()):

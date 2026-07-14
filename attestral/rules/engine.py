@@ -134,8 +134,18 @@ class RuleEngine:
             for c in model.by_type(target):
                 if _matches(c, match):
                     findings.append(self._finding(rule, c.id, c.source))
-        findings.sort(key=lambda f: f.severity.rank, reverse=True)
-        return findings
+        # Collapse exact duplicates - the same rule on the same component, e.g. a
+        # server discovered in several configs - so the count reflects distinct
+        # issues, not repeated rows.
+        seen: set[tuple[str, str]] = set()
+        unique: list[Finding] = []
+        for f in findings:
+            key = (f.rule_id, f.component_id)
+            if key not in seen:
+                seen.add(key)
+                unique.append(f)
+        unique.sort(key=lambda f: f.severity.rank, reverse=True)
+        return unique
 
     def _evaluate_model_rule(self, rule: dict, match: dict, model: SystemModel) -> list[Finding]:
         if "model_has_both" in match:

@@ -281,6 +281,15 @@
   /* scroll progress bar */
   .scrollbar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--seal);z-index:200;transition:width .08s linear}
 
+  /* section dot-nav */
+  .dotnav{position:fixed;right:22px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:14px}
+  @media(max-width:1100px){.dotnav{display:none}}
+  .dotnav a{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--muted);background:transparent;transition:background .2s,border-color .2s,transform .2s;position:relative}
+  .dotnav a:hover{border-color:var(--seal);transform:scale(1.25)}
+  .dotnav a.on{background:var(--seal);border-color:var(--seal)}
+  .dotnav a span{position:absolute;right:20px;top:50%;transform:translateY(-50%);white-space:nowrap;font-family:var(--mono);font-size:.68rem;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:3px 9px;opacity:0;pointer-events:none;transition:opacity .15s}
+  .dotnav a:hover span{opacity:1}
+
   /* hero network canvas */
   main{position:relative}
   #heroNet{position:absolute;top:0;left:0;width:100%;height:600px;z-index:0;pointer-events:none;
@@ -408,6 +417,32 @@
   .ml-render{font-family:var(--mono);font-size:.77rem;line-height:1.7;color:var(--muted);max-height:180px;overflow:auto;border-top:1px solid var(--rule);padding-top:14px;white-space:pre-wrap;word-break:break-word}
   .ml-render mark{background:rgba(150,34,46,.16);color:var(--ink);padding:0 2px;border-radius:2px}
   .ml-note{font-size:.84rem;color:var(--muted);margin-top:22px;max-width:66ch}
+
+  /* runtime drift sequence */
+  .rt-grid{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;margin-top:8px}
+  @media(max-width:820px){.rt-grid{grid-template-columns:1fr}}
+  .rt-policy{border:1px solid var(--rule);border-radius:4px;background:var(--card);overflow:hidden}
+  .rt-policy .rt-h{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--rule)}
+  .rt-policy .rt-h b{color:var(--seal)}
+  .rt-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;font-family:var(--mono);font-size:.8rem;border-bottom:1px solid var(--rule)}
+  .rt-row:last-child{border-bottom:none}
+  .rt-row .rt-nm{color:var(--ink)}
+  .rt-row .rt-c{font-size:.64rem;color:var(--muted)}
+  .rt-badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;padding:2px 8px;border-radius:2px;flex:none}
+  .rt-badge.allow{color:var(--verify);border:1px solid var(--verify)}
+  .rt-badge.deny{color:#fff;background:var(--seal)}
+  .rt-feed{background:var(--term-bg);border-radius:4px;padding:16px 18px;font-family:var(--mono);font-size:.79rem;min-height:284px;color:#DDE2DD;overflow-x:auto}
+  .rt-line{opacity:0;transform:translateY(6px);transition:opacity .3s ease,transform .3s ease;padding:3px 0;line-height:1.5;white-space:nowrap}
+  .rt-line.in{opacity:1;transform:none}
+  .rt-line .ev{color:#9fb0a7}
+  .rt-line .pass{color:#7CC7A1}
+  .rt-line .drf{color:#E5697A}
+  .rt-line .why{color:#6E7D73}
+  .rt-sum{margin-top:12px;padding-top:12px;border-top:1px solid #2b3129;opacity:0;transition:opacity .3s ease}
+  .rt-sum.in{opacity:1}
+  .rt-sum .bad{color:#E5697A}
+  .rt-play{font-family:var(--body);font-weight:600;font-size:.86rem;padding:8px 18px;border:1.5px solid var(--seal);background:var(--seal);color:#fff;border-radius:3px;cursor:pointer;margin-top:14px}
+  .rt-play:hover{background:#7C1B25}
 </style>
 <script>
   // Apply a saved theme before first paint to avoid a flash. With no saved
@@ -417,6 +452,16 @@
 </head>
 <body>
 <div class="scrollbar" id="scrollbar" aria-hidden="true"></div>
+<nav class="dotnav" id="dotnav" aria-label="Section navigation">
+  <a href="#top"><span>Overview</span></a>
+  <a href="#model"><span>System model</span></a>
+  <a href="#prove"><span>Proof</span></a>
+  <a href="#ml"><span>ML scoring</span></a>
+  <a href="#pipeline"><span>Pipeline</span></a>
+  <a href="#runtime"><span>Drift</span></a>
+  <a href="#labs"><span>Labs</span></a>
+  <a href="#start"><span>Start</span></a>
+</nav>
 
 <header>
   <div class="wrap nav">
@@ -425,6 +470,7 @@
       <a href="#how">How it works</a>
       <a href="#start">Get started</a>
       <a href="proof.html">Proof</a>
+      <a href="playground.html">Playground</a>
       <a href="docs.html">Docs</a>
       <a href="ml-deberta.html">ML layer</a>
       <a href="architecture.html">Architecture</a>
@@ -436,7 +482,7 @@
 
 <main>
   <canvas id="heroNet" aria-hidden="true"></canvas>
-  <div class="wrap hero">
+  <div class="wrap hero" id="top">
     <p class="eyebrow">AI agent &amp; MCP security</p>
     <h1>The security scanner for <em>AI agents</em> and MCP servers.</h1>
     <p class="lede">Attestral reads your MCP configs, system prompts, and tool descriptions, builds one system model, and reviews the agentic surfaces most scanners never look at. It models the cloud and Kubernetes your agent runs on too, so it can see the trust boundary between them. Findings map to NIST, ASVS, SOC&nbsp;2, CIS, and OWASP Agentic, and land in a tamper-evident evidence chain.</p>
@@ -451,7 +497,7 @@
     </div>
 
     <!-- The "oh no" moment: real demo scan output -->
-    <figure class="demo" aria-label="Terminal: attestral scan flags fourteen findings on an insecure MCP agent, including a lethal-trifecta toxic flow across servers">
+    <figure class="demo" aria-label="Terminal: attestral scan flags sixteen findings on an insecure MCP agent, including a lethal-trifecta toxic flow and a hidden prompt injection">
       <div class="demo-bar" aria-hidden="true">
         <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
         <span class="demo-title">attestral scan · the 10-second demo</span>
@@ -464,12 +510,13 @@
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-207&nbsp;&nbsp;Untrusted input can reach a sensitive action&nbsp;&nbsp;(model)<br>
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-115&nbsp;&nbsp;Remote server holds a downstream credential&nbsp;&nbsp;(mcp_server.jira)<br>
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-105&nbsp;&nbsp;MCP server auto-installs packages at launch&nbsp;&nbsp;(mcp_server.web)<br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-ML-001&nbsp;&nbsp;Prompt-injection text hidden in a tool description&nbsp;&nbsp;(mcp_server.web)<br>
 &nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-104&nbsp;&nbsp;Secrets passed to MCP server via environment&nbsp;&nbsp;(mcp_server.jira)<br>
-&nbsp;&nbsp;<span class="p">…</span> and 7 more<br>
-6 components · <b>14 findings</b> · <span class="crit">4 critical</span>, <span class="high">7 high</span>, <span class="med">3 medium</span>
+&nbsp;&nbsp;<span class="p">…</span> and 8 more<br>
+6 components · <b>16 findings</b> · <span class="crit">4 critical</span>, <span class="high">8 high</span>, <span class="med">4 medium</span>
       </div>
     </figure>
-    <p class="demo-cap">A design review of the <code>vulnerable-agent</code> example in the repo: two small config files, fourteen design findings, zero cloud credentials required. Three are fleet-level, including a lethal trifecta that only exists once you model all the servers together. Point it at your own machine with <code>attestral scan --local</code>, or add <code>--ml</code> to also catch the prompt-injection payload hidden in a tool description.</p>
+    <p class="demo-cap">A design review of the <code>vulnerable-agent</code> example in the repo: two small config files, sixteen design findings, zero cloud credentials required. Three are fleet-level, including a lethal trifecta that only exists once you model all the servers together, and two are the prompt-injection payloads the built-in classifier catches by default. Point it at your own machine with <code>attestral scan --local</code>, or add <code>--ml</code> for the model-grade classifier tier.</p>
 
     <div class="cta-row">
       <a class="btn primary" href="#start">Run the full loop</a>
@@ -484,7 +531,7 @@
     </div>
 
     <!-- Signature: the evidence chain -->
-    <div class="chain" role="img" aria-label="Illustration of a hash-linked evidence chain: three findings linked by hashes, ending in a signed review entry.">
+    <div class="chain" role="img" aria-label="Illustration of a hash-linked evidence chain: three findings linked by hashes, ending in a sealed review entry.">
       <div class="chain-track">
         <div class="block">
           <span class="b-label">Finding · ATL-003</span>
@@ -505,10 +552,10 @@
         </div>
         <div class="link-glyph" aria-hidden="true">⇢</div>
         <div class="block sealed">
-          <span class="b-label">Review signed</span>
+          <span class="b-label">Review sealed</span>
           <div class="b-title">Design review v14 · chain head committed</div>
           <div class="b-hash">head&nbsp;&nbsp; <b>c31f8e…9bd4</b><br>entries 14 · verified</div>
-          <div class="seal" aria-hidden="true">ATTESTRAL<br>SIGNED</div>
+          <div class="seal" aria-hidden="true">ATTESTRAL<br>SEALED</div>
         </div>
       </div>
       <p class="chain-caption">Each entry commits to the one before it. If anyone edits a past finding, the head stops matching, and <code>attestral verify</code> will catch it offline. No server involved.</p>
@@ -667,7 +714,7 @@
             <tr>
               <td class="cap">Prompt injection in agentic text</td>
               <td class="them">Out of scope.</td>
-              <td class="us"><span class="ck">✓</span>Optional local ML classifier, fully offline.</td>
+              <td class="us"><span class="ck">✓</span>Local ML classifier, on by default, fully offline.</td>
             </tr>
             <tr>
               <td class="cap">Toxic flows across the tool fleet (lethal trifecta)</td>
@@ -869,8 +916,8 @@ chain <span class="ok">VALID</span>
       <div class="cols">
         <div class="col">
           <span class="k">On every change</span>
-          <h3>PR design-diff</h3>
-          <p>Each pull request is diffed against the system model. New attack surface (a fresh public edge, a broader tool permission) gets flagged before merge instead of at the annual review.</p>
+          <h3>CI on every pull request</h3>
+          <p>Run the scan in CI and findings post to the GitHub Security tab and inline on the pull request as SARIF, so new risk is caught before merge instead of at the annual review.</p>
         </div>
         <div class="col">
           <span class="k">Agent-native</span>
@@ -925,6 +972,27 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
 &nbsp;&nbsp;[<span class="crit">CRITICAL</span>] DRF-001&nbsp;&nbsp;Unattested server observed at runtime&nbsp;&nbsp;(mcp_server.jira-sync)<br>
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] DRF-003&nbsp;&nbsp;Filesystem access outside attested roots&nbsp;&nbsp;(mcp_server.docs)<br>
 <span class="crit">DRIFT: deployment no longer matches the attested design</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="runtime">
+    <div class="wrap">
+      <h2>Then the policy watches. Drift gets caught.</h2>
+      <p class="section-lede">The attested design compiled to a default-deny policy. Now runtime telemetry is diffed against it. Watch the events stream in: what the review saw passes, and what it never saw is drift, each tagged with the rule that caught it. This is the loop no scanner and no gateway closes on its own.</p>
+      <div class="rt-grid">
+        <div class="rt-policy">
+          <div class="rt-h">compiled policy · <b>default deny</b></div>
+          <div class="rt-row"><span class="rt-nm">jira</span><span class="rt-badge allow">ALLOW</span></div>
+          <div class="rt-row"><span class="rt-nm">filesystem</span><span class="rt-badge allow">ALLOW</span></div>
+          <div class="rt-row"><span class="rt-nm">web</span><span class="rt-badge allow">ALLOW</span></div>
+          <div class="rt-row"><span class="rt-nm">shell</span><span class="rt-badge deny">DENY</span></div>
+          <div class="rt-row"><span class="rt-c">bound to review chain head c31f8e…9bd4</span></div>
+        </div>
+        <div>
+          <div class="rt-feed" id="rtFeed" aria-live="polite"></div>
+          <button class="rt-play" id="rtPlay" type="button">replay the stream</button>
+        </div>
       </div>
     </div>
   </section>
@@ -1536,6 +1604,48 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
     document.querySelectorAll('.ml-presets button').forEach(function(b){b.addEventListener('click',function(){input.value=EX[b.getAttribute('data-ex')]||'';show();});});
     input.addEventListener('input',show);
     input.value=EX.injection;show();
+  })();
+  // Section dot-nav: highlight the dot for the section nearest center.
+  (function(){
+    var nav=document.getElementById('dotnav'); if(!nav||!('IntersectionObserver' in window))return;
+    var links=nav.querySelectorAll('a'),secs=[];
+    links.forEach(function(a){var el=document.getElementById(a.getAttribute('href').slice(1));if(el)secs.push(el);});
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting){var id=e.target.id;links.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+id);});}});
+    },{rootMargin:'-45% 0px -45% 0px'});
+    secs.forEach(function(s){io.observe(s);});
+  })();
+  // Runtime drift sequence: stream events against the compiled policy.
+  (function(){
+    var feed=document.getElementById('rtFeed'); if(!feed)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var EVENTS=[
+      {ev:'jira → invoke fetch_issue (tls)',ok:true},
+      {ev:'filesystem → read ./src/app.py',ok:true},
+      {ev:'shell → invoke run_command',drf:'DRF-002',why:'a server the review denied is invoked'},
+      {ev:'jira-sync → invoke sync',drf:'DRF-001',why:'server not in the attested design'},
+      {ev:'docs → read /etc/shadow',drf:'DRF-003',why:'path outside the attested roots'},
+      {ev:'web → tool manifest hash changed',drf:'DRF-005',why:'rug-pull: manifest changed since attestation'},
+      {ev:'jira → invoke fetch_issue (tls)',ok:true}
+    ];
+    var timers=[];
+    function line(e){
+      var v=e.ok?'<span class="pass">PASS</span>':'<span class="drf">'+e.drf+'</span>';
+      var why=e.ok?'':' <span class="why">'+e.why+'</span>';
+      return '<div class="rt-line"><span class="ev">'+e.ev+'</span>  '+v+why+'</div>';
+    }
+    function play(){
+      timers.forEach(clearTimeout);timers=[];
+      var drift=EVENTS.filter(function(e){return e.drf;}).length;
+      feed.innerHTML=EVENTS.map(line).join('')+'<div class="rt-sum">'+EVENTS.length+' events · '+drift+' drift findings · <span class="bad">DRIFT: deployment no longer matches the attested design</span></div>';
+      var lines=feed.querySelectorAll('.rt-line'),sum=feed.querySelector('.rt-sum');
+      if(reduce){lines.forEach(function(l){l.classList.add('in');});if(sum)sum.classList.add('in');return;}
+      lines.forEach(function(l,i){timers.push(setTimeout(function(){l.classList.add('in');},i*640));});
+      timers.push(setTimeout(function(){if(sum)sum.classList.add('in');},lines.length*640+200));
+    }
+    var btn=document.getElementById('rtPlay');
+    if(btn)btn.addEventListener('click',play);
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();play();}});},{threshold:.3});io.observe(feed);}else play();
   })();
 </script>
 

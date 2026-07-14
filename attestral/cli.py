@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -44,8 +45,10 @@ def main() -> None:
 @click.option("--judge-suppress", is_flag=True,
               help="Auto-waive high-confidence false positives (kept on the record).")
 @click.option("--ml", is_flag=True,
-              help="Scan agentic text surfaces for prompt injection "
-                   "(zero-dep heuristic by default; attestral[onnx] adds a light, model-grade tier).")
+              help="Force the model-grade ML tier (onnx/deberta if installed). The zero-dep "
+                   "heuristic already runs by default; use --ml-engine to pick a specific tier.")
+@click.option("--no-ml", is_flag=True,
+              help="Skip the prompt-injection classifier (it runs by default, heuristic tier).")
 @click.option("--ml-engine", type=click.Choice(["auto", "heuristic", "onnx", "deberta"]), default=None,
               help="ML tier: heuristic (zero-dep), onnx (attestral[onnx]), deberta (attestral[ml]), "
                    "or auto (default; onnx -> deberta -> heuristic). Also ATTESTRAL_ML_ENGINE.")
@@ -53,14 +56,16 @@ def main() -> None:
 @click.option("--ml-revision", default=None, help="Pin the classifier to a model revision.")
 @click.option("--ml-threshold", type=float, default=0.5,
               help="Min injection probability (0-1) to report. Default 0.5.")
+@click.option("--aivss", is_flag=True,
+              help="Rank agentic findings by an OWASP AIVSS Agentic AI Risk Score (AARS).")
 @click.option("-q", "--quiet", is_flag=True,
               help="Suppress the per-finding detail; print only the summary and gate.")
 @click.pass_context
 def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: str, llm: bool,
          fail_on: str | None, waivers_path: str | None, judge: bool, judge_model: str,
-         judge_panel: int, judge_effort: str, judge_suppress: bool, ml: bool, ml_engine: str | None,
-         ml_model: str | None, ml_revision: str | None, ml_threshold: float,
-         quiet: bool) -> None:
+         judge_panel: int, judge_effort: str, judge_suppress: bool, ml: bool, no_ml: bool,
+         ml_engine: str | None, ml_model: str | None, ml_revision: str | None, ml_threshold: float,
+         aivss: bool, quiet: bool) -> None:
     """Scan PATH (Terraform, Kubernetes, MCP configs) and review its security design.
 
     Results print to the terminal. Report files are written only when you ask
@@ -94,11 +99,15 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             click.echo("scanning agentic surfaces with LLM elicitation…", err=True)
         from attestral.llm import elicit
         findings += elicit(model)
-    if ml:
+    if not no_ml:
         if not quiet:
             click.echo("scanning agentic surfaces for prompt injection…", err=True)
         from attestral.ml import MLConfig, scan as ml_scan
-        cfg = MLConfig.from_env(model=ml_model, revision=ml_revision, engine=ml_engine)
+        # The zero-dep heuristic tier runs by default so every scan looks at the
+        # language surfaces no matcher can (deterministic, offline). --ml or
+        # --ml-engine (or ATTESTRAL_ML_ENGINE) opts into the model-grade tiers.
+        engine = ml_engine or os.environ.get("ATTESTRAL_ML_ENGINE") or ("auto" if ml else "heuristic")
+        cfg = MLConfig.from_env(model=ml_model, revision=ml_revision, engine=engine)
         cfg.threshold = ml_threshold
         ml_findings, ml_notes = ml_scan(model, cfg)
         findings += ml_findings
@@ -142,13 +151,28 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
     if body:
         click.echo(body)
 
+    if aivss and not quiet:
+        from attestral.aivss import render_aivss
+        block = render_aivss(model, findings)
+        if block:
+            click.echo("")
+            click.echo(block)
+
     if write_files:
         if fmt in ("md", "both"):
             Path(f"{output}.md").write_text(render_markdown(model, findings, path))
             click.echo(f"wrote {output}.md")
         if fmt in ("json", "both"):
+            from attestral.aivss import as_json as aivss_json
             Path(f"{output}.json").write_text(
-                json.dumps({"target": path, "chain": audit_chain(findings)}, indent=2)
+                json.dumps(
+                    {
+                        "target": path,
+                        "chain": audit_chain(findings),
+                        "aivss": aivss_json(model, findings),
+                    },
+                    indent=2,
+                )
             )
             click.echo(f"wrote {output}.json")
         if fmt == "sarif":

@@ -6,6 +6,33 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **Agentic AI Risk Score (`attestral scan --aivss`).** New `attestral/aivss.py`
+  scores agentic findings with an OWASP AIVSS Agentic AI Risk Score (AARS) and
+  ranks them, mapping each to an OWASP Agentic (ASI) / LLM Top-10 category. AARS
+  measures agentic amplification, a different axis from CVSS severity, so a
+  compositional fleet risk like the lethal trifecta outranks a high-CVSS but
+  contained one. The score also flows into the **SARIF export** (result `rank`
+  0-100 plus a `properties.aivss` block, so it orders GitHub Code Scanning) and
+  the **JSON report** (a separate `aivss` key), kept out of the evidence chain so
+  its hashes stay reproducible. The terminal ranking is opt-in via `--aivss`.
+  Tests: `tests/test_aivss.py`.
+
+### Changed
+- **Findings are de-duplicated** by (rule, component): a server discovered in
+  several configs no longer inflates the count with identical rows, so the total
+  reflects distinct issues.
+- **Prompt-injection scoring runs by default.** The zero-dependency heuristic ML
+  tier now runs on every `attestral scan`, so language surfaces (MCP tool
+  descriptions, system prompts, agent-instruction files) are checked for prompt
+  injection without a flag. It stays deterministic and offline. `--no-ml`
+  disables the layer; `--ml` or `--ml-engine onnx|deberta` (or
+  `ATTESTRAL_ML_ENGINE`) opts into the model-grade tiers. Findings still carry
+  `origin: ml` and are scored, never hard-blocked. This changes the default
+  finding count on fixtures with planted injection text (e.g. `vulnerable-agent`
+  now reports 16, memory-poisoning 1); the fixture-README sync guard includes the
+  heuristic tier accordingly.
+
 ## [0.14.0] - 2026-07-14
 
 ### Changed
