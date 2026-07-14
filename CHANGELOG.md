@@ -12,7 +12,11 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   ranks them, mapping each to an OWASP Agentic (ASI) / LLM Top-10 category. AARS
   measures agentic amplification, a different axis from CVSS severity, so a
   compositional fleet risk like the lethal trifecta outranks a high-CVSS but
-  contained one. Opt-in, off by default. Tests: `tests/test_aivss.py`.
+  contained one. The score also flows into the **SARIF export** (result `rank`
+  0-100 plus a `properties.aivss` block, so it orders GitHub Code Scanning) and
+  the **JSON report** (a separate `aivss` key), kept out of the evidence chain so
+  its hashes stay reproducible. The terminal ranking is opt-in via `--aivss`.
+  Tests: `tests/test_aivss.py`.
 
 ### Changed
 - **Findings are de-duplicated** by (rule, component): a server discovered in

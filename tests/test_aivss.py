@@ -48,3 +48,25 @@ def test_score_is_deterministic():
     model, findings = _findings("vulnerable-agent")
     f = findings[0]
     assert score(model, f).score == score(model, f).score
+
+
+def test_aars_flows_into_sarif_and_json_but_not_the_chain():
+    import json
+
+    from attestral.evidence import audit_chain
+    from attestral.sarif import render_sarif
+
+    model, findings = _findings("vulnerable-agent")
+    # SARIF: agentic results carry a rank (0-100) and a properties.aivss block.
+    sarif = json.loads(render_sarif(model, findings, "vulnerable-agent"))
+    scored_res = [
+        r for r in sarif["runs"][0]["results"] if "aivss" in r.get("properties", {})
+    ]
+    assert scored_res
+    r = scored_res[0]
+    assert 0 <= r["rank"] <= 100
+    assert "aars" in r["properties"]["aivss"] and r["properties"]["aivss"]["category"]
+    # The evidence chain must stay pure: AARS is out-of-chain metadata only, or
+    # the hashes stop being reproducible.
+    for e in audit_chain(findings):
+        assert "aivss" not in e["finding"] and "aars" not in e["finding"]

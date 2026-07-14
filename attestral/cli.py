@@ -163,8 +163,16 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             Path(f"{output}.md").write_text(render_markdown(model, findings, path))
             click.echo(f"wrote {output}.md")
         if fmt in ("json", "both"):
+            from attestral.aivss import as_json as aivss_json
             Path(f"{output}.json").write_text(
-                json.dumps({"target": path, "chain": audit_chain(findings)}, indent=2)
+                json.dumps(
+                    {
+                        "target": path,
+                        "chain": audit_chain(findings),
+                        "aivss": aivss_json(model, findings),
+                    },
+                    indent=2,
+                )
             )
             click.echo(f"wrote {output}.json")
         if fmt == "sarif":

@@ -146,6 +146,25 @@ def scored(model: "SystemModel", findings: list["Finding"]) -> list[tuple[AARS, 
     return out
 
 
+def as_json(model: "SystemModel", findings: list["Finding"]) -> list[dict]:
+    """The AARS scores as plain dicts, for the JSON report and SARIF export. The
+    evidence chain is deliberately NOT scored - its hashes must stay
+    reproducible, and AARS is derived metadata that would break them."""
+    return [
+        {
+            "rule_id": f.rule_id,
+            "component_id": f.component_id,
+            "aars": a.score,
+            "category": a.category,
+            "factors": a.factors,
+            "cvss_base": a.cvss_base,
+            "factor_sum": a.factor_sum,
+            "threat_multiplier": a.threat_multiplier,
+        }
+        for a, f in scored(model, findings)
+    ]
+
+
 def render_aivss(model: "SystemModel", findings: list["Finding"], *,
                  color: bool | None = None, limit: int = 8) -> str:
     """A ranked Agentic AI Risk Score block for the terminal report. Empty when

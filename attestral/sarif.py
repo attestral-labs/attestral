@@ -74,6 +74,7 @@ def render_sarif(model: SystemModel, findings: list[Finding], target: str) -> st
             }
         )
 
+    from attestral.aivss import score as aivss_score
     results: list[dict] = []
     for f in findings:
         message = f"{f.title}: {f.description}" if f.description else f.title
@@ -104,6 +105,19 @@ def render_sarif(model: SystemModel, findings: list[Finding], target: str) -> st
         if f.judge_verdict:
             result["properties"]["judgeVerdict"] = f.judge_verdict
             result["properties"]["judgeConfidence"] = f.judge_confidence
+        # Agentic findings carry an OWASP AIVSS Agentic AI Risk Score. SARIF
+        # `rank` (0-100) surfaces it in Code Scanning ordering; the full score
+        # lands in properties for downstream consumers.
+        aars = aivss_score(model, f)
+        if aars.factors:
+            result["rank"] = round(aars.score * 10, 1)
+            result["properties"]["aivss"] = {
+                "aars": aars.score,
+                "category": aars.category,
+                "factors": aars.factors,
+                "cvssBase": aars.cvss_base,
+                "threatMultiplier": aars.threat_multiplier,
+            }
         # A waived finding is a SARIF suppression: Code Scanning shows it as
         # dismissed, with the justification, instead of an open alert.
         if f.waived:
