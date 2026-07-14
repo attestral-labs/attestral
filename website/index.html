@@ -621,9 +621,9 @@
 
   <section id="prove">
     <div class="wrap">
-      <p class="eyebrow" style="color:var(--seal)">New in v0.14.0 · adversarial validation</p>
+      <p class="eyebrow" style="color:var(--seal)">Adversarial validation · <code>attestral validate</code></p>
       <h2>It no longer just flags the path. It proves it holds.</h2>
-      <p class="section-lede">A finding is an opinion. <code>attestral validate</code> takes the attack path it built from your system model and walks it over the model's own edges, proving whether it actually holds: entry, pivot, impact. The proof lands in the tamper-evident evidence chain. Watch one prove itself below, then open the fully interactive walker.</p>
+      <p class="section-lede">A finding is an opinion. <code>attestral validate</code> takes the attack path it built from your system model and walks it over the model's own edges, proving whether it actually holds: entry, pivot, impact. The proof lands in the tamper-evident evidence chain, it scores the risk with an OWASP AIVSS agentic score (AARS), and it even <b>proves the fix</b> - the one change that closes the path, verified by re-synthesis. Watch one prove itself below, then open the fully interactive walker.</p>
       <div class="pshow">
         <div class="pshow-head">
           <p class="eyebrow">ATL-RT-INTERNAL · a prompt injection reaches exfiltration</p>
@@ -636,7 +636,7 @@
           <div class="ps-stage" data-role="impact"><span class="role">impact</span><div class="who">web-fetch</div><div class="via">exfiltrates via network</div></div>
         </div>
         <div class="pshow-foot">
-          <div class="ps-stamp" id="psStamp"><span class="ps-seal">PROVEN<br>TRAVERSABLE</span><span class="ps-hash">committed to the chain · <b>verify offline</b></span></div>
+          <div class="ps-stamp" id="psStamp"><span class="ps-seal">PROVEN<br>TRAVERSABLE</span><span class="ps-hash">chained · <b>verify offline</b> · OWASP AIVSS <b style="color:var(--seal)">AARS 9.3</b></span></div>
           <button class="ps-replay" id="psReplay" type="button">replay</button>
         </div>
       </div>

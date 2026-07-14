@@ -499,14 +499,15 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
 
     <h2 id="validate">attestral validate</h2>
     <p>New in v0.14.0. The other commands stop at findings. <code>attestral validate</code> takes the attack path the model already assembled and <b>walks it over the model's own edges to prove it holds</b>, entry to pivot to impact, then commits the proof to the evidence chain. A finding is an opinion; a walked, chained proof of the exact path is not.</p>
-<pre><code>attestral validate PATH [-o STEM] [--fail-on-proof]</code></pre>
+<pre><code>attestral validate PATH [-o STEM] [--fail-on-proof] [--remediate] [--action-space] [--generate]</code></pre>
     <p>Each proven path becomes a <code>redteam</code>-origin finding: <code>ATL-RT-EXTERNAL</code> when an external caller can reach a sink, or <code>ATL-RT-INTERNAL</code> when a prompt injection can. A design with no complete path proves nothing, which is itself an attestable result. Pass <code>-o</code> to write the proof report plus an evidence chain <code>attestral verify</code> confirms offline; <code>--fail-on-proof</code> exits non-zero when any path is proven, so it gates CI.</p>
     <table>
       <tr><th>Tier</th><th>What it does</th><th>Status</th></tr>
       <tr><td>Symbolic</td><td>Walks each path over the model's edges. Deterministic, zero-dependency, no execution, no network.</td><td>shipping now</td></tr>
-      <tr><td>Generative</td><td>An LLM drafts the concrete payload and predicted transcript for a path. No live target is touched.</td><td>roadmap</td></tr>
+      <tr><td>Generative</td><td>With <code>--generate</code>, an LLM drafts the predicted payload and transcript for a path. No live target is touched, labeled predicted.</td><td>shipping (opt-in)</td></tr>
       <tr><td>Executed</td><td>Runs the payload against a sandboxed target you own and captures the real transcript. Own-target-only.</td><td>roadmap</td></tr>
     </table>
+    <p><b>Prove the fix, not just the flaw.</b> <code>--remediate</code> gives the minimal fix for each proven path and <b>verifies it by re-synthesis</b>: it strips the rung, rebuilds the whole model, and re-runs the proof to confirm the path is gone. It also reports the OWASP AIVSS agentic risk score (AARS) before vs after each fix, and ranks fixes by how far they lower it, so the highest-leverage change comes first. <code>--action-space</code> enumerates the tool-call sequences the fleet can be induced into, not just the one collapsed chain.</p>
     <p><b>Scope, by design.</b> The symbolic tier never touches a live system, and the executed tier will run only against a target whose fingerprint matches the attested model, with explicit authorization, in a sandbox, moving planted canaries rather than real secrets. Attestral proves the flaws in a design you own; it is not a point-it-at-any-endpoint attack tool, and it never will be.</p>
     <p>Watch it render live: the <a href="proof.html">interactive proof walker</a> lets you toggle a fleet, animate the attack path across the trust boundary, and break a chain in your browser.</p>
 

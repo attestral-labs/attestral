@@ -207,6 +207,15 @@
         L('crit','    verdict: traversable'),
         L('dim','    fix: break the chain - remove any one rung')
       ]},
+      remediate:{label:'validate --remediate',sub:'prove the fix',cmd:'attestral validate examples/vulnerable-agent --remediate',out:[
+        L('ok','Verified remediations (2)'),
+        L('b','  Scope or remove the outbound channel on web'),
+        L('dim','    verify: strip network/messaging, re-synthesize -> PROVEN: closes every path'),
+        L('dim','    posture: worst agentic risk AARS 10.0 -> 7.6'),
+        L('b','  Remove code execution (shell) from deploy, shell'),
+        L('dim','    verify: strip shell, re-synthesize -> PROVEN: closes every path'),
+        L('dim','    posture: worst agentic risk AARS 10.0 -> 9.3')
+      ]},
       compile:{label:'compile',sub:'enforce as policy',cmd:'attestral compile examples/demo-project -o policy.yaml',out:[
         L('','wrote policy.yaml  ·  default deny  ·  1 allowed, 3 denied'),
         L('crit','  [DENY ] filesystem   (denied by attested design review: ATL-102)'),
@@ -246,7 +255,7 @@
         L('dim','  scanned a real public repo in 0.3s · zero configuration')
       ]}
     };
-    var ORDER=['scan','validate','compile','drift','verify','explain','real'];
+    var ORDER=['scan','validate','remediate','compile','drift','verify','explain','real'];
     var LOOP=['scan','validate','compile','drift','verify'];
     var running=false;
     function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
