@@ -239,6 +239,44 @@
   footer .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .foot-labs{display:flex;align-items:center;gap:9px}
   .foot a{color:var(--seal)}
+
+  /* metrics band */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .metric{background:var(--card);padding:26px 20px;text-align:center}
+  .metric .num{font-family:var(--display);font-size:clamp(2rem,4.6vw,2.9rem);line-height:1;color:var(--seal);font-weight:400}
+  .metric .lbl{font-family:var(--mono);font-size:.71rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin-top:11px}
+  .metric .sub{font-size:.78rem;color:var(--muted);margin-top:5px;line-height:1.4}
+  @media(max-width:720px){.metrics{grid-template-columns:repeat(2,1fr)}}
+
+  /* proof showcase */
+  .pshow{border:1px solid var(--rule);border-top:3px solid var(--seal);border-radius:6px;background:var(--card);overflow:hidden;box-shadow:0 12px 34px rgba(23,31,28,.10)}
+  .pshow-head{padding:18px 24px 0}
+  .pshow-walk{display:flex;align-items:stretch;gap:0;padding:20px 24px 8px;overflow-x:auto}
+  .ps-stage{flex:1;min-width:148px;border:1px solid var(--rule);border-radius:3px;padding:13px 15px;background:var(--paper);opacity:.3;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease,border-color .45s ease,box-shadow .45s ease}
+  .ps-stage.lit{opacity:1;transform:none;border-color:var(--seal);box-shadow:0 0 0 1px var(--seal) inset}
+  .ps-stage .role{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .ps-stage.lit .role{color:var(--seal)}
+  .ps-stage .who{font-family:var(--mono);font-size:.85rem;font-weight:500;color:var(--ink)}
+  .ps-stage .via{font-size:.76rem;color:var(--muted);margin-top:5px;line-height:1.4}
+  .ps-arrow{flex:none;align-self:center;padding:0 10px;font-family:var(--mono);color:var(--rule);font-size:1.15rem;transition:color .45s ease}
+  .ps-arrow.drawn{color:var(--seal)}
+  .pshow-foot{padding:4px 24px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .ps-stamp{display:inline-flex;align-items:center;gap:11px;opacity:0;transform:scale(.82) rotate(-5deg);transition:opacity .35s ease,transform .35s ease}
+  .ps-stamp.on{opacity:1;transform:none}
+  .ps-seal{font-family:var(--mono);font-size:.62rem;letter-spacing:.07em;color:#fff;background:var(--seal);border:2px solid #7C1B25;border-radius:3px;padding:6px 10px;line-height:1.25;transform:rotate(-3deg);box-shadow:0 2px 6px rgba(23,31,28,.2)}
+  .ps-hash{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .ps-hash b{color:var(--verify);font-weight:500}
+  .ps-replay{margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:2px;padding:5px 11px;cursor:pointer;flex:none}
+  .ps-replay:hover{border-color:var(--seal);color:var(--seal)}
+  @media(prefers-reduced-motion:reduce){.ps-stage{opacity:1;transform:none;transition:none}.ps-stamp{opacity:1;transform:none;transition:none}}
+
+  /* framework coverage grid */
+  .fw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .fw-card{background:var(--card);padding:22px 22px;transition:background .16s}
+  .fw-card:hover{background:var(--us-tint)}
+  .fw-card .fw-k{font-family:var(--mono);font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--seal);display:block;margin-bottom:8px}
+  .fw-card h3{font-size:.98rem;font-weight:600;margin-bottom:5px}
+  .fw-card p{font-size:.85rem;color:var(--muted)}
 </style>
 <script>
   // Apply a saved theme before first paint to avoid a flash. With no saved
@@ -343,6 +381,45 @@
       <p class="chain-caption">Each entry commits to the one before it. If anyone edits a past finding, the head stops matching, and <code>attestral verify</code> will catch it offline. No server involved.</p>
     </div>
   </div>
+
+  <section id="metrics" style="padding:40px 0">
+    <div class="wrap">
+      <div class="metrics" id="metricsBand">
+        <div class="metric"><div class="num" data-to="183">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
+        <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
+        <div class="metric"><div class="num" data-to="7">0</div><div class="lbl">frameworks mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2</div></div>
+        <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="prove">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">New in v0.14.0 · adversarial validation</p>
+      <h2>It no longer just flags the path. It proves it holds.</h2>
+      <p class="section-lede">A finding is an opinion. <code>attestral validate</code> takes the attack path it built from your system model and walks it over the model's own edges, proving whether it actually holds: entry, pivot, impact. The proof lands in the tamper-evident evidence chain. Watch one prove itself below, then open the fully interactive walker.</p>
+      <div class="pshow">
+        <div class="pshow-head">
+          <p class="eyebrow">ATL-RT-INTERNAL · a prompt injection reaches exfiltration</p>
+        </div>
+        <div class="pshow-walk" id="psWalk">
+          <div class="ps-stage" data-role="entry"><span class="role">entry</span><div class="who">jira-reader</div><div class="via">ingests untrusted input via saas_data</div></div>
+          <span class="ps-arrow" aria-hidden="true">&#8594;</span>
+          <div class="ps-stage" data-role="pivot"><span class="role">pivot</span><div class="who">ops-shell</div><div class="via">runs code via shell</div></div>
+          <span class="ps-arrow" aria-hidden="true">&#8594;</span>
+          <div class="ps-stage" data-role="impact"><span class="role">impact</span><div class="who">web-fetch</div><div class="via">exfiltrates via network</div></div>
+        </div>
+        <div class="pshow-foot">
+          <div class="ps-stamp" id="psStamp"><span class="ps-seal">PROVEN<br>TRAVERSABLE</span><span class="ps-hash">committed to the chain · <b>verify offline</b></span></div>
+          <button class="ps-replay" id="psReplay" type="button">replay</button>
+        </div>
+      </div>
+      <div class="cta-row" style="margin-top:26px">
+        <a class="btn primary" href="proof.html">Explore the live proof walker</a>
+        <a class="btn" href="proof.html#tiers">See the three tiers</a>
+      </div>
+    </div>
+  </section>
 
   <section id="try">
     <div class="wrap">
@@ -593,6 +670,21 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
 &nbsp;&nbsp;[<span class="crit">CRITICAL</span>] DRF-001&nbsp;&nbsp;Unattested server observed at runtime&nbsp;&nbsp;(mcp_server.jira-sync)<br>
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] DRF-003&nbsp;&nbsp;Filesystem access outside attested roots&nbsp;&nbsp;(mcp_server.docs)<br>
 <span class="crit">DRIFT: deployment no longer matches the attested design</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="frameworks">
+    <div class="wrap">
+      <h2>Every finding cites a real control.</h2>
+      <p class="section-lede">A finding is not an opinion with a severity attached. Each one maps to a named framework an auditor already recognizes, so the review is evidence, not assertion. Attestral spans the agentic frameworks nobody else covers and the cloud controls everybody expects.</p>
+      <div class="fw-grid">
+        <div class="fw-card"><span class="fw-k">Agentic</span><h3>OWASP LLM &amp; Agentic Top 10</h3><p>Prompt injection, excessive agency, and the tool-fleet risks specific to agents.</p></div>
+        <div class="fw-card"><span class="fw-k">Adversary model</span><h3>MITRE ATLAS</h3><p>Adversarial ML tactics and techniques, mapped to the surfaces Attestral reviews.</p></div>
+        <div class="fw-card"><span class="fw-k">Federal</span><h3>NIST 800-53</h3><p>Access control, system integrity, and the control families audits are built on.</p></div>
+        <div class="fw-card"><span class="fw-k">Cloud</span><h3>CIS Benchmarks</h3><p>The essential AWS, Azure, GCP, and Kubernetes checks, each grounded in a real control.</p></div>
+        <div class="fw-card"><span class="fw-k">Attestation</span><h3>SOC 2</h3><p>Proof a control operated, not a claim it exists. The evidence chain is the artifact.</p></div>
+        <div class="fw-card"><span class="fw-k">Verification</span><h3>OWASP ASVS</h3><p>Application security verification requirements, cited per finding where they apply.</p></div>
       </div>
     </div>
   </section>
@@ -930,6 +1022,58 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('go');io.unobserve(e.target);}});
     },{threshold:.3});
     terms.forEach(function(t){io.observe(t);});
+  })();
+</script>
+<script>
+  // Metrics band: count up on first view (respects reduced motion).
+  (function(){
+    var band=document.getElementById('metricsBand');
+    if(!band)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    function run(){
+      band.querySelectorAll('.num').forEach(function(el){
+        var to=parseInt(el.getAttribute('data-to'),10)||0;
+        if(reduce){el.textContent=to;return;}
+        var start=null,dur=900;
+        (function step(ts){
+          if(ts===undefined){requestAnimationFrame(step);return;}
+          if(start===null)start=ts;
+          var p=Math.min((ts-start)/dur,1);
+          el.textContent=Math.round(p*(2-p)*to);
+          if(p<1)requestAnimationFrame(step);
+        })();
+      });
+    }
+    if('IntersectionObserver' in window){
+      var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();run();}});},{threshold:.4});
+      io.observe(band);
+    }else run();
+  })();
+  // Proof showcase: animate entry -> pivot -> impact -> stamp on view, with replay.
+  (function(){
+    var walk=document.getElementById('psWalk');
+    if(!walk)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var stages=walk.querySelectorAll('.ps-stage');
+    var arrows=walk.querySelectorAll('.ps-arrow');
+    var stamp=document.getElementById('psStamp');
+    var timers=[];
+    function clear(){timers.forEach(clearTimeout);timers=[];}
+    function reset(){stages.forEach(function(s){s.classList.remove('lit');});arrows.forEach(function(a){a.classList.remove('drawn');});if(stamp)stamp.classList.remove('on');}
+    function play(){
+      clear();reset();
+      if(reduce){stages.forEach(function(s){s.classList.add('lit');});arrows.forEach(function(a){a.classList.add('drawn');});if(stamp)stamp.classList.add('on');return;}
+      stages.forEach(function(s,i){
+        timers.push(setTimeout(function(){s.classList.add('lit');if(i>0&&arrows[i-1])arrows[i-1].classList.add('drawn');},i*520));
+      });
+      timers.push(setTimeout(function(){if(stamp)stamp.classList.add('on');},stages.length*520+200));
+    }
+    var rb=document.getElementById('psReplay');
+    if(rb)rb.addEventListener('click',play);
+    if('IntersectionObserver' in window){
+      var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();play();}});},{threshold:.35});
+      io.observe(walk);
+    }else play();
   })();
 </script>
 
