@@ -21,7 +21,12 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   - `--generate` (opt-in, needs an API key) has an LLM draft the *predicted*
     exploit for a proven path - injection shape, tool-call sequence, transcript -
     labeled predicted, never executed, scoped to the design you own. Graceful
-    skip without a key. Tests: `tests/test_redteam.py`.
+    skip without a key.
+  - `--execute` (tier 2, sandbox) replays a proven path through Attestral's own
+    stub tools with a planted canary, moving the marker from a stub secret store
+    to a captured sink and recording the transcript. Deterministic; no real
+    system, secret, or network is touched. Execution against your own live target
+    stays gated and future. Tests: `tests/test_redteam.py`.
 
 ## [0.15.0] - 2026-07-14
 

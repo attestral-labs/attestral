@@ -216,6 +216,17 @@
         L('dim','    verify: strip shell, re-synthesize -> PROVEN: closes every path'),
         L('dim','    posture: worst agentic risk AARS 10.0 -> 9.3')
       ]},
+      execute:{label:'validate --execute',sub:'tier 2 sandbox',cmd:'attestral validate examples/vulnerable-agent --execute',out:[
+        L('crit','Sandbox execution (tier 2 - harness, planted canary, no live target)'),
+        L('b','  internal path  canary ATTESTRAL-CANARY-47d6d530ad'),
+        L('dim','    1. entry: jira, web  - ingests an injected instruction (canary bait)'),
+        L('dim','    2. pivot: deploy  - runs: read ~/.ssh/id_rsa  (stub filesystem)'),
+        L('dim','       observed: read planted canary ATTESTRAL-CANARY-47d6d530ad'),
+        L('dim','    3. impact: web  - POST to captured sink  (stub, no network)'),
+        L('dim','       observed: captured: ATTESTRAL-CANARY-47d6d530ad'),
+        L('crit','    EXECUTED: the canary reached the sink'),
+        L('dim','  harness only: no real system, secret, or network was touched')
+      ]},
       compile:{label:'compile',sub:'enforce as policy',cmd:'attestral compile examples/demo-project -o policy.yaml',out:[
         L('','wrote policy.yaml  ·  default deny  ·  1 allowed, 3 denied'),
         L('crit','  [DENY ] filesystem   (denied by attested design review: ATL-102)'),
@@ -255,7 +266,7 @@
         L('dim','  scanned a real public repo in 0.3s · zero configuration')
       ]}
     };
-    var ORDER=['scan','validate','remediate','compile','drift','verify','explain','real'];
+    var ORDER=['scan','validate','remediate','execute','compile','drift','verify','explain','real'];
     var LOOP=['scan','validate','compile','drift','verify'];
     var running=false;
     function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}

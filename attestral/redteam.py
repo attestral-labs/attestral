@@ -17,6 +17,7 @@ build on the same proof schema. See research/adversarial-validation-spike.md.
 from __future__ import annotations
 
 import copy
+import hashlib
 import os
 from dataclasses import dataclass, field
 
@@ -456,4 +457,84 @@ def render_exploits(model: SystemModel, *, color: bool | None = None, query=None
                 lines.append(f"    {ln}")
         else:
             lines.append(f"    {_dim(d.note, color)}")
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Tier 2, sandboxed: replay a proven path through Attestral's OWN stub tools
+# with a planted canary. It moves a harmless marker from a stub secret store to a
+# captured stub sink and records the transcript - no real system, no real secret,
+# no network. This is the harness, NOT a run against your live agent; that stays
+# gated, own-target-only, and future.
+# --------------------------------------------------------------------------
+
+@dataclass
+class SandboxStep:
+    actor: str            # entry | pivot | impact
+    tool: str
+    action: str
+    observed: str
+
+
+@dataclass
+class SandboxRun:
+    kind: str
+    canary: str
+    steps: list[SandboxStep]
+    exfiltrated: bool
+
+
+def _canary_for(path: AttackPath) -> str:
+    return "ATTESTRAL-CANARY-" + hashlib.sha256(path.describe().encode()).hexdigest()[:10]
+
+
+def execute_in_sandbox(model: SystemModel, path: AttackPath) -> SandboxRun:
+    """Tier 2 (sandbox harness): replay the proven path through stub tools with a
+    planted canary, actually moving the marker from a stub secret store to a
+    captured stub sink, and record the transcript. Deterministic; touches no real
+    system, secret, or network. Honest scope: Attestral's harness, not your live
+    agent."""
+    canary = _canary_for(path)
+    stub_secret_store = {"~/.ssh/id_rsa": canary}   # planted, harmless marker
+    captured_sink: list[str] = []
+    entry = ", ".join(path.entry.components) or "entry tool"
+    pivot = path.pivot.components[0] if path.pivot.components else "shell"
+    impact = path.impact.components[0] if path.impact.components else "egress"
+    steps = [
+        SandboxStep("entry", entry,
+                    "ingests content carrying an injected instruction (canary bait)",
+                    "instruction accepted by the agent (stub)"),
+    ]
+    secret = stub_secret_store.get("~/.ssh/id_rsa", "")
+    steps.append(SandboxStep("pivot", pivot,
+                             "runs: read ~/.ssh/id_rsa  (stub filesystem)",
+                             f"read planted canary {secret}"))
+    captured_sink.append(secret)
+    steps.append(SandboxStep("impact", impact,
+                             "POST to captured sink  (stub, no network egress)",
+                             f"captured: {secret}"))
+    return SandboxRun(path.kind, canary, steps, exfiltrated=(canary in captured_sink))
+
+
+def render_execution(model: SystemModel, *, color: bool | None = None) -> str:
+    from attestral.report_terminal import _bold, _dim, _paint, supports_color
+    if color is None:
+        color = supports_color()
+    paths = all_attack_paths(model)
+    if not paths:
+        return ""
+    lines = [_paint("Sandbox execution (tier 2 - Attestral harness, planted canary, no live target)", "1;31", color)]
+    for p in paths:
+        run = execute_in_sandbox(model, p)
+        lines.append(f"  {_bold(p.kind + ' path', color)}  canary {_dim(run.canary, color)}")
+        for i, s in enumerate(run.steps, 1):
+            lines.append(f"    {i}. {_dim(s.actor + ':', color)} {s.tool}  {_dim('- ' + s.action, color)}")
+            lines.append(f"       {_dim('observed:', color)} {s.observed}")
+        if run.exfiltrated:
+            lines.append(f"    {_paint('EXECUTED: the canary reached the sink', '1;31', color)}")
+        else:
+            lines.append(f"    {_dim('the canary did not reach the sink', color)}")
+    lines.append(_dim(
+        "  harness only: no real system, secret, or network was touched. Execution "
+        "against your own fingerprinted target stays gated.", color))
     return "\n".join(lines)

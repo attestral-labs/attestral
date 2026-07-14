@@ -199,6 +199,27 @@
   footer .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .foot-labs{display:flex;align-items:center;gap:9px}
   .foot a{color:var(--seal)}
+
+  /* tier 2 sandbox execution animation */
+  .sbx{border:1px solid var(--rule);border-top:3px solid var(--seal);border-radius:6px;background:var(--card);padding:24px;box-shadow:0 12px 34px rgba(23,31,28,.10)}
+  .sbx-flow{display:flex;align-items:stretch;gap:0;overflow-x:auto}
+  .sbx-node{flex:1;min-width:150px;border:1px solid var(--rule);border-radius:3px;padding:13px 15px;background:var(--paper);opacity:.32;transform:translateY(6px);transition:opacity .4s ease,transform .4s ease,border-color .4s ease,box-shadow .4s ease}
+  .sbx-node.lit{opacity:1;transform:none;border-color:var(--seal);box-shadow:0 0 0 1px var(--seal) inset}
+  .sbx-node .sbx-k{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .sbx-node.lit .sbx-k{color:var(--seal)}
+  .sbx-node .sbx-t{font-family:var(--mono);font-size:.85rem;font-weight:500;color:var(--ink)}
+  .sbx-node .sbx-a{font-size:.76rem;color:var(--muted);margin-top:5px}
+  .sbx-arrow{align-self:center;padding:0 10px;font-family:var(--mono);color:var(--rule);font-size:1.15rem;transition:color .4s ease}
+  .sbx-arrow.drawn{color:var(--seal)}
+  .sbx-canary{font-family:var(--mono);font-size:.76rem;color:#fff;background:var(--seal);border-radius:100px;padding:5px 14px;display:inline-block;margin-top:18px;opacity:0;transform:translateX(-40px);transition:opacity .4s ease,transform .55s cubic-bezier(.22,1,.36,1),box-shadow .4s ease}
+  .sbx-canary.read{opacity:1;transform:none}
+  .sbx-canary.captured{transform:translateX(60px);box-shadow:0 0 0 4px rgba(150,34,46,.22)}
+  .sbx-foot{display:flex;align-items:center;gap:16px;margin-top:18px;flex-wrap:wrap}
+  .sbx-verdict{font-family:var(--mono);font-size:.82rem;color:var(--seal);opacity:0;transition:opacity .3s ease}
+  .sbx-verdict.on{opacity:1}
+  .sbx-replay{margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:2px;padding:5px 11px;cursor:pointer}
+  .sbx-replay:hover{border-color:var(--seal);color:var(--seal)}
+  @media(prefers-reduced-motion:reduce){.sbx-node,.sbx-canary,.sbx-verdict{opacity:1;transform:none;transition:none}}
 </style>
 <script>
   try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
@@ -320,7 +341,7 @@ chain <span class="ok">VALID</span>
   <section id="tiers">
     <div class="wrap">
       <h2>Three tiers. One proof schema.</h2>
-      <p class="section-lede">The symbolic and generative tiers ship today; the executed tier is next. Each builds on the same proof and degrades gracefully: the tier you have installed is the tier you get, and a missing key or extra is never an error.</p>
+      <p class="section-lede">All three tiers ship: symbolic proves the path, generative drafts the exploit, and executed replays it in a sandbox harness. Each builds on the same proof and degrades gracefully: the tier you have installed is the tier you get, and a missing key or extra is never an error. Execution against your own live target stays gated.</p>
       <div class="cols">
         <div class="col">
           <span class="k">Tier 0 · symbolic</span>
@@ -335,10 +356,10 @@ chain <span class="ok">VALID</span>
           <span class="stat live">shipping now · opt-in</span>
         </div>
         <div class="col">
-          <span class="k soon">Tier 2 · executed</span>
+          <span class="k">Tier 2 · executed</span>
           <h3>Capture the transcript</h3>
-          <p>Drive a sandboxed instance of a target you own with the drafted payload and record the real transcript. Own-target-only by construction, gated, sandboxed, benign canaries. The visceral "here is the working exploit" artifact.</p>
-          <span class="stat next">on the roadmap</span>
+          <p>With <code>--execute</code>, Attestral replays the proven path through its own sandbox harness with a planted canary, moving the marker from a stub secret store to a captured sink and recording the transcript. The harness ships today; execution against your own fingerprinted live target stays gated.</p>
+          <span class="stat live">harness shipping · live target gated</span>
         </div>
       </div>
 
@@ -346,6 +367,29 @@ chain <span class="ok">VALID</span>
         <h3>Scope, by design</h3>
         <p>The symbolic tier never touches a live system at all. It reasons over the model you already attested. The executed tier will run only against a target whose fingerprint matches that attested model and only with explicit authorization, in a sandbox, moving planted canaries rather than real secrets. Attestral proves the flaws in a design you own so you can close them. It is not a point-it-at-any-endpoint attack tool, and it never will be.</p>
       </div>
+    </div>
+  </section>
+
+  <section id="execute">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">New · <code>attestral validate --execute</code></p>
+      <h2>Tier 2: watch the canary walk out.</h2>
+      <p class="section-lede">The symbolic tier proves the path holds; the sandbox tier <b>replays it</b>. Attestral runs the proven path through its own stub tools with a planted canary, moving the marker from a fake secret store to a captured sink. No real system, no real secret, no network, just proof of the mechanics end to end, with the transcript to show for it.</p>
+      <div class="sbx" id="sbx">
+        <div class="sbx-flow">
+          <div class="sbx-node" data-role="entry"><span class="sbx-k">entry</span><div class="sbx-t">web-fetch</div><div class="sbx-a">ingests the injected instruction</div></div>
+          <span class="sbx-arrow" aria-hidden="true">&#8594;</span>
+          <div class="sbx-node" data-role="pivot"><span class="sbx-k">pivot</span><div class="sbx-t">ops-shell</div><div class="sbx-a">reads ~/.ssh/id_rsa (stub)</div></div>
+          <span class="sbx-arrow" aria-hidden="true">&#8594;</span>
+          <div class="sbx-node" data-role="impact"><span class="sbx-k">impact</span><div class="sbx-t">captured sink</div><div class="sbx-a">POST (stub, no network)</div></div>
+        </div>
+        <div class="sbx-canary" id="sbxCanary">canary ATTESTRAL-CANARY-47d6d530ad</div>
+        <div class="sbx-foot">
+          <span class="sbx-verdict" id="sbxVerdict"></span>
+          <button class="sbx-replay" id="sbxReplay" type="button">replay</button>
+        </div>
+      </div>
+      <p class="section-lede" style="font-size:.86rem;margin-top:16px">Harness only. Every marker is a harmless canary; nothing real is touched. The transcript is real, the target is not, and execution against your own live agent stays gated.</p>
     </div>
   </section>
 
@@ -637,6 +681,30 @@ chain <span class="ok">VALID</span>
 
     document.getElementById('runBtn').addEventListener('click',run);
     run(); // render on load
+  })();
+</script>
+<script>
+  // Tier 2 sandbox execution: replay the path, the canary flows to the sink.
+  (function(){
+    var el=document.getElementById('sbx'); if(!el)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var nodes=el.querySelectorAll('.sbx-node'),arrows=el.querySelectorAll('.sbx-arrow');
+    var canary=document.getElementById('sbxCanary'),verdict=document.getElementById('sbxVerdict');
+    var timers=[];
+    function reset(){nodes.forEach(function(n){n.classList.remove('lit');});arrows.forEach(function(a){a.classList.remove('drawn');});canary.classList.remove('read','captured');verdict.classList.remove('on');}
+    function play(){
+      timers.forEach(clearTimeout);timers=[];reset();
+      if(reduce){nodes.forEach(function(n){n.classList.add('lit');});arrows.forEach(function(a){a.classList.add('drawn');});canary.classList.add('read','captured');verdict.textContent='EXECUTED · the canary reached the sink';verdict.classList.add('on');return;}
+      timers.push(setTimeout(function(){nodes[0].classList.add('lit');},50));
+      timers.push(setTimeout(function(){arrows[0].classList.add('drawn');nodes[1].classList.add('lit');},700));
+      timers.push(setTimeout(function(){canary.classList.add('read');},1150));
+      timers.push(setTimeout(function(){arrows[1].classList.add('drawn');nodes[2].classList.add('lit');},1650));
+      timers.push(setTimeout(function(){canary.classList.add('captured');},2050));
+      timers.push(setTimeout(function(){verdict.textContent='EXECUTED · the canary reached the sink';verdict.classList.add('on');},2550));
+    }
+    var rb=document.getElementById('sbxReplay');
+    if(rb)rb.addEventListener('click',play);
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();timers.push(setTimeout(play,300));}});},{threshold:.3});io.observe(el);}else play();
   })();
 </script>
 

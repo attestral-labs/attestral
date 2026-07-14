@@ -85,6 +85,18 @@ def test_remediation_never_mutates_the_original_model():
     assert len(all_attack_paths(model)) == before
 
 
+def test_sandbox_execution_moves_the_canary_deterministically():
+    model = build_model(str(EXAMPLES / "vulnerable-agent"))
+    path = all_attack_paths(model)[0]
+    run = redteam.execute_in_sandbox(model, path)
+    assert run.exfiltrated
+    assert len(run.steps) == 3                       # entry, pivot, impact
+    assert run.canary in run.steps[-1].observed      # canary reached the sink
+    assert run.canary.startswith("ATTESTRAL-CANARY-")
+    # deterministic: same path -> same canary, no randomness
+    assert redteam.execute_in_sandbox(model, path).canary == run.canary
+
+
 def test_generative_tier_uses_injectable_query_and_skips_without_key():
     import os
 

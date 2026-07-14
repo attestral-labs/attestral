@@ -403,8 +403,10 @@ def drift(policy_file: str, events_file: str, fail_on_drift: bool) -> None:
               help="Enumerate the tool-call sequences the fleet can be induced into.")
 @click.option("--generate", is_flag=True,
               help="Tier 1: an LLM drafts the predicted exploit per path (needs an API key). Never executed.")
-def validate(path: str, output: str | None, fail_on_proof: bool,
-             remediate: bool, action_space_flag: bool, generate: bool) -> None:
+@click.option("--execute", is_flag=True,
+              help="Tier 2: replay each proven path through Attestral's sandbox harness with a planted canary. No live target.")
+def validate(path: str, output: str | None, fail_on_proof: bool, remediate: bool,
+             action_space_flag: bool, generate: bool, execute: bool) -> None:
     """Prove whether the attack paths in PATH's attested design actually hold.
 
     Symbolic tier: walks each assembled attack path over the model's own edges,
@@ -433,6 +435,10 @@ def validate(path: str, output: str | None, fail_on_proof: bool,
         click.echo("")
         click.echo("drafting predicted exploits (tier 1)…", err=True)
         click.echo(redteam.render_exploits(model))
+    if execute:
+        click.echo("")
+        click.echo("replaying paths through the sandbox harness (tier 2)…", err=True)
+        click.echo(redteam.render_execution(model))
     if output:
         findings = [p.to_finding() for p in proofs]
         Path(f"{output}.md").write_text(render_markdown(model, findings, path))
