@@ -530,7 +530,7 @@
     </div>
 
     <!-- Signature: the evidence chain -->
-    <div class="chain" role="img" aria-label="Illustration of a hash-linked evidence chain: three findings linked by hashes, ending in a signed review entry.">
+    <div class="chain" role="img" aria-label="Illustration of a hash-linked evidence chain: three findings linked by hashes, ending in a sealed review entry.">
       <div class="chain-track">
         <div class="block">
           <span class="b-label">Finding · ATL-003</span>
@@ -551,10 +551,10 @@
         </div>
         <div class="link-glyph" aria-hidden="true">⇢</div>
         <div class="block sealed">
-          <span class="b-label">Review signed</span>
+          <span class="b-label">Review sealed</span>
           <div class="b-title">Design review v14 · chain head committed</div>
           <div class="b-hash">head&nbsp;&nbsp; <b>c31f8e…9bd4</b><br>entries 14 · verified</div>
-          <div class="seal" aria-hidden="true">ATTESTRAL<br>SIGNED</div>
+          <div class="seal" aria-hidden="true">ATTESTRAL<br>SEALED</div>
         </div>
       </div>
       <p class="chain-caption">Each entry commits to the one before it. If anyone edits a past finding, the head stops matching, and <code>attestral verify</code> will catch it offline. No server involved.</p>
@@ -713,7 +713,7 @@
             <tr>
               <td class="cap">Prompt injection in agentic text</td>
               <td class="them">Out of scope.</td>
-              <td class="us"><span class="ck">✓</span>Optional local ML classifier, fully offline.</td>
+              <td class="us"><span class="ck">✓</span>Local ML classifier, on by default, fully offline.</td>
             </tr>
             <tr>
               <td class="cap">Toxic flows across the tool fleet (lethal trifecta)</td>
@@ -915,8 +915,8 @@ chain <span class="ok">VALID</span>
       <div class="cols">
         <div class="col">
           <span class="k">On every change</span>
-          <h3>PR design-diff</h3>
-          <p>Each pull request is diffed against the system model. New attack surface (a fresh public edge, a broader tool permission) gets flagged before merge instead of at the annual review.</p>
+          <h3>CI on every pull request</h3>
+          <p>Run the scan in CI and findings post to the GitHub Security tab and inline on the pull request as SARIF, so new risk is caught before merge instead of at the annual review.</p>
         </div>
         <div class="col">
           <span class="k">Agent-native</span>

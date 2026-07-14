@@ -605,7 +605,7 @@ attestral scan . --judge --judge-suppress</code></pre>
 <pre><code>pip install "attestral[terraform]"</code></pre>
 
     <h2 id="roadmap">Roadmap</h2>
-    <p>Everything documented above ships today: the deterministic rule pack you can search on this page, SARIF, waivers, the <strong>optional ML layer</strong> (three tiers of prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>), and the LLM-as-judge verifier. Next up, roughly in order: more cloud and Kubernetes rules, PR design-diffing, and richer drift telemetry adapters. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
+    <p>Everything documented above ships today: the deterministic rule pack you can search on this page, SARIF, waivers, the <strong>ML layer</strong> (a zero-dependency heuristic tier that runs by default, plus optional ONNX and DeBERTa tiers; prompt-injection detection on agentic surfaces, tagged <code>origin: ml</code>, with a fine-tuning recipe in <code>training/</code>), and the LLM-as-judge verifier. Next up, roughly in order: more cloud and Kubernetes rules, PR design-diffing, and richer drift telemetry adapters. Issues and contributions are welcome on <a href="https://github.com/attestral-labs/attestral">GitHub</a>.</p>
   </article>
 </div>
 
