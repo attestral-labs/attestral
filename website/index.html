@@ -277,6 +277,46 @@
   .fw-card .fw-k{font-family:var(--mono);font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--seal);display:block;margin-bottom:8px}
   .fw-card h3{font-size:.98rem;font-weight:600;margin-bottom:5px}
   .fw-card p{font-size:.85rem;color:var(--muted)}
+
+  /* scroll progress bar */
+  .scrollbar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--seal);z-index:200;transition:width .08s linear}
+
+  /* hero network canvas */
+  main{position:relative}
+  #heroNet{position:absolute;top:0;left:0;width:100%;height:600px;z-index:0;pointer-events:none;
+    -webkit-mask-image:linear-gradient(to bottom,#000 52%,transparent);mask-image:linear-gradient(to bottom,#000 52%,transparent)}
+  .wrap.hero{position:relative;z-index:1}
+
+  /* interactive system-model graph */
+  .smodel{border:1px solid var(--rule);border-radius:6px;background:var(--card);overflow:hidden;box-shadow:0 12px 34px rgba(23,31,28,.10)}
+  .smodel-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+  .sm-hint{font-family:var(--mono);font-size:.76rem;color:var(--muted)}
+  .sm-hint b{font-weight:500}
+  .sm-trace{margin-left:auto;font-family:var(--body);font-weight:600;font-size:.86rem;padding:9px 18px;border:1.5px solid var(--seal);background:var(--seal);color:#fff;border-radius:3px;cursor:pointer;transition:background .15s;flex:none}
+  .sm-trace:hover{background:#7C1B25}
+  .sm-svg-wrap{padding:10px 10px 2px;overflow-x:auto}
+  .smodel svg{width:100%;height:auto;min-width:660px;display:block}
+  .sm-zone{fill:var(--us-tint);stroke:var(--rule);stroke-width:1}
+  .sm-zone.cloud{fill:rgba(31,106,74,.06)}
+  :root[data-theme="dark"] .sm-zone.cloud,@media (prefers-color-scheme:dark){.sm-zone.cloud{fill:rgba(95,190,144,.07)}}
+  .sm-zone-label{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;fill:var(--muted)}
+  .sm-boundary{stroke:var(--seal);stroke-width:1.5;stroke-dasharray:5 5;opacity:.55}
+  .sm-boundary-label{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;fill:var(--seal)}
+  .gedge{stroke:var(--rule);stroke-width:1.6;transition:stroke .25s,stroke-width .25s,opacity .25s}
+  .gedge.hot{stroke:var(--seal);stroke-width:2.6}
+  .gedge.dim{opacity:.2}
+  .gnode{cursor:pointer}
+  .gnode rect{fill:var(--card);stroke:var(--ink);stroke-width:1.5;transition:stroke .25s,fill .25s}
+  .gnode text{font-family:var(--mono);fill:var(--ink)}
+  .gnode .cap{fill:var(--muted);font-size:10px}
+  .gnode.lit rect{stroke:var(--seal);stroke-width:2.6;fill:var(--us-tint)}
+  .gnode.dim{opacity:.38}
+  .gpulse{fill:var(--seal);opacity:0}
+  .sm-legend{display:flex;gap:18px;flex-wrap:wrap;padding:12px 20px 16px;font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .sm-legend span{display:inline-flex;align-items:center;gap:7px}
+  .sm-legend i{width:18px;height:0;border-top:2px solid var(--rule);display:inline-block}
+  .sm-legend i.attack{border-top-color:var(--seal)}
+  .sm-legend i.zone{width:12px;height:12px;border:1px solid var(--rule);background:var(--us-tint);border-radius:2px}
 </style>
 <script>
   // Apply a saved theme before first paint to avoid a flash. With no saved
@@ -285,6 +325,7 @@
 </script>
 </head>
 <body>
+<div class="scrollbar" id="scrollbar" aria-hidden="true"></div>
 
 <header>
   <div class="wrap nav">
@@ -303,6 +344,7 @@
 </header>
 
 <main>
+  <canvas id="heroNet" aria-hidden="true"></canvas>
   <div class="wrap hero">
     <p class="eyebrow">AI agent &amp; MCP security</p>
     <h1>The security scanner for <em>AI agents</em> and MCP servers.</h1>
@@ -389,6 +431,52 @@
         <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
         <div class="metric"><div class="num" data-to="7">0</div><div class="lbl">frameworks mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2</div></div>
         <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="model">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">The moat</p>
+      <h2>It builds a model of your whole fleet, then reasons across it.</h2>
+      <p class="section-lede">Not a config-by-config scan. Attestral ingests your MCP servers, prompts, cloud, and Kubernetes into one graph of components, edges, and trust boundaries. That is how it sees the path a single injected sentence can take: from an untrusted input, through a shell, across the boundary into your cloud. Hover a node to see its reach, or trace the attack path.</p>
+      <div class="smodel">
+        <div class="smodel-bar">
+          <span class="sm-hint" id="smHint">hover any node to see its reach</span>
+          <button class="sm-trace" id="smTrace" type="button">Trace the attack path</button>
+        </div>
+        <div class="sm-svg-wrap">
+          <svg id="smSvg" viewBox="0 0 900 460" role="img" aria-label="System model graph: an agent runtime and a cloud trust boundary, with an attack path from an untrusted web tool through a shell into cloud storage.">
+            <rect class="sm-zone" x="16" y="54" width="580" height="384" rx="6"/>
+            <rect class="sm-zone cloud" x="636" y="54" width="248" height="384" rx="6"/>
+            <text class="sm-zone-label" x="32" y="78">agent runtime</text>
+            <text class="sm-zone-label" x="652" y="78">cloud</text>
+            <line class="sm-boundary" x1="616" y1="58" x2="616" y2="434"/>
+            <text class="sm-boundary-label" x="616" y="46" text-anchor="middle">trust boundary</text>
+            <line class="gedge" data-from="agent" data-to="web" data-attack="1" x1="120" y1="244" x2="300" y2="110"/>
+            <line class="gedge" data-from="agent" data-to="jira" x1="120" y1="244" x2="300" y2="244"/>
+            <line class="gedge" data-from="agent" data-to="shell" data-attack="1" x1="120" y1="244" x2="300" y2="378"/>
+            <line class="gedge" data-from="agent" data-to="notify" x1="120" y1="244" x2="480" y2="150"/>
+            <line class="gedge" data-from="agent" data-to="deploy" x1="120" y1="244" x2="480" y2="340"/>
+            <line class="gedge" data-from="shell" data-to="s3" data-attack="1" x1="300" y1="378" x2="770" y2="150"/>
+            <line class="gedge" data-from="shell" data-to="iam" x1="300" y1="378" x2="770" y2="330"/>
+            <line class="gedge" data-from="deploy" data-to="s3" x1="480" y1="340" x2="770" y2="150"/>
+            <g class="gnode" data-id="agent"><rect x="72" y="222" width="96" height="44" rx="6"/><text x="120" y="241" text-anchor="middle" font-size="12">orchestrator</text><text x="120" y="256" text-anchor="middle" class="cap">agent</text></g>
+            <g class="gnode" data-id="web"><rect x="252" y="88" width="96" height="44" rx="6"/><text x="300" y="107" text-anchor="middle" font-size="12">web-fetch</text><text x="300" y="122" text-anchor="middle" class="cap">network</text></g>
+            <g class="gnode" data-id="jira"><rect x="252" y="222" width="96" height="44" rx="6"/><text x="300" y="241" text-anchor="middle" font-size="12">jira</text><text x="300" y="256" text-anchor="middle" class="cap">saas_data</text></g>
+            <g class="gnode" data-id="shell"><rect x="252" y="356" width="96" height="44" rx="6"/><text x="300" y="375" text-anchor="middle" font-size="12">ops-shell</text><text x="300" y="390" text-anchor="middle" class="cap">shell</text></g>
+            <g class="gnode" data-id="notify"><rect x="432" y="128" width="96" height="44" rx="6"/><text x="480" y="147" text-anchor="middle" font-size="12">notify</text><text x="480" y="162" text-anchor="middle" class="cap">messaging</text></g>
+            <g class="gnode" data-id="deploy"><rect x="432" y="318" width="96" height="44" rx="6"/><text x="480" y="337" text-anchor="middle" font-size="12">deploy</text><text x="480" y="352" text-anchor="middle" class="cap">shell</text></g>
+            <g class="gnode" data-id="s3"><rect x="722" y="128" width="96" height="44" rx="6"/><text x="770" y="147" text-anchor="middle" font-size="12">s3 bucket</text><text x="770" y="162" text-anchor="middle" class="cap">cloud store</text></g>
+            <g class="gnode" data-id="iam"><rect x="722" y="308" width="96" height="44" rx="6"/><text x="770" y="327" text-anchor="middle" font-size="12">iam role</text><text x="770" y="342" text-anchor="middle" class="cap">cloud</text></g>
+            <circle class="gpulse" id="smPulse" r="6" cx="0" cy="0"/>
+          </svg>
+        </div>
+        <div class="sm-legend">
+          <span><i class="zone"></i> trust boundary</span>
+          <span><i></i> reach / dataflow</span>
+          <span><i class="attack"></i> attack path</span>
+        </div>
       </div>
     </div>
   </section>
@@ -1074,6 +1162,80 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();play();}});},{threshold:.35});
       io.observe(walk);
     }else play();
+  })();
+</script>
+<script>
+  // Scroll progress bar.
+  (function(){
+    var bar=document.getElementById('scrollbar'); if(!bar)return;
+    function upd(){var h=document.documentElement,sc=h.scrollTop||document.body.scrollTop,max=(h.scrollHeight-h.clientHeight)||1;bar.style.width=(100*sc/max)+'%';}
+    addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd();
+  })();
+  // Hero network: a slow drifting node-and-edge field behind the hero.
+  (function(){
+    var c=document.getElementById('heroNet'); if(!c)return;
+    var hero=document.querySelector('.wrap.hero');
+    if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+    var ctx=c.getContext('2d'),W=0,H=0,pts=[],raf=null,vis=true;
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    function stroke(){var dark=(document.documentElement.getAttribute('data-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'))==='dark';return dark?'224,107,118':'150,34,46';}
+    function size(){W=c.clientWidth;H=hero?Math.max(hero.offsetHeight,360):560;c.width=W*dpr;c.height=H*dpr;c.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);init();}
+    function init(){var n=Math.max(18,Math.min(44,Math.round(W/26)));pts=[];for(var i=0;i<n;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22});}
+    function frame(){
+      ctx.clearRect(0,0,W,H);var rgb=stroke();
+      for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+        for(var j=i+1;j<pts.length;j++){var q=pts[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);if(d<118){ctx.strokeStyle='rgba('+rgb+','+(0.13*(1-d/118)).toFixed(3)+')';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();}}
+        ctx.fillStyle='rgba('+rgb+',0.34)';ctx.beginPath();ctx.arc(p.x,p.y,1.7,0,6.2832);ctx.fill();}
+      raf=requestAnimationFrame(frame);
+    }
+    function start(){if(!raf&&vis)frame();}
+    function stop(){if(raf){cancelAnimationFrame(raf);raf=null;}}
+    size();window.addEventListener('resize',size);
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){vis=e.isIntersecting;if(vis)start();else stop();});},{threshold:0});io.observe(c);}else start();
+    start();
+  })();
+  // Interactive system-model graph: hover to see a node's reach, or trace the attack path.
+  (function(){
+    var svg=document.getElementById('smSvg'); if(!svg)return;
+    var nodes=svg.querySelectorAll('.gnode'),edges=svg.querySelectorAll('.gedge');
+    var pulse=document.getElementById('smPulse'),hint=document.getElementById('smHint');
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var C={agent:[120,244],web:[300,110],jira:[300,244],shell:[300,378],notify:[480,150],deploy:[480,340],s3:[770,150],iam:[770,330]};
+    var CAP={agent:'delegates to every tool',web:'ingests untrusted web content',jira:'reads SaaS tickets',shell:'runs arbitrary commands',notify:'sends messages outbound',deploy:'ships to prod',s3:'holds stored data',iam:'grants cloud access'};
+    var tracing=false,timers=[];
+    function nodeEl(id){return svg.querySelector('.gnode[data-id="'+id+'"]');}
+    function clearHL(){nodes.forEach(function(n){n.classList.remove('lit','dim');});edges.forEach(function(e){e.classList.remove('hot','dim');});}
+    function connected(a,target){for(var i=0;i<edges.length;i++){var f=edges[i].getAttribute('data-from'),t=edges[i].getAttribute('data-to');if((f===target&&t===a)||(t===target&&f===a))return true;}return false;}
+    nodes.forEach(function(n){
+      var id=n.getAttribute('data-id');
+      n.addEventListener('mouseenter',function(){
+        if(tracing)return;
+        nodes.forEach(function(m){var mid=m.getAttribute('data-id');m.classList.toggle('lit',m===n);m.classList.toggle('dim',m!==n&&!connected(mid,id));});
+        edges.forEach(function(e){var on=e.getAttribute('data-from')===id||e.getAttribute('data-to')===id;e.classList.toggle('hot',on);e.classList.toggle('dim',!on);});
+        if(hint)hint.textContent=id+' - '+(CAP[id]||'');
+      });
+      n.addEventListener('mouseleave',function(){if(tracing)return;clearHL();if(hint)hint.textContent='hover any node to see its reach';});
+    });
+    function lightEdge(f,t,delay){timers.push(setTimeout(function(){edges.forEach(function(e){var a=e.getAttribute('data-from'),b=e.getAttribute('data-to');if((a===f&&b===t)||(a===t&&b===f))e.classList.add('hot');});},delay));}
+    function animateDot(pathPts,dur,done){
+      var segs=[],total=0,i;
+      for(i=0;i<pathPts.length-1;i++){var dx=pathPts[i+1][0]-pathPts[i][0],dy=pathPts[i+1][1]-pathPts[i][1],L=Math.sqrt(dx*dx+dy*dy);segs.push(L);total+=L;}
+      var t0=null;pulse.style.opacity='1';
+      function step(ts){if(t0===null)t0=ts;var p=Math.min((ts-t0)/dur,1),d=p*total,acc=0,s=0;while(s<segs.length&&acc+segs[s]<d){acc+=segs[s];s++;}if(s>=segs.length)s=segs.length-1;var loc=segs[s]?(d-acc)/segs[s]:0,x=pathPts[s][0]+(pathPts[s+1][0]-pathPts[s][0])*loc,y=pathPts[s][1]+(pathPts[s+1][1]-pathPts[s][1])*loc;pulse.setAttribute('cx',x);pulse.setAttribute('cy',y);if(p<1)requestAnimationFrame(step);else{pulse.style.opacity='0';if(done)done();}}
+      requestAnimationFrame(step);
+    }
+    function finish(){if(hint)hint.innerHTML='<b style="color:var(--seal)">proven traversable</b>: web-fetch to ops-shell to cloud, across the trust boundary';tracing=false;}
+    function trace(){
+      timers.forEach(clearTimeout);timers=[];clearHL();pulse.style.opacity='0';tracing=true;
+      var seq=['web','agent','shell','s3'];
+      if(reduce){nodes.forEach(function(n){n.classList.toggle('lit',seq.indexOf(n.getAttribute('data-id'))>=0);});edges.forEach(function(e){if(e.getAttribute('data-attack'))e.classList.add('hot');});finish();return;}
+      seq.forEach(function(id,i){timers.push(setTimeout(function(){nodeEl(id).classList.add('lit');if(hint)hint.textContent='step '+(i+1)+': '+id+' - '+(CAP[id]||'');},i*640));});
+      lightEdge('agent','web',640);lightEdge('agent','shell',1280);lightEdge('shell','s3',1920);
+      animateDot([C.web,C.agent,C.shell,C.s3],2560,finish);
+    }
+    var btn=document.getElementById('smTrace');
+    if(btn)btn.addEventListener('click',trace);
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();timers.push(setTimeout(trace,450));}});},{threshold:.3});io.observe(svg);}
   })();
 </script>
 
