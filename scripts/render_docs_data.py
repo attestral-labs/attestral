@@ -84,6 +84,17 @@ def build_rules() -> list[dict]:
 def build_chain() -> list[dict]:
     model = build_model(DEMO_FIXTURE)
     findings = RuleEngine().evaluate(model)
+    # DEMO_FIXTURE is absolute, so every finding.source is this machine's path.
+    # Baking it would put a local path (e.g. /Users/you/...) into each payload
+    # and its hash, so the chain would only reproduce on the machine that
+    # rendered it - the CI sync check fails everywhere else, and the path leaks
+    # onto the public page. Relativize to REPO for reproducible, path-clean data.
+    for f in findings:
+        if f.source:
+            try:
+                f.source = str(Path(f.source).relative_to(REPO))
+            except ValueError:
+                pass
     chain = audit_chain(findings)
     if len(chain) < CHAIN_ENTRIES:
         sys.exit(f"error: demo fixture yields only {len(chain)} findings;"
