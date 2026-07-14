@@ -6,6 +6,8 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-07-14
+
 ### Added
 - **Deeper adversarial validation on `attestral validate`.** Three capabilities
   on top of the symbolic proof:
