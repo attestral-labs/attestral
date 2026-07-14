@@ -10,5 +10,5 @@ Original marks drawn for Attestral Labs — pure vector geometry, no embedded fo
 - `wordmark-*.svg` — text lockups; render exactly with Libre Caslon Text (OFL), fall back to Georgia.
 
 The "Attestral" name and these marks identify Attestral Labs and its products. They are **not**
-covered by the repository's Apache 2.0 license (see §6: no trademark grant) — don't use them to
-brand derivative or third-party products.
+covered by the repository's Apache 2.0 license (see §6: no trademark grant) - don't use them to
+brand derivative or third-party products. Full usage policy: [TRADEMARKS.md](../../TRADEMARKS.md).
