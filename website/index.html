@@ -408,6 +408,32 @@
   .ml-render{font-family:var(--mono);font-size:.77rem;line-height:1.7;color:var(--muted);max-height:180px;overflow:auto;border-top:1px solid var(--rule);padding-top:14px;white-space:pre-wrap;word-break:break-word}
   .ml-render mark{background:rgba(150,34,46,.16);color:var(--ink);padding:0 2px;border-radius:2px}
   .ml-note{font-size:.84rem;color:var(--muted);margin-top:22px;max-width:66ch}
+
+  /* runtime drift sequence */
+  .rt-grid{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;margin-top:8px}
+  @media(max-width:820px){.rt-grid{grid-template-columns:1fr}}
+  .rt-policy{border:1px solid var(--rule);border-radius:4px;background:var(--card);overflow:hidden}
+  .rt-policy .rt-h{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--rule)}
+  .rt-policy .rt-h b{color:var(--seal)}
+  .rt-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;font-family:var(--mono);font-size:.8rem;border-bottom:1px solid var(--rule)}
+  .rt-row:last-child{border-bottom:none}
+  .rt-row .rt-nm{color:var(--ink)}
+  .rt-row .rt-c{font-size:.64rem;color:var(--muted)}
+  .rt-badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;padding:2px 8px;border-radius:2px;flex:none}
+  .rt-badge.allow{color:var(--verify);border:1px solid var(--verify)}
+  .rt-badge.deny{color:#fff;background:var(--seal)}
+  .rt-feed{background:var(--term-bg);border-radius:4px;padding:16px 18px;font-family:var(--mono);font-size:.79rem;min-height:284px;color:#DDE2DD;overflow-x:auto}
+  .rt-line{opacity:0;transform:translateY(6px);transition:opacity .3s ease,transform .3s ease;padding:3px 0;line-height:1.5;white-space:nowrap}
+  .rt-line.in{opacity:1;transform:none}
+  .rt-line .ev{color:#9fb0a7}
+  .rt-line .pass{color:#7CC7A1}
+  .rt-line .drf{color:#E5697A}
+  .rt-line .why{color:#6E7D73}
+  .rt-sum{margin-top:12px;padding-top:12px;border-top:1px solid #2b3129;opacity:0;transition:opacity .3s ease}
+  .rt-sum.in{opacity:1}
+  .rt-sum .bad{color:#E5697A}
+  .rt-play{font-family:var(--body);font-weight:600;font-size:.86rem;padding:8px 18px;border:1.5px solid var(--seal);background:var(--seal);color:#fff;border-radius:3px;cursor:pointer;margin-top:14px}
+  .rt-play:hover{background:#7C1B25}
 </style>
 <script>
   // Apply a saved theme before first paint to avoid a flash. With no saved
@@ -926,6 +952,27 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
 &nbsp;&nbsp;[<span class="crit">CRITICAL</span>] DRF-001&nbsp;&nbsp;Unattested server observed at runtime&nbsp;&nbsp;(mcp_server.jira-sync)<br>
 &nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] DRF-003&nbsp;&nbsp;Filesystem access outside attested roots&nbsp;&nbsp;(mcp_server.docs)<br>
 <span class="crit">DRIFT: deployment no longer matches the attested design</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="runtime">
+    <div class="wrap">
+      <h2>Then the policy watches. Drift gets caught.</h2>
+      <p class="section-lede">The attested design compiled to a default-deny policy. Now runtime telemetry is diffed against it. Watch the events stream in: what the review saw passes, and what it never saw is drift, each tagged with the rule that caught it. This is the loop no scanner and no gateway closes on its own.</p>
+      <div class="rt-grid">
+        <div class="rt-policy">
+          <div class="rt-h">compiled policy · <b>default deny</b></div>
+          <div class="rt-row"><span class="rt-nm">jira</span><span class="rt-badge allow">ALLOW</span></div>
+          <div class="rt-row"><span class="rt-nm">filesystem</span><span class="rt-badge allow">ALLOW</span></div>
+          <div class="rt-row"><span class="rt-nm">web</span><span class="rt-badge allow">ALLOW</span></div>
+          <div class="rt-row"><span class="rt-nm">shell</span><span class="rt-badge deny">DENY</span></div>
+          <div class="rt-row"><span class="rt-c">bound to review chain head c31f8e…9bd4</span></div>
+        </div>
+        <div>
+          <div class="rt-feed" id="rtFeed" aria-live="polite"></div>
+          <button class="rt-play" id="rtPlay" type="button">replay the stream</button>
+        </div>
       </div>
     </div>
   </section>
@@ -1537,6 +1584,38 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
     document.querySelectorAll('.ml-presets button').forEach(function(b){b.addEventListener('click',function(){input.value=EX[b.getAttribute('data-ex')]||'';show();});});
     input.addEventListener('input',show);
     input.value=EX.injection;show();
+  })();
+  // Runtime drift sequence: stream events against the compiled policy.
+  (function(){
+    var feed=document.getElementById('rtFeed'); if(!feed)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var EVENTS=[
+      {ev:'jira → invoke fetch_issue (tls)',ok:true},
+      {ev:'filesystem → read ./src/app.py',ok:true},
+      {ev:'shell → invoke run_command',drf:'DRF-002',why:'a server the review denied is invoked'},
+      {ev:'jira-sync → invoke sync',drf:'DRF-001',why:'server not in the attested design'},
+      {ev:'docs → read /etc/shadow',drf:'DRF-003',why:'path outside the attested roots'},
+      {ev:'web → tool manifest hash changed',drf:'DRF-005',why:'rug-pull: manifest changed since attestation'},
+      {ev:'jira → invoke fetch_issue (tls)',ok:true}
+    ];
+    var timers=[];
+    function line(e){
+      var v=e.ok?'<span class="pass">PASS</span>':'<span class="drf">'+e.drf+'</span>';
+      var why=e.ok?'':' <span class="why">'+e.why+'</span>';
+      return '<div class="rt-line"><span class="ev">'+e.ev+'</span>  '+v+why+'</div>';
+    }
+    function play(){
+      timers.forEach(clearTimeout);timers=[];
+      var drift=EVENTS.filter(function(e){return e.drf;}).length;
+      feed.innerHTML=EVENTS.map(line).join('')+'<div class="rt-sum">'+EVENTS.length+' events · '+drift+' drift findings · <span class="bad">DRIFT: deployment no longer matches the attested design</span></div>';
+      var lines=feed.querySelectorAll('.rt-line'),sum=feed.querySelector('.rt-sum');
+      if(reduce){lines.forEach(function(l){l.classList.add('in');});if(sum)sum.classList.add('in');return;}
+      lines.forEach(function(l,i){timers.push(setTimeout(function(){l.classList.add('in');},i*640));});
+      timers.push(setTimeout(function(){if(sum)sum.classList.add('in');},lines.length*640+200));
+    }
+    var btn=document.getElementById('rtPlay');
+    if(btn)btn.addEventListener('click',play);
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();play();}});},{threshold:.3});io.observe(feed);}else play();
   })();
 </script>
 
