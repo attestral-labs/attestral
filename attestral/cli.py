@@ -56,6 +56,8 @@ def main() -> None:
 @click.option("--ml-revision", default=None, help="Pin the classifier to a model revision.")
 @click.option("--ml-threshold", type=float, default=0.5,
               help="Min injection probability (0-1) to report. Default 0.5.")
+@click.option("--aivss", is_flag=True,
+              help="Rank agentic findings by an OWASP AIVSS Agentic AI Risk Score (AARS).")
 @click.option("-q", "--quiet", is_flag=True,
               help="Suppress the per-finding detail; print only the summary and gate.")
 @click.pass_context
@@ -63,7 +65,7 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
          fail_on: str | None, waivers_path: str | None, judge: bool, judge_model: str,
          judge_panel: int, judge_effort: str, judge_suppress: bool, ml: bool, no_ml: bool,
          ml_engine: str | None, ml_model: str | None, ml_revision: str | None, ml_threshold: float,
-         quiet: bool) -> None:
+         aivss: bool, quiet: bool) -> None:
     """Scan PATH (Terraform, Kubernetes, MCP configs) and review its security design.
 
     Results print to the terminal. Report files are written only when you ask
@@ -148,6 +150,13 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
     body = render_scan(model, findings, path, quiet=quiet)
     if body:
         click.echo(body)
+
+    if aivss and not quiet:
+        from attestral.aivss import render_aivss
+        block = render_aivss(model, findings)
+        if block:
+            click.echo("")
+            click.echo(block)
 
     if write_files:
         if fmt in ("md", "both"):

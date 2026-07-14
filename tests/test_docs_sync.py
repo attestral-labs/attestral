@@ -30,6 +30,7 @@ DIAGRAM_KEYWORDS = {
     "redteam.py": "exploit path",
     "manifest.py": "manifest",
     "ml.py": "ML",
+    "aivss.py": "AIVSS",
     "llm.py": "LLM",
     "judge.py": "judge",
     "waivers.py": "Waivers",
@@ -89,4 +90,23 @@ def test_changelog_covers_current_version():
     assert f"## [{attestral.__version__}]" in changelog, (
         f"attestral.__version__ = {attestral.__version__} has no CHANGELOG.md "
         "entry - a release without a changelog entry loses the project's history."
+    )
+
+
+def test_readme_rule_count_matches_pack():
+    """The README states the pack size as prose ('N-rule pack', 'N typed
+    matchers'). Nothing generates it, so it drifts silently when a rule wave
+    lands. Guard it against the live pack size."""
+    import yaml
+
+    pack = sum(
+        len((yaml.safe_load(f.read_text()) or {}).get("rules", []))
+        for f in sorted((ROOT / "attestral" / "rules").glob("*.yaml"))
+    )
+    stated = {int(n) for n in re.findall(r"(\d+)(?:-rule pack|[ -]typed matchers)", README)}
+    assert stated, "README no longer states a rule-pack count to guard"
+    drifted = sorted(n for n in stated if n != pack)
+    assert not drifted, (
+        f"README states rule count(s) {drifted} but the live pack is {pack}. "
+        "Update the '(N-rule pack)' and 'N typed matchers' strings in README.md."
     )

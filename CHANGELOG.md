@@ -6,7 +6,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **Agentic AI Risk Score (`attestral scan --aivss`).** New `attestral/aivss.py`
+  scores agentic findings with an OWASP AIVSS Agentic AI Risk Score (AARS) and
+  ranks them, mapping each to an OWASP Agentic (ASI) / LLM Top-10 category. AARS
+  measures agentic amplification, a different axis from CVSS severity, so a
+  compositional fleet risk like the lethal trifecta outranks a high-CVSS but
+  contained one. Opt-in, off by default. Tests: `tests/test_aivss.py`.
+
 ### Changed
+- **Findings are de-duplicated** by (rule, component): a server discovered in
+  several configs no longer inflates the count with identical rows, so the total
+  reflects distinct issues.
 - **Prompt-injection scoring runs by default.** The zero-dependency heuristic ML
   tier now runs on every `attestral scan`, so language surfaces (MCP tool
   descriptions, system prompts, agent-instruction files) are checked for prompt
