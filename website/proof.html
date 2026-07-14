@@ -297,10 +297,28 @@ chain <span class="ok">VALID</span>
     </div>
   </section>
 
+  <section id="remediate">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">New · <code>attestral validate --remediate</code></p>
+      <h2>It proves the fix, not just the flaw.</h2>
+      <p class="section-lede">A finding tells you something is wrong. Attestral goes further: for each proven path it names the minimal fix and <b>verifies it by re-synthesis</b> - it strips the rung, rebuilds the whole system model, and re-runs the proof to confirm the path is actually gone. Not "this is risky," but "here is the one change, and here is proof it closes it."</p>
+      <div class="term" aria-label="attestral validate --remediate output">
+<span class="p">$</span> attestral validate examples/vulnerable-agent --remediate<br>
+<br>
+<span class="ok">Verified remediations (2)</span><br>
+&nbsp;&nbsp;<b>Remove code execution (shell) from deploy, shell</b><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip shell, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span><br>
+&nbsp;&nbsp;<b>Scope or remove the outbound channel on web</b><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip network/messaging, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span>
+      </div>
+      <p class="section-lede" style="margin-top:20px;font-size:.9rem"><code>--action-space</code> goes wider still: it enumerates the tool-call sequences the fleet can be <em>induced into</em>, not just the one collapsed chain, the behavioral surface a per-config scanner never sees.</p>
+    </div>
+  </section>
+
   <section id="tiers">
     <div class="wrap">
       <h2>Three tiers. One proof schema.</h2>
-      <p class="section-lede">The symbolic tier ships today and is what you just watched. The generative and executed tiers build on the exact same proof, and degrade gracefully: the tier you have installed is the tier you get, and a missing key or extra is never an error.</p>
+      <p class="section-lede">The symbolic and generative tiers ship today; the executed tier is next. Each builds on the same proof and degrades gracefully: the tier you have installed is the tier you get, and a missing key or extra is never an error.</p>
       <div class="cols">
         <div class="col">
           <span class="k">Tier 0 · symbolic</span>
@@ -309,10 +327,10 @@ chain <span class="ok">VALID</span>
           <span class="stat live">shipping now</span>
         </div>
         <div class="col">
-          <span class="k soon">Tier 1 · generative</span>
+          <span class="k">Tier 1 · generative</span>
           <h3>Draft the payload</h3>
-          <p>An LLM turns a specific path into the concrete artifact that would traverse it: the injection text, the predicted tool-call sequence, the transcript it expects. No live target is touched. Honestly labeled predicted, not executed.</p>
-          <span class="stat next">on the roadmap</span>
+          <p>With <code>--generate</code>, an LLM turns a proven path into the concrete artifact that would traverse it: the injection shape, the predicted tool-call sequence, the transcript it expects. No live target is touched. Labeled predicted, not executed.</p>
+          <span class="stat live">shipping now · opt-in</span>
         </div>
         <div class="col">
           <span class="k soon">Tier 2 · executed</span>
