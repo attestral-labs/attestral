@@ -340,6 +340,51 @@
   @keyframes pfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   @media(max-width:760px){.pipe-scroller{height:auto}.pipe-sticky{position:static;min-height:auto;display:block}.pipe-stage .nm{font-size:.6rem}.pipe-detail{margin-top:6px}}
   @media(prefers-reduced-motion:reduce){.pipe-fade{animation:none}.pipe-stage .dot,.pipe-prog{transition:none}}
+
+  /* rule-coverage bars */
+  .cov{display:flex;flex-direction:column;gap:14px;margin-top:8px}
+  .cov-row{display:grid;grid-template-columns:150px 1fr 46px;align-items:center;gap:14px}
+  .cov-label{font-family:var(--mono);font-size:.8rem;color:var(--ink)}
+  .cov-label .sub{display:block;font-size:.64rem;color:var(--muted);letter-spacing:.02em;margin-top:1px}
+  .cov-track{height:14px;background:var(--rule);border-radius:7px;overflow:hidden}
+  .cov-fill{height:100%;width:0;border-radius:7px;background:var(--muted);transition:width 1.1s cubic-bezier(.22,1,.36,1)}
+  .cov-fill.agentic{background:var(--seal)}
+  .cov-count{font-family:var(--mono);font-size:.92rem;color:var(--ink);text-align:right;font-weight:500}
+  .cov-note{font-size:.88rem;color:var(--muted);margin-top:24px;max-width:62ch}
+  .cov-note b{color:var(--ink)}
+  @media(max-width:560px){.cov-row{grid-template-columns:104px 1fr 38px;gap:10px}.cov-label .sub{display:none}}
+
+  /* evidence-chain tamper demo */
+  .echain{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  @media(max-width:640px){.echain{grid-template-columns:1fr}}
+  .eentry{background:var(--card);padding:16px 18px;border-top:3px solid var(--ink)}
+  .eentry.broken{border-top-color:var(--seal);background:var(--us-tint)}
+  .eentry .en{font-family:var(--mono);font-size:.66rem;color:var(--muted)}
+  .eentry .er{font-family:var(--mono);font-size:.82rem;margin:6px 0 8px;color:var(--ink)}
+  .eentry .esev{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px;border-radius:2px;margin-left:6px;color:#fff}
+  .esev.critical{background:var(--seal)}.esev.high{background:#B9791F}.esev.low{background:var(--muted)}
+  .eentry .eh{font-family:var(--mono);font-size:.72rem;color:var(--muted);word-break:break-all;line-height:1.6}
+  .eentry .eh b{color:var(--ink);font-weight:500}.eentry .eh b.bad{color:var(--seal)}
+  .etamper{margin-top:10px;font-family:var(--mono);font-size:.68rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:2px;padding:5px 9px;cursor:pointer;transition:border-color .15s,color .15s}
+  .etamper:hover:not(:disabled){border-color:var(--seal);color:var(--seal)}.etamper:disabled{opacity:.5;cursor:default}
+  .everdict{font-family:var(--mono);font-size:.85rem;color:var(--verify);margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .everdict.bad{color:var(--seal)}
+  .ereset{font-family:var(--mono);font-size:.7rem;color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:2px;padding:4px 10px;cursor:pointer}
+
+  /* attestral labs vision (inverted band) */
+  .labs{background:var(--ink);border-radius:8px;padding:52px 46px}
+  @media(max-width:760px){.labs{padding:40px 26px}}
+  .labs .labs-eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--seal)}
+  .labs h2{font-family:var(--display);font-weight:400;font-size:clamp(1.7rem,3.6vw,2.5rem);color:var(--paper);max-width:22ch;margin:14px 0 16px}
+  .labs .labs-lede{color:var(--paper);opacity:.82;max-width:62ch;font-size:1.04rem}
+  .labs-pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:38px}
+  @media(max-width:760px){.labs-pillars{grid-template-columns:1fr}}
+  .labs-pillar{border-top:2px solid var(--seal);padding-top:15px}
+  .labs-pillar .lp-k{font-family:var(--mono);font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--seal);display:block;margin-bottom:8px}
+  .labs-pillar h3{font-size:1.05rem;font-weight:600;color:var(--paper);margin-bottom:8px}
+  .labs-pillar p{font-size:.9rem;color:var(--paper);opacity:.78;line-height:1.6}
+  .labs-foot{margin-top:34px;padding-top:22px;border-top:1px solid rgba(150,150,150,.32);font-size:.94rem;color:var(--paper);opacity:.82;max-width:74ch}
+  .labs-foot b{opacity:1;font-weight:600}
 </style>
 <script>
   // Apply a saved theme before first paint to avoid a flash. With no saved
@@ -633,6 +678,22 @@
     </div>
   </section>
 
+  <section id="coverage">
+    <div class="wrap">
+      <h2>183 checks, and the balance is the strategy.</h2>
+      <p class="section-lede">We do not chase rule count. Every check earns its place with a real control and a fixture. The agentic and cross-boundary rules are the moat, the surfaces nobody else models; the cloud packs are deliberately good enough that you need no second scanner, never an arms race.</p>
+      <div class="cov" id="covBars">
+        <div class="cov-row"><div class="cov-label">MCP / Agentic<span class="sub">the moat</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="44"></div></div><div class="cov-count" data-to="24">0</div></div>
+        <div class="cov-row"><div class="cov-label">Cross-boundary<span class="sub">reachability</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="22"></div></div><div class="cov-count" data-to="12">0</div></div>
+        <div class="cov-row"><div class="cov-label">AWS<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="100"></div></div><div class="cov-count" data-to="54">0</div></div>
+        <div class="cov-row"><div class="cov-label">Azure<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="67"></div></div><div class="cov-count" data-to="36">0</div></div>
+        <div class="cov-row"><div class="cov-label">GCP<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="59"></div></div><div class="cov-count" data-to="32">0</div></div>
+        <div class="cov-row"><div class="cov-label">Kubernetes<span class="sub">Pod Security</span></div><div class="cov-track"><div class="cov-fill" data-w="46"></div></div><div class="cov-count" data-to="25">0</div></div>
+      </div>
+      <p class="cov-note"><b>36 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>147 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 framework families. Depth where it is the moat, parity where it just has to be solid.</p>
+    </div>
+  </section>
+
   <section id="fleet">
     <div class="wrap">
       <h2>The finding that lives in no single file.</h2>
@@ -776,6 +837,15 @@ chain <span class="ok">VALID</span>
   </section>
 
 
+  <section id="chaindemo">
+    <div class="wrap">
+      <h2>Tamper with the record. Watch it break.</h2>
+      <p class="section-lede">Every finding commits to a SHA-256 chain: entry N hashes its own canonical JSON together with the hash of entry N-1, from a zero genesis. The head is the integrity commitment for the run. This recomputes live in your browser, the same construction <code>attestral verify</code> uses. Edit one entry and every hash after it stops matching.</p>
+      <div class="echain" id="echain"></div>
+      <div class="everdict" id="everdict"><span>chain VALID</span><button class="ereset" id="ereset" type="button" hidden>reset</button></div>
+    </div>
+  </section>
+
   <section id="loop">
     <div class="wrap">
       <h2>The review is the policy. The policy is the proof.</h2>
@@ -820,6 +890,22 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
         <div class="fw-card"><span class="fw-k">Cloud</span><h3>CIS Benchmarks</h3><p>The essential AWS, Azure, GCP, and Kubernetes checks, each grounded in a real control.</p></div>
         <div class="fw-card"><span class="fw-k">Attestation</span><h3>SOC 2</h3><p>Proof a control operated, not a claim it exists. The evidence chain is the artifact.</p></div>
         <div class="fw-card"><span class="fw-k">Verification</span><h3>OWASP ASVS</h3><p>Application security verification requirements, cited per finding where they apply.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="labs">
+    <div class="wrap">
+      <div class="labs">
+        <p class="labs-eyebrow">Attestral Labs</p>
+        <h2>Security built for the agentic era, not bolted onto it.</h2>
+        <p class="labs-lede">Agents got tools before anyone secured them. The industry's answer was to bolt an agent tab onto scanners built for a pre-agent world. Attestral is built the other way around: a system model of the agent, its tools, and the cloud they can reach comes first, and everything else follows from that graph.</p>
+        <div class="labs-pillars">
+          <div class="labs-pillar"><span class="lp-k">Be #1, uncontested</span><h3>Agentic security is our identity</h3><p>MCP, prompt injection, tool poisoning, excessive agency, the OWASP Agentic and MITRE ATLAS surfaces. Depth here is the moat, and it is where we invest first.</p></div>
+          <div class="labs-pillar"><span class="lp-k">Structurally uncopyable</span><h3>Architecture, not a linter</h3><p>One system model lets us reason about agent-to-cloud reachability, secrets crossing a boundary, proven attack paths, and compile-to-policy drift. You cannot match that by adding rules.</p></div>
+          <div class="labs-pillar"><span class="lp-k">Parity, not volume</span><h3>Your cloud, covered too</h3><p>Around 150 high-signal CIS checks across AWS, Azure, GCP, and Kubernetes. Good enough that most teams need no second scanner, never an arms race.</p></div>
+        </div>
+        <p class="labs-foot"><b>Open source, forever.</b> The core is Apache 2.0 and always will be. The vision is a single artifact that carries a design from review, to proof, to runtime policy, so that "is this agent safe" stops being an opinion and becomes something anyone can verify. <a href="https://github.com/attestral-labs/attestral" style="color:var(--seal)">See the work on GitHub.</a></p>
       </div>
     </div>
   </section>
@@ -1313,6 +1399,53 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       render(Math.min(STAGES.length-1,Math.floor((scrolled/total)*STAGES.length)));
     }
     render(0);addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',onScroll);onScroll();
+  })();
+  // Rule-coverage bars: fill and count up on first view.
+  (function(){
+    var el=document.getElementById('covBars'); if(!el)return;
+    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    function run(){
+      el.querySelectorAll('.cov-fill').forEach(function(f){f.style.width=f.getAttribute('data-w')+'%';});
+      el.querySelectorAll('.cov-count').forEach(function(c){
+        var to=+c.getAttribute('data-to'); if(reduce){c.textContent=to;return;}
+        var s=null,d=1000;
+        (function step(ts){if(ts===undefined){requestAnimationFrame(step);return;}if(s===null)s=ts;var p=Math.min((ts-s)/d,1);c.textContent=Math.round(p*(2-p)*to);if(p<1)requestAnimationFrame(step);})();
+      });
+    }
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();run();}});},{threshold:.3});io.observe(el);}else run();
+  })();
+  // Evidence-chain tamper demo: real SHA-256 chain, recomputed in the browser.
+  (function(){
+    var wrap=document.getElementById('echain'),verdict=document.getElementById('everdict'),reset=document.getElementById('ereset');
+    if(!wrap||!verdict)return;
+    var GEN='0'.repeat(64),short=function(h){return h.slice(0,10)+'…';};
+    var FIND=[
+      {rule_id:'ATL-003',severity:'critical',title:'IAM policy grants wildcard actions'},
+      {rule_id:'ATL-103',severity:'critical',title:'Shell-capable MCP server configured'},
+      {rule_id:'ATL-202',severity:'high',title:'Tool fleet forms an exfiltration chain'}
+    ];
+    var tampered=new Set();
+    function canon(o){var k=Object.keys(o).sort();return '{'+k.map(function(x){return JSON.stringify(x)+': '+JSON.stringify(o[x]);}).join(', ')+'}';}
+    function payload(i){var f=Object.assign({},FIND[i]);if(tampered.has(i))f.severity='low';return canon(f);}
+    async function sha(t){if(!(window.crypto&&crypto.subtle))return 'unavailable'+t.length;var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [].slice.call(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}
+    var rec=[];
+    async function computeRecorded(){rec=[];var prev=GEN;for(var i=0;i<FIND.length;i++){var h=await sha(prev+canon(FIND[i]));rec.push({hash:h,prev:prev});prev=h;}}
+    function render(rows){
+      wrap.innerHTML=FIND.map(function(_,i){
+        var f=JSON.parse(payload(i)),r=rows?rows[i].rec:rec[i].hash,ok=rows?rows[i].ok:true;
+        return '<div class="eentry'+(ok?'':' broken')+'"><div class="en">entry '+(i+1)+' · prev '+short(i===0?GEN:rec[i-1].hash)+'</div><div class="er">'+f.rule_id+' <span class="esev '+f.severity+'">'+f.severity+'</span></div><div class="eh">recorded <b>'+short(rec[i].hash)+'</b><br>recomputed <b class="'+(ok?'':'bad')+'">'+short(r)+'</b></div><button class="etamper" data-i="'+i+'" '+((tampered.has(i)||f.severity==='low')?'disabled':'')+'>'+(tampered.has(i)?'tampered':'tamper: severity → low')+'</button></div>';
+      }).join('');
+      wrap.querySelectorAll('.etamper').forEach(function(b){b.addEventListener('click',function(){tampered.add(+b.dataset.i);recompute();});});
+    }
+    async function recompute(){
+      var prev=GEN,fb=-1,rows=[];
+      for(var i=0;i<FIND.length;i++){var r=await sha(prev+payload(i)),ok=(rec[i].prev===prev)&&(r===rec[i].hash);if(!ok&&fb<0)fb=i;rows.push({rec:r,ok:ok});prev=r;}
+      render(rows);var bad=fb>=0;verdict.classList.toggle('bad',bad);
+      verdict.firstElementChild.textContent=bad?'chain INVALID · entry '+(fb+1)+' no longer matches, and every entry after it inherits the break':'chain VALID · '+FIND.length+' entries recomputed in this browser';
+      reset.hidden=!bad;
+    }
+    reset.addEventListener('click',function(){tampered.clear();recompute();});
+    (async function(){await computeRecorded();recompute();})();
   })();
 </script>
 
