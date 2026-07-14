@@ -6,6 +6,8 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-14
+
 ### Changed
 - **LLM-as-judge, reworked for reliability**: the judge now defaults to
   `claude-opus-4-8` with adaptive thinking and a schema-constrained verdict
