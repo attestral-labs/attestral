@@ -9,6 +9,51 @@ uplifts are real, but they are sequenced *after* the table stakes on purpose.
 
 Legend: **size** S/M/L · **who's unconvinced without it**.
 
+## The long game (the 12-24 month bets)
+
+The tactical milestones below all ladder up to five durable bets. These are the
+things that, if we win them, make Attestral hard to displace. The milestones are
+how we get there; these are the "there".
+
+1. **Own "agentic design review" as a category.** Be the tool a team reaches for
+   the moment they wire an agent, the way Semgrep is the reflex for code. The
+   moat is depth on the agentic surface (MCP, prompt injection, tool poisoning,
+   excessive agency, the OWASP Agentic/LLM Top 10, MITRE ATLAS), never cloud rule
+   count. *Win condition:* cited as the default agent-security scanner in
+   community guidance; our agentic pack is the reference others map to.
+   *Fed by:* the agentic rule waves, M11 (agent code), M-EVAL.
+
+2. **The review IS the runtime control (attest -> compile -> drift).** Nobody
+   else closes the loop from a design review to an enforceable default-deny
+   runtime policy and continuous drift detection. Make it the headline and make
+   it continuous. *Win condition:* teams run the compiled policy in production
+   and the drift daemon catches a real rug-pull. *Fed by:* M10 (compile-the-fix),
+   M13 (drift daemon), M15 (attestation registry).
+
+3. **The fleet is the unit, not the repo.** An org's whole agent estate modeled
+   as one graph, continuously, so toxic flows that span teams and repos surface
+   before they ship. *Win condition:* a cross-repo flow found in a real
+   multi-team estate that no per-repo tool could see. *Fed by:* M12 (shipped seed),
+   M11, cross-repo continuous modeling.
+
+4. **A signed, portable, verifiable evidence artifact.** Move from tamper-evident
+   to signed and attributable (in-toto / DSSE / Sigstore), so the review is
+   something procurement and auditors already recognize. *Win condition:* an
+   auditor accepts an Attestral attestation as evidence a control operated.
+   *Fed by:* the chain-signing milestone, M4 (accept-risk records), M16.
+
+5. **Network-effect infrastructure for MCP trust.** The shared "OSV / deps.dev
+   for MCP tools": a community index of attested known-good tool manifests, so a
+   rug-pull is caught against a community baseline, not just a prior local scan,
+   plus a contributable rule-pack registry. *Win condition:* value grows with the
+   network; a poisoned tool is flagged the day it changes, for everyone. *Fed by:*
+   M14, M15.
+
+Underneath all five, the non-negotiable posture: **honest, adversarial
+evaluation.** Publish where our own detection breaks under adaptive attack. In a
+field full of overclaiming, the tool that documents its own limits is the one a
+skeptical security engineer trusts, and that trust is the real distribution.
+
 ## Done
 
 - **M0 - Credibility reframe.** The adversarial-validation output claimed "proof"
