@@ -90,6 +90,37 @@
   .btn.primary{background:var(--seal);border-color:var(--seal);color:#fff}
   .btn.primary:hover{background:#7C1B25;border-color:#7C1B25}
 
+  /* two-column hero */
+  .hero-top{display:grid;grid-template-columns:1.02fr 1.05fr;gap:48px;align-items:center}
+  @media(max-width:920px){.hero-top{grid-template-columns:1fr;gap:30px}}
+  .hero-copy{min-width:0}
+  .hero-visual{min-width:0}
+  .hero-visual .demo{margin-top:0}
+  .hero-visual .demo-cap{margin-top:14px;font-size:.82rem}
+  .hero .lede{margin-bottom:6px}
+
+  /* standards strip: the real controls it maps to (honest credibility) */
+  .standards{margin:30px 0 4px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:18px 0}
+  .standards .sh{font-family:var(--mono);font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:13px}
+  .standards ul{list-style:none;display:flex;flex-wrap:wrap;gap:11px 24px;align-items:center}
+  .standards li{font-family:var(--mono);font-size:.79rem;color:var(--ink);white-space:nowrap;display:flex;align-items:center;gap:8px}
+  .standards li svg{flex:none;color:var(--seal)}
+  .standards li b{color:var(--muted);font-weight:400}
+
+  /* capabilities feature grid */
+  .feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  @media(max-width:900px){.feat-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.feat-grid{grid-template-columns:1fr}}
+  .feat{background:var(--card);padding:24px 22px;transition:background .15s}
+  .feat:hover{background:var(--us-tint)}
+  .feat .fi{width:26px;height:26px;color:var(--seal)}
+  .feat h3{font-size:.97rem;font-weight:600;margin:13px 0 7px;line-height:1.3}
+  .feat p{font-size:.845rem;color:var(--muted);line-height:1.5}
+  .feat .tag{display:inline-block;font-family:var(--mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--seal);border:1px solid var(--rule);border-radius:2px;padding:1px 6px;margin-top:10px}
+  .demo-first{animation:demoin .5s ease both}
+  @keyframes demoin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.demo-first{animation:none}}
+
   /* signature: evidence chain */
   .chain{margin:72px 0 88px;overflow-x:auto;padding-bottom:8px}
   .chain-track{display:flex;align-items:stretch;gap:0;min-width:760px}
@@ -527,51 +558,65 @@
 <main>
   <canvas id="heroNet" aria-hidden="true"></canvas>
   <div class="wrap hero" id="top">
-    <p class="eyebrow">AI agent &amp; MCP security</p>
-    <h1>The security scanner for <em>AI agents</em> and MCP servers.</h1>
-    <p class="lede">Attestral reads your MCP configs, system prompts, and tool descriptions, builds one system model, and reviews the agentic surfaces most scanners never look at. It models the cloud and Kubernetes your agent runs on too, so it can see the trust boundary between them. Findings map to NIST, ASVS, SOC&nbsp;2, CIS, and OWASP Agentic, and land in a tamper-evident evidence chain.</p>
-
-    <div class="quickstart">
-      <p class="qs-hook">Scan the MCP servers you've <em>already installed</em>.</p>
-      <div class="qs-steps">
-        <div class="cmd"><span class="dollar">$</span> <span>pip install attestral</span> <button type="button" data-copy="pip install attestral">Copy</button></div>
-        <div class="cmd"><span class="dollar">$</span> <span>attestral scan --local</span> <button type="button" data-copy="attestral scan --local">Copy</button></div>
+    <div class="hero-top">
+      <div class="hero-copy">
+        <p class="eyebrow">AI agent &amp; MCP security</p>
+        <h1>The security scanner for <em>AI agents</em> and MCP servers.</h1>
+        <p class="lede">Attestral reads your MCP configs, agent code, system prompts, and tool descriptions, builds one system model of the whole fleet, and reviews the agentic surfaces most scanners never look at, from prompt injection to the toxic flows that only exist across servers and repos. It models your cloud and Kubernetes in the same graph, so it sees the trust boundary between the agent and the infrastructure it can reach.</p>
+        <div class="qs-steps hero-install">
+          <div class="cmd"><span class="dollar">$</span> <span>pip install attestral</span> <button type="button" data-copy="pip install attestral">Copy</button></div>
+          <div class="cmd"><span class="dollar">$</span> <span>attestral scan --local</span> <button type="button" data-copy="attestral scan --local">Copy</button></div>
+        </div>
+        <p class="qs-note">No account, no API key, fully offline. It reads the MCP configs your agents already use, Claude&nbsp;Desktop, Cursor, <code>.mcp.json</code>, and reviews every server it finds.</p>
+        <div class="cta-row">
+          <a class="btn primary" href="#start">Get started</a>
+          <a class="ghstar" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>
+        </div>
+        <div class="badges" aria-label="Project facts">
+          <span class="badge">PyPI <b>v0.16.0</b></span>
+          <span class="badge">Python <b>3.10+</b></span>
+          <span class="badge">Zero required deps</span>
+          <span class="badge">Runs <b>fully offline</b></span>
+          <span class="badge">Apache&nbsp;2.0</span>
+        </div>
       </div>
-      <p class="qs-note">No account, no API key, fully offline. It reads the MCP configs your agents already use (Claude&nbsp;Desktop, Cursor, <code>.mcp.json</code>) and reviews every server it finds.</p>
-    </div>
-
-    <!-- The "oh no" moment: real demo scan output -->
-    <figure class="demo" aria-label="Terminal: attestral scan flags sixteen findings on an insecure MCP agent, including a lethal-trifecta toxic flow and a hidden prompt injection">
-      <div class="demo-bar" aria-hidden="true">
-        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-        <span class="demo-title">attestral scan · the 10-second demo</span>
-      </div>
-      <div class="demo-body">
+      <div class="hero-visual">
+        <figure class="demo demo-first" aria-label="Terminal: attestral scan flags sixteen findings on an insecure MCP agent, including a lethal-trifecta toxic flow, a reachable attack path, and a hidden prompt injection">
+          <div class="demo-bar" aria-hidden="true">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="demo-title">attestral scan · the 10-second demo</span>
+          </div>
+          <div class="demo-body">
 <span class="p">$</span> attestral scan examples/vulnerable-agent<br>
-&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-202&nbsp;&nbsp;Tool fleet forms an exfiltration chain (lethal trifecta)&nbsp;&nbsp;(model)<br>
-&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-108&nbsp;&nbsp;Agent tool calls auto-approved with no human checkpoint&nbsp;&nbsp;(mcp_server.shell)<br>
-&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-103&nbsp;&nbsp;Shell-capable MCP server configured&nbsp;&nbsp;(mcp_server.shell)<br>
-&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-207&nbsp;&nbsp;Untrusted input can reach a sensitive action&nbsp;&nbsp;(model)<br>
-&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-115&nbsp;&nbsp;Remote server holds a downstream credential&nbsp;&nbsp;(mcp_server.jira)<br>
-&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-105&nbsp;&nbsp;MCP server auto-installs packages at launch&nbsp;&nbsp;(mcp_server.web)<br>
-&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-ML-001&nbsp;&nbsp;Prompt-injection text hidden in a tool description&nbsp;&nbsp;(mcp_server.web)<br>
-&nbsp;&nbsp;[<span class="med">MEDIUM</span>&nbsp;&nbsp;] ATL-104&nbsp;&nbsp;Secrets passed to MCP server via environment&nbsp;&nbsp;(mcp_server.jira)<br>
-&nbsp;&nbsp;<span class="p">…</span> and 8 more<br>
-6 components · <b>16 findings</b> · <span class="crit">4 critical</span>, <span class="high">8 high</span>, <span class="med">4 medium</span>
+<span class="dim">Reviewed 6 components across 2 source files: 6 agent / MCP surface</span><br>
+<br>
+<span class="dim">Attack paths (1)</span><br>
+&nbsp;&nbsp;internal chain: <b>web</b> &rarr; <b>shell</b> &rarr; <b>web</b>&nbsp;&nbsp;<span class="dim">entry · pivot · exit</span><br>
+<br>
+&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-202&nbsp;&nbsp;Lethal trifecta: private data + untrusted input + an exit&nbsp;&nbsp;<span class="dim">(model)</span><br>
+&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-103&nbsp;&nbsp;Shell-capable MCP server configured&nbsp;&nbsp;<span class="dim">(shell)</span><br>
+&nbsp;&nbsp;[<span class="crit">CRITICAL</span>] ATL-108&nbsp;&nbsp;Tool calls auto-approved, no human checkpoint&nbsp;&nbsp;<span class="dim">(shell)</span><br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-207&nbsp;&nbsp;Untrusted input can reach a code-execution tool&nbsp;&nbsp;<span class="dim">(model)</span><br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-107&nbsp;&nbsp;Outbound network reach&nbsp;&nbsp;<span class="dim">(web) · raised from medium</span><br>
+&nbsp;&nbsp;[<span class="high">HIGH</span>&nbsp;&nbsp;&nbsp;&nbsp;] ATL-ML-001&nbsp;&nbsp;Prompt-injection text in a tool description&nbsp;&nbsp;<span class="dim">(web)</span><br>
+&nbsp;&nbsp;<span class="p">…</span> and 10 more<br>
+6 components · <b>16 findings</b> · <span class="crit">4 critical</span>, <span class="high">11 high</span>, <span class="med">1 medium</span>
+          </div>
+        </figure>
+        <p class="demo-cap">A real review of the <code>vulnerable-agent</code> example: two small config files, zero cloud credentials required. The <b>attack path</b> and the lethal trifecta are fleet-level, and <code>ATL-107</code> was <b>raised to high</b> because it sits on that reachable path. Point it at your own machine with <code>attestral scan --local</code>.</p>
       </div>
-    </figure>
-    <p class="demo-cap">A design review of the <code>vulnerable-agent</code> example in the repo: two small config files, sixteen design findings, zero cloud credentials required. Three are fleet-level (tagged <code>(model)</code>: a finding that spans several servers, not one config), including a lethal trifecta (private data + untrusted input + a way for data to leave) that only exists once you model all the servers together, and two are the prompt-injection payloads the built-in classifier catches by default. Point it at your own machine with <code>attestral scan --local</code>, or add <code>--ml</code> for the model-grade classifier tier.</p>
-
-    <div class="cta-row">
-      <a class="btn primary" href="#start">Run the full loop</a>
-      <a class="ghstar" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>
     </div>
-    <div class="badges" aria-label="Project facts">
-      <span class="badge">PyPI <b>v0.16.0</b></span>
-      <span class="badge">Python <b>3.10+</b></span>
-      <span class="badge">Zero required deps</span>
-      <span class="badge">Runs <b>fully offline</b></span>
-      <span class="badge">Apache&nbsp;2.0</span>
+
+    <div class="standards" aria-label="Standards and frameworks Attestral maps to">
+      <div class="sh">Every finding cites a real control</div>
+      <ul>
+        <li><svg class="fi" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l7 3v5c0 4-3 7-7 9-4-2-7-5-7-9V6z"/></svg>OWASP <b>ASI + LLM Top 10</b></li>
+        <li><svg class="fi" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M2 12h20"/></svg>MITRE <b>ATLAS</b></li>
+        <li><svg class="fi" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>NIST <b>800-53</b></li>
+        <li><svg class="fi" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12l6 6L20 6"/></svg>CIS <b>AWS · Azure · GCP · K8s</b></li>
+        <li><svg class="fi" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>SOC 2 <b>· ASVS</b></li>
+        <li><svg class="fi" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>SARIF <b>· CycloneDX AI-BOM</b></li>
+      </ul>
     </div>
 
     <!-- Signature: the evidence chain -->
@@ -609,10 +654,62 @@
   <section id="metrics" style="padding:40px 0">
     <div class="wrap">
       <div class="metrics" id="metricsBand">
-        <div class="metric"><div class="num" data-to="192">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
+        <div class="metric"><div class="num" data-to="193">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
         <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
         <div class="metric"><div class="num" data-to="6">0</div><div class="lbl">standards mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2 · ASVS</div></div>
         <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="capabilities">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">Everything in the box</p>
+      <h2>A whole design-review pipeline, not a linter.</h2>
+      <p class="section-lede">One command builds a system model of your agent fleet and its cloud, reviews it in three labeled layers, and turns the review into an artifact you can enforce and hand to an auditor. No account, no server, runs offline.</p>
+      <div class="feat-grid">
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7l3 9M16 7l-3 9M8.5 6h7"/></svg>
+          <h3>One system model</h3>
+          <p>MCP servers, agent code, prompts, Terraform, and Kubernetes become one graph of components, edges, and trust boundaries, so cross-cutting risk is visible, not implied.</p>
+        </div>
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <h3>Agentic security, first</h3>
+          <p>Prompt injection, tool poisoning, excessive agency, memory poisoning, the OWASP Agentic and LLM Top 10, MITRE ATLAS. The depth is the moat, not an afterthought.</p>
+        </div>
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6l4-2 4 2 4-2 4 2v12l-4 2-4-2-4 2-4-2z"/><path d="M7 4v12M11 6v12M15 6v12"/></svg>
+          <h3>Toxic flows across the fleet</h3>
+          <p>The lethal trifecta and the attack path that spans several servers, and now several repos: <code>attestral fleet</code> finds the flow no single-repo scan can see.</p>
+          <span class="tag">cross-repo</span>
+        </div>
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 7l-4 5 4 5M16 7l4 5-4 5M13 5l-2 14"/></svg>
+          <h3>Config or code</h3>
+          <p>Reads the <code>.mcp.json</code> and the Python: LangGraph, CrewAI, the OpenAI Agents SDK, raw <code>@tool</code> functions. The capability is read from what the code does.</p>
+          <span class="tag">agent code</span>
+        </div>
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 18l6-6 4 4 6-8"/><path d="M4 4v16h16"/></svg>
+          <h3>Severity you can defend</h3>
+          <p>A finding on a reachable attack path carries that path and is raised one band. A HIGH ships with the entry-to-exit walk that justifies it, not just a label.</p>
+        </div>
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16v13H4z"/><path d="M8 7V4h8v3M9 12h6M9 16h6"/></svg>
+          <h3>Attest, compile, enforce</h3>
+          <p>The review compiles into a default-deny runtime policy and drift detection. The threat model is not a PDF, it is the runtime configuration.</p>
+        </div>
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+          <h3>An artifact for the auditor</h3>
+          <p>Every finding lands in a tamper-evident SHA-256 evidence chain you verify offline, with accept-risk decisions recorded on the chain. Export SARIF and a CycloneDX AI-BOM.</p>
+        </div>
+        <div class="feat">
+          <svg class="fi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 12a8 8 0 0116 0M12 4v4M12 12l4 3"/><circle cx="12" cy="12" r="1.6"/></svg>
+          <h3>Adopts on real repos</h3>
+          <p>A discovery preamble on every scan, a diff-aware baseline that gates CI on net-new findings only, and a PR summary that renders the reachable path. No day-one wall of debt.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -794,17 +891,17 @@
 
   <section id="coverage">
     <div class="wrap">
-      <h2>192 checks, and the balance is the strategy.</h2>
+      <h2>193 checks, and the balance is the strategy.</h2>
       <p class="section-lede">We do not chase rule count. Every check earns its place with a real control and a fixture. The agentic and cross-boundary rules are the hard-to-copy core, the surfaces nobody else models; the cloud packs are deliberately good enough that you need no second scanner, never an arms race.</p>
       <div class="cov" id="covBars">
         <div class="cov-row"><div class="cov-label">MCP / Agentic<span class="sub">hardest to copy</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="61"></div></div><div class="cov-count" data-to="33">0</div></div>
-        <div class="cov-row"><div class="cov-label">Cross-boundary<span class="sub">reachability</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="22"></div></div><div class="cov-count" data-to="12">0</div></div>
+        <div class="cov-row"><div class="cov-label">Cross-boundary<span class="sub">reachability</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="22"></div></div><div class="cov-count" data-to="13">0</div></div>
         <div class="cov-row"><div class="cov-label">AWS<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="100"></div></div><div class="cov-count" data-to="54">0</div></div>
         <div class="cov-row"><div class="cov-label">Azure<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="67"></div></div><div class="cov-count" data-to="36">0</div></div>
         <div class="cov-row"><div class="cov-label">GCP<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="59"></div></div><div class="cov-count" data-to="32">0</div></div>
         <div class="cov-row"><div class="cov-label">Kubernetes<span class="sub">Pod Security</span></div><div class="cov-track"><div class="cov-fill" data-w="46"></div></div><div class="cov-count" data-to="25">0</div></div>
       </div>
-      <p class="cov-note"><b>45 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>147 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 named control families across the six standards it cites. Depth where it counts most, parity where it just has to be solid. The newest agentic checks cover MCP sampling and elicitation abuse, coding-agent trust bypass (bypass-permission modes, auto-enabled project servers), MCP registry-manifest secret handling, and A2A card signing and removed OAuth flows.</p>
+      <p class="cov-note"><b>46 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>147 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 named control families across the six standards it cites. Depth where it counts most, parity where it just has to be solid. The newest agentic checks cover MCP sampling and elicitation abuse, coding-agent trust bypass (bypass-permission modes, auto-enabled project servers), MCP registry-manifest secret handling, and A2A card signing and removed OAuth flows.</p>
     </div>
   </section>
 
@@ -1520,35 +1617,6 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
         if(!reduce){out.classList.remove('flash');void out.offsetWidth;out.classList.add('flash');}
       });
     });
-  })();
-</script>
-<script>
-  // Hero demo: reveal the scan line by line on first view, with a replay
-  // control. Static markup is untouched for no-JS and reduced-motion visitors.
-  (function(){
-    var body=document.querySelector('.hero .demo-body');
-    var bar=document.querySelector('.hero .demo-bar');
-    if(!body||!bar||window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
-    var full=body.innerHTML,lines=full.split(/<br>\s*/);
-    var playing=false;
-    function play(){
-      if(playing)return;playing=true;
-      body.style.minHeight=body.offsetHeight+'px';
-      var i=0;
-      (function step(){
-        if(i>=lines.length){body.innerHTML=full;playing=false;return;}
-        body.innerHTML=lines.slice(0,i+1).join('<br>')+'<span class="caret" aria-hidden="true"></span>';
-        i++;setTimeout(step,i===1?520:170);
-      })();
-    }
-    var btn=document.createElement('button');
-    btn.type='button';btn.className='replaybtn';btn.textContent='replay';
-    btn.setAttribute('aria-label','Replay the scan output');
-    bar.appendChild(btn);btn.addEventListener('click',play);
-    if('IntersectionObserver' in window){
-      var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();play();}});},{threshold:.35});
-      io.observe(body);
-    }
   })();
 </script>
 <script>

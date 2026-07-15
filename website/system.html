@@ -105,6 +105,8 @@
     <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
     <nav class="nav-links" aria-label="Main">
       <a href="system.html" aria-current="page">System</a>
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#start">Get started</a>
       <a href="proof.html">Proof</a>
       <a href="playground.html">Playground</a>
       <a href="docs.html">Docs</a>
@@ -141,13 +143,15 @@
   <section id="commands">
     <div class="wrap">
       <p class="h2num">02 · the commands</p>
-      <h2>Seven commands, the whole loop.</h2>
+      <h2>Nine commands, the whole loop.</h2>
       <div class="tw">
         <table>
           <thead><tr><th>Command</th><th>What it does</th><th>Key flags</th></tr></thead>
           <tbody>
-            <tr><td class="cmd">scan</td><td>Review a project's security design. Prints to the terminal; writes files only when asked.</td><td><span class="fl">--local · -o/--format md|json|sarif|aibom · --ml/--no-ml/--ml-engine · --aivss · --llm · --judge · --waivers · --fail-on · -q</span></td></tr>
-            <tr><td class="cmd">validate</td><td>Prove whether an assembled attack path actually holds, and prove the fix.</td><td><span class="fl">--remediate · --action-space · --generate · --execute · --fail-on-proof · -o</span></td></tr>
+            <tr><td class="cmd">scan</td><td>Review a project's security design. Prints to the terminal; writes files only when asked.</td><td><span class="fl">--local · -o/--format md|json|both|sarif|aibom|md-summary · --ml/--no-ml/--ml-engine · --aivss · --baseline · --fail-on · -q</span></td></tr>
+            <tr><td class="cmd">fleet</td><td>Model several repos as one agent fleet and find flows that span them (ATL-213).</td><td><span class="fl">repo-a repo-b … · --fail-on · -o</span></td></tr>
+            <tr><td class="cmd">accept</td><td>Accept a finding as documented risk, recorded on the evidence chain with a content pin.</td><td><span class="fl">path rule component · -r reason · --expires · --by</span></td></tr>
+            <tr><td class="cmd">validate</td><td>Check whether an assembled attack path is reachable in the modeled design, and verify the fix.</td><td><span class="fl">--remediate · --action-space · --generate · --execute · --fail-on-reachable · -o</span></td></tr>
             <tr><td class="cmd">verify</td><td>Check a report's evidence chain, offline. VALID / INVALID.</td><td><span class="fl">report.json</span></td></tr>
             <tr><td class="cmd">compile</td><td>Turn the attested design into a default-deny mcp-guard policy.</td><td><span class="fl">-o policy.yaml</span></td></tr>
             <tr><td class="cmd">drift</td><td>Diff runtime telemetry (JSONL) against the compiled policy.</td><td><span class="fl">--fail-on-drift</span></td></tr>
@@ -201,7 +205,7 @@
       <p class="section-lede">The agentic and cross-boundary rules are the moat; the cloud packs are parity, not an arms race. Every rule cites a real control and ships with a fixture. 21 framework families.</p>
       <div class="cov">
         <div class="cov-row"><div class="cov-l">MCP / Agentic</div><div class="cov-t"><div class="cov-f a" style="width:61%"></div></div><div class="cov-n">33</div></div>
-        <div class="cov-row"><div class="cov-l">Cross-boundary</div><div class="cov-t"><div class="cov-f a" style="width:22%"></div></div><div class="cov-n">12</div></div>
+        <div class="cov-row"><div class="cov-l">Cross-boundary</div><div class="cov-t"><div class="cov-f a" style="width:22%"></div></div><div class="cov-n">13</div></div>
         <div class="cov-row"><div class="cov-l">AWS</div><div class="cov-t"><div class="cov-f" style="width:100%"></div></div><div class="cov-n">54</div></div>
         <div class="cov-row"><div class="cov-l">Azure</div><div class="cov-t"><div class="cov-f" style="width:67%"></div></div><div class="cov-n">36</div></div>
         <div class="cov-row"><div class="cov-l">GCP</div><div class="cov-t"><div class="cov-f" style="width:59%"></div></div><div class="cov-n">32</div></div>

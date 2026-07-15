@@ -252,7 +252,7 @@ def fleet(paths: tuple[str, ...], fail_on: str | None, output: str | None, quiet
     Give it two or more repo paths. Attestral merges them into a single system
     model - tagging each component with its repo - and runs the full review over
     the union, so a toxic flow whose entry lives in one repo and whose exfil
-    sink lives in another is surfaced (ATL-212). That cross-repo flow is the
+    sink lives in another is surfaced (ATL-213). That cross-repo flow is the
     thing no per-repo scanner can see: each repo looks fine on its own.
     """
     from attestral.fleet import build_fleet_model, render_fleet_overview

@@ -283,7 +283,7 @@ attestral drift policy.yaml events.jsonl --fail-on-drift
 # VALIDATE: prove whether the assembled attack paths actually hold
 # (tier 0: symbolic walk over the model's edges, no execution, no network)
 attestral validate ./my-project
-attestral validate ./my-project -o proof --fail-on-proof   # write proof.md + chain, gate CI
+attestral validate ./my-project -o proof --fail-on-reachable   # write proof.md + chain, gate CI
 
 # FLEET: model several repos as ONE agent fleet and find flows that span them
 attestral fleet ./repo-a ./repo-b ./repo-c                 # ATL-213: cross-repo toxic flow
@@ -310,7 +310,7 @@ Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deli
 | v0.6.0 (57 rules) | 7 | 2 | 3 | 12 |
 | v0.9.0 (169 rules) | **8** | **3** | **5** | **16** |
 
-The pipeline (ingest, evidence chain, tamper detection, gate, SARIF) is verified on real code. One honest caveat: TerraGoat leans heavily on Terraform variables and modules, and Attestral's HCL resolver does not yet evaluate cross-variable interpolation, so a chunk of TerraGoat's misconfigurations sit behind `var.` references the scanner can't see through yet. The TerraGoat number is therefore a **floor** gated by HCL-resolution depth, not a measure of the 146-rule cloud pack's reach. Deeper HCL resolution is on the roadmap; when it lands, these numbers jump without adding a single rule.
+The pipeline (ingest, evidence chain, tamper detection, gate, SARIF) is verified on real code. One honest caveat: TerraGoat leans heavily on Terraform variables and modules, and Attestral's HCL resolver does not yet evaluate cross-variable interpolation, so a chunk of TerraGoat's misconfigurations sit behind `var.` references the scanner can't see through yet. The TerraGoat number is therefore a **floor** gated by HCL-resolution depth, not a measure of the 147-rule cloud pack's reach. Deeper HCL resolution is on the roadmap; when it lands, these numbers jump without adding a single rule.
 
 ## Use it in CI
 
