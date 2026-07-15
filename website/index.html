@@ -455,7 +455,8 @@
 <nav class="dotnav" id="dotnav" aria-label="Section navigation">
   <a href="#top"><span>Overview</span></a>
   <a href="#model"><span>System model</span></a>
-  <a href="#prove"><span>Proof</span></a>
+  <a href="#prove"><span>Reachability</span></a>
+  <a href="#measured"><span>Benchmark</span></a>
   <a href="#ml"><span>ML scoring</span></a>
   <a href="#pipeline"><span>Pipeline</span></a>
   <a href="#runtime"><span>Drift</span></a>
@@ -566,7 +567,7 @@
   <section id="metrics" style="padding:40px 0">
     <div class="wrap">
       <div class="metrics" id="metricsBand">
-        <div class="metric"><div class="num" data-to="183">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
+        <div class="metric"><div class="num" data-to="192">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
         <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
         <div class="metric"><div class="num" data-to="7">0</div><div class="lbl">frameworks mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2</div></div>
         <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
@@ -751,17 +752,31 @@
 
   <section id="coverage">
     <div class="wrap">
-      <h2>183 checks, and the balance is the strategy.</h2>
+      <h2>192 checks, and the balance is the strategy.</h2>
       <p class="section-lede">We do not chase rule count. Every check earns its place with a real control and a fixture. The agentic and cross-boundary rules are the moat, the surfaces nobody else models; the cloud packs are deliberately good enough that you need no second scanner, never an arms race.</p>
       <div class="cov" id="covBars">
-        <div class="cov-row"><div class="cov-label">MCP / Agentic<span class="sub">the moat</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="44"></div></div><div class="cov-count" data-to="24">0</div></div>
+        <div class="cov-row"><div class="cov-label">MCP / Agentic<span class="sub">the moat</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="61"></div></div><div class="cov-count" data-to="33">0</div></div>
         <div class="cov-row"><div class="cov-label">Cross-boundary<span class="sub">reachability</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="22"></div></div><div class="cov-count" data-to="12">0</div></div>
         <div class="cov-row"><div class="cov-label">AWS<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="100"></div></div><div class="cov-count" data-to="54">0</div></div>
         <div class="cov-row"><div class="cov-label">Azure<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="67"></div></div><div class="cov-count" data-to="36">0</div></div>
         <div class="cov-row"><div class="cov-label">GCP<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="59"></div></div><div class="cov-count" data-to="32">0</div></div>
         <div class="cov-row"><div class="cov-label">Kubernetes<span class="sub">Pod Security</span></div><div class="cov-track"><div class="cov-fill" data-w="46"></div></div><div class="cov-count" data-to="25">0</div></div>
       </div>
-      <p class="cov-note"><b>36 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>147 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 framework families. Depth where it is the moat, parity where it just has to be solid.</p>
+      <p class="cov-note"><b>45 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>147 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 framework families. Depth where it is the moat, parity where it just has to be solid. The newest agentic checks cover MCP sampling and elicitation abuse, coding-agent trust bypass (bypass-permission modes, auto-enabled project servers), MCP registry-manifest secret handling, and A2A card signing and removed OAuth flows.</p>
+    </div>
+  </section>
+
+  <section id="measured">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">Measured, not asserted</p>
+      <h2>The moat is agentic detection, so we measure it.</h2>
+      <p class="section-lede">A scanner you cannot measure is an opinion. Attestral ships an in-repo benchmark that runs in CI, so the numbers below are reproducible on any checkout, not marketing. The one that decides adoption is the false-positive rate: a noisy scanner gets muted and uninstalled, so the noise budget on a clean design is zero.</p>
+      <div class="metrics">
+        <div class="metric"><div class="num">84/84</div><div class="lbl">labelled findings fire</div><div class="sub">recall on the agentic cases, gated in CI as a regression</div></div>
+        <div class="metric"><div class="num">0</div><div class="lbl">false positives</div><div class="sub">on the benign test designs; the noise budget is zero</div></div>
+        <div class="metric"><div class="num">44/45</div><div class="lbl">agentic rules covered</div><div class="sub">one gap on record: world-writable instruction files</div></div>
+      </div>
+      <p class="cov-note">Reproduce it with <code>python -m evaluation.score</code>. Recall is a regression guard today; as the corpus grows toward real open-source systems, cases get labelled from the threat rather than the current output, so recall can honestly fall below 100% and surface true misses. Known design-time gaps, such as a rug-pull whose tool description changes after approval (runtime-only, by construction), are recorded, never hidden.</p>
     </div>
   </section>
 
@@ -946,7 +961,7 @@ chain <span class="ok">VALID</span>
 
   <section id="loop">
     <div class="wrap">
-      <h2>The review is the policy. The policy is the proof.</h2>
+      <h2>The review is the policy. The policy is the enforcement.</h2>
       <p class="section-lede">This is the depth that makes a review audit-grade, not just a linter. Scanners stop at findings. Gateways enforce policies nobody reviewed. Attestral makes them the same artifact. The reviewed system model compiles into an mcp-guard runtime policy stamped with the review's chain head, and anything the review never saw counts as drift.</p>
       <div class="cols">
         <div class="col">
