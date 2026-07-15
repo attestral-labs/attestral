@@ -320,7 +320,7 @@
         <defs><marker id="a2" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-rule" stroke-width="1.5"/></marker></defs>
       </svg>
       </div>
-      <figcaption>The windows overlap so a payload split across a boundary cannot hide in the seam. If the highest window score clears <b>0.5</b>, Attestral emits one <code>ATL-ML-001</code> finding, tagged <code>origin=ml</code>, into the same evidence chain and SARIF as every other finding.</figcaption>
+      <figcaption>The windows overlap so a payload split across a boundary cannot hide in the seam. If the highest window score clears <b>0.5</b>, Attestral emits one <code>ATL-ML-001</code> finding, tagged <code>origin=ml</code>, into the same evidence chain and SARIF (the static-analysis result format GitHub's Security tab reads) as every other finding.</figcaption>
     </figure>
     <pre aria-label="Example scan output"><span class="c"># attestral scan ./server --ml</span>
 <span class="c">surface:</span> tool 'fetch_page' description

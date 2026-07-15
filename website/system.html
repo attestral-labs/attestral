@@ -132,8 +132,8 @@
         <div class="flow-stage"><span class="k">2 · Model</span><h3>One graph</h3><p>A <code>SystemModel</code>: components, edges, and trust boundaries.</p></div>
         <div class="flow-stage"><span class="k">3 · Review</span><h3>Three layers</h3><p>Deterministic rules, then optional ML and LLM. Tagged by origin.</p></div>
         <div class="flow-stage"><span class="k">4 · Evidence</span><h3>Hash chain</h3><p>Findings commit to a SHA-256 chain you verify offline.</p></div>
-        <div class="flow-stage"><span class="k">5 · Compile</span><h3>Default-deny policy</h3><p>The attested design becomes an mcp-guard policy, bound to the chain head.</p></div>
-        <div class="flow-stage"><span class="k">6 · Drift</span><h3>Catch divergence</h3><p>Runtime telemetry diffed against the policy. DRF-001..007.</p></div>
+        <div class="flow-stage"><span class="k">5 · Compile</span><h3>Default-deny policy</h3><p>The attested design becomes an mcp-guard (Attestral's runtime enforcement layer) policy, bound to the chain head.</p></div>
+        <div class="flow-stage"><span class="k">6 · Drift</span><h3>Catch divergence</h3><p>Runtime telemetry diffed against the policy: the running system diverging from the reviewed design gets caught. DRF-001..007.</p></div>
       </div>
     </div>
   </section>
@@ -165,7 +165,7 @@
       <h2>Deterministic first. Model-reasoned, clearly labeled.</h2>
       <p class="section-lede">Regulated buyers can't accept "the AI said so," so every finding carries its origin. The deterministic core always runs and is reproducible; the reasoning layers are optional and tagged.</p>
       <div class="cols">
-        <div class="col"><span class="k">L1 · deterministic</span><h3>192 typed matchers</h3><p>Fail-closed rules over the model, plus cross-server attack-path synthesis and the OWASP AIVSS agentic risk score. <code>origin: deterministic</code>.</p></div>
+        <div class="col"><span class="k">L1 · deterministic</span><h3>192 typed matchers</h3><p>Fail-closed rules over the model, plus cross-server attack-path synthesis and the OWASP AIVSS (AI Vulnerability Scoring System) agentic risk score. <code>origin: deterministic</code>.</p></div>
         <div class="col"><span class="k">L2 · ML</span><h3>Prompt-injection classifier</h3><p>Scores agentic text surfaces. Zero-dep heuristic runs by default; <code>--ml-engine</code> upgrades to ONNX or DeBERTa. <code>origin: ml</code>.</p></div>
         <div class="col"><span class="k">L3 · LLM</span><h3>Elicitation + judge</h3><p>Optional frontier-model threat elicitation and an LLM-as-judge that cross-examines findings. Needs a key. <code>origin: llm</code>.</p></div>
       </div>
@@ -190,7 +190,7 @@
         <div class="col"><span class="k">Tier 1 · generative</span><h3>Draft the exploit</h3><p><code>--generate</code>: an LLM drafts the predicted payload and transcript. No live target, labeled predicted.</p></div>
         <div class="col"><span class="k">Tier 2 · executed</span><h3>Sandbox harness</h3><p><code>--execute</code>: replay the path through stub tools with a planted canary and capture the transcript. Live-target execution stays gated.</p></div>
       </div>
-      <p class="section-lede" style="margin-top:20px"><code>--remediate</code> names the minimal fix and <b>verifies it by re-synthesis</b> - strip the rung, rebuild the model, confirm the path is gone - and reports the AARS posture before vs after. <code>--aivss</code> ranks every agentic finding by an OWASP AIVSS score, mapped to an OWASP Agentic (ASI) / LLM Top-10 category. See it live on the <a href="proof.html">proof page</a>.</p>
+      <p class="section-lede" style="margin-top:20px"><code>--remediate</code> names the minimal fix and <b>verifies it by re-synthesis</b> - strip the rung, rebuild the model, confirm the path is gone - and reports the AARS (Agentic AI Risk Score, 0–10) posture before vs after. <code>--aivss</code> ranks every agentic finding by an OWASP AIVSS score, mapped to an OWASP Agentic (ASI, the OWASP Agentic Security Initiative) / LLM Top-10 category. See it live on the <a href="proof.html">proof page</a>.</p>
     </div>
   </section>
 
@@ -220,7 +220,7 @@
         <span class="o"><b>Markdown</b> the audit report</span>
         <span class="o"><b>JSON</b> evidence chain + <code>aivss</code></span>
         <span class="o"><b>SARIF</b> GitHub Code Scanning (rank + aivss)</span>
-        <span class="o"><b>AI-BOM</b> CycloneDX 1.6</span>
+        <span class="o"><b>AI-BOM</b> AI Bill of Materials, CycloneDX 1.6</span>
         <span class="o"><b>Evidence chain</b> SHA-256, verify offline</span>
         <span class="o"><b>mcp-guard policy</b> default-deny, from compile</span>
       </div>

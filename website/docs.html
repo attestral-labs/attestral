@@ -263,7 +263,7 @@ attestral drift policy.yaml events.jsonl  <span class="c"># catch when runtime d
     <p class="sub">Prefer clicking to installing? <a href="playground.html"><strong>Run the whole loop live in the Playground</strong></a>, real CLI output streamed in your browser. Or jump to <a href="#loop">the loop</a>, <a href="#validate">adversarial validation</a>, or the <a href="#rulepack">rule pack</a>.</p>
 
     <h2 id="demo" style="border-top:none;margin-top:0;padding-top:0">See it run</h2>
-    <p>Every panel below is real output from the CLI against the fixtures that ship in the repo, not a mockup. Switch tabs to walk the whole loop: review a deliberately vulnerable agent, inspect a rule, compile the attested design into a policy, catch runtime drift against it, prove a whole attack path actually holds, and verify the evidence chain offline.</p>
+    <p>Every panel below is real output from the CLI against the fixtures that ship in the repo, not a mockup. Switch tabs to walk the whole loop: review a deliberately vulnerable agent, inspect a rule, compile the attested design into a policy, catch runtime drift (the running system diverging from the reviewed design) against it, prove a whole attack path actually holds, and verify the evidence chain offline.</p>
 
     <figure class="demo" aria-label="Terminal: real Attestral output for scan, explain, compile, drift, and verify">
       <div class="demo-bar" aria-hidden="true">
@@ -402,7 +402,7 @@ attestral drift policy.yaml events.jsonl  <span class="c"># catch when runtime d
 <span><span class="dim"># offline, no account. try the same check live in the evidence-chain section.</span></span>
       </div>
     </figure>
-    <p class="demo-cap">The scan is <code>examples/vulnerable-agent</code>: two small config files, sixteen design findings, three of them fleet-level and two caught by the default prompt-injection classifier. Compile and drift run against <code>examples/demo-project</code>. To see how a scan flows through the package itself, the <a href="architecture.html">architecture page</a> draws the pipeline from Attestral's own code graph.</p>
+    <p class="demo-cap">The scan is <code>examples/vulnerable-agent</code>: two small config files, sixteen design findings, three of them fleet-level and two caught by the default prompt-injection classifier. Compile and drift run against <code>examples/demo-project</code>. In that output, <code>(model:taint_flow)</code> on ATL-207 means untrusted input reaching a sensitive action along a tracked path. To see how a scan flows through the package itself, the <a href="architecture.html">architecture page</a> draws the pipeline from Attestral's own code graph.</p>
 
     <h2 id="pipeline">Pipeline</h2>
     <p>A scan flows through three stages: ingest your agent (MCP configs, system prompts, tool descriptions) and the cloud it runs on into one model, review in layers (each finding tagged by origin), and commit to a tamper-evident evidence chain. The deterministic core is never silently mixed with model reasoning.</p>
@@ -446,7 +446,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
     <p>Attestral treats the design review, the runtime policy, and the audit evidence as one artifact in three forms:</p>
     <ul>
       <li><strong>Attest.</strong> <code>scan</code> builds a system model from Terraform, Kubernetes manifests, and MCP configs and reviews it against typed rules. Findings are committed to a hash chain.</li>
-      <li><strong>Enforce.</strong> <code>compile</code> turns the reviewed model into a default-deny mcp-guard policy, stamped with the model hash and the review chain head. Your threat model stops being a document and becomes the configuration itself.</li>
+      <li><strong>Enforce.</strong> <code>compile</code> turns the reviewed model into a default-deny mcp-guard (Attestral's runtime enforcement layer) policy, stamped with the model hash and the review chain head. Your threat model stops being a document and becomes the configuration itself.</li>
       <li><strong>Prove.</strong> <code>drift</code> diffs runtime telemetry against the compiled policy. Anything the review never saw (a new server, a denied capability, an out-of-scope path) is drift, and <code>verify</code> detects any later edit to the record (against the head you hold).</li>
     </ul>
 
@@ -457,9 +457,9 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
       <tr><th>Flag</th><th>Behavior</th></tr>
       <tr><td><code>--local</code></td><td>Scan the MCP configs already installed on this machine (Claude Desktop, Cursor, VS Code, Windsurf) instead of a PATH.</td></tr>
       <tr><td><code>-o, --output</code></td><td>Write report files to this stem. Without <code>-o</code> or <code>--format</code>, results only print; nothing is written to disk.</td></tr>
-      <tr><td><code>--format</code></td><td><code>md</code> for the human report, <code>json</code> for the chained evidence, <code>both</code>, <code>sarif</code> for GitHub Code Scanning, or <code>aibom</code> for a CycloneDX 1.6 AI-BOM of the agent stack.</td></tr>
+      <tr><td><code>--format</code></td><td><code>md</code> for the human report, <code>json</code> for the chained evidence, <code>both</code>, <code>sarif</code> for GitHub Code Scanning, or <code>aibom</code> for a CycloneDX 1.6 AI-BOM (AI Bill of Materials) of the agent stack.</td></tr>
       <tr><td><code>--ml</code> / <code>--no-ml</code></td><td>The zero-dependency heuristic prompt-injection tier runs <strong>by default</strong>. <code>--no-ml</code> turns it off; <code>--ml</code> / <code>--ml-engine</code> upgrades to the ONNX or DeBERTa tier. Findings tagged <code>origin: ml</code>. See the <a href="ml-deberta.html">ML layer</a> page.</td></tr>
-      <tr><td><code>--aivss</code></td><td>Rank agentic findings by an OWASP AIVSS Agentic AI Risk Score (AARS), each mapped to an OWASP Agentic (ASI) / LLM Top-10 category. AARS measures agentic amplification, a different axis from CVSS severity.</td></tr>
+      <tr><td><code>--aivss</code></td><td>Rank agentic findings by an OWASP AIVSS (AI Vulnerability Scoring System) Agentic AI Risk Score (AARS), a 0–10 score, each mapped to an OWASP Agentic (ASI, the OWASP Agentic Security Initiative) / LLM Top-10 category. AARS measures agentic amplification, a different axis from CVSS severity.</td></tr>
       <tr><td><code>--llm</code></td><td>Adds LLM threat elicitation on top of the deterministic layer. Requires <code>ANTHROPIC_API_KEY</code>. Findings are tagged <code>origin: llm</code> and never mixed silently with rule findings.</td></tr>
       <tr><td><code>--judge</code></td><td>Cross-examine findings with an LLM judge; see <a href="#judge">LLM-as-judge</a>.</td></tr>
       <tr><td><code>--waivers</code></td><td>YAML of documented waivers; <code>attestral-waivers.yaml</code> at the scan root is picked up automatically.</td></tr>
@@ -492,7 +492,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
       <tr><td><code>DRF-002</code></td><td>critical</td><td>A server the review denied is invoked at runtime.</td></tr>
       <tr><td><code>DRF-003</code></td><td>high</td><td>A filesystem path outside the attested roots is accessed.</td></tr>
       <tr><td><code>DRF-004</code></td><td>high</td><td>A TLS-constrained server is observed over plaintext.</td></tr>
-      <tr><td><code>DRF-005</code></td><td>critical</td><td>A server's tool manifest changed since attestation (a rug-pull).</td></tr>
+      <tr><td><code>DRF-005</code></td><td>critical</td><td>A server's tool manifest changed since attestation (a rug-pull, a tool silently changed after you approved it).</td></tr>
       <tr><td><code>DRF-006</code></td><td>high</td><td>A runaway tool-call loop suggests resource drain.</td></tr>
       <tr><td><code>DRF-007</code></td><td>medium</td><td>A server's call volume exceeds its attested budget.</td></tr>
     </table>
@@ -513,7 +513,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
     <p>Watch it render live: the <a href="proof.html">interactive proof walker</a> lets you toggle a fleet, animate the attack path across the trust boundary, and break a chain in your browser.</p>
 
     <h2 id="sarif">Code scanning (SARIF)</h2>
-    <p>Scan with <code>--format sarif</code> and the review becomes SARIF 2.1.0, the format GitHub Code Scanning speaks. Findings show up in the Security tab and inline on the pull request, each mapped to a severity GitHub understands and tagged with its framework references.</p>
+    <p>Scan with <code>--format sarif</code> and the review becomes SARIF 2.1.0 (the static-analysis result format GitHub's Security tab reads). Findings show up in the Security tab and inline on the pull request, each mapped to a severity GitHub understands and tagged with its framework references.</p>
 <pre><code>attestral scan . --format sarif -o attestral</code></pre>
     <p>Wire it into a workflow and every push publishes findings straight to the Security tab:</p>
 <pre><code>- uses: github/codeql-action/upload-sarif@v3

@@ -290,7 +290,7 @@
       <p class="section-lede">Each proof commits to a SHA-256 hash chain exactly as <code>attestral verify</code> does: entry <em>N</em> hashes its canonical JSON together with the hash of entry <em>N-1</em>, from a zero genesis. The head is the integrity commitment for the run. Recomputed live below from the proofs above. <b>Tamper with one entry and the whole chain gives it away.</b></p>
       <div class="chain-grid" id="chainEntries"></div>
       <div class="chain-verdict" id="chainVerdict"><span>chain VALID</span><button class="chain-reset" id="chainReset" type="button" hidden>reset</button></div>
-      <p class="section-lede" style="margin-top:20px;font-size:.86rem">A waived path is never deleted, only marked. A reachable path that you accept and document stays in the chain with its justification, so the record shows what was known and when. That is what makes it audit-grade rather than a scan log.</p>
+      <p class="section-lede" style="margin-top:20px;font-size:.86rem">A waived path is never deleted, only marked. A reachable path that you accept and document stays in the chain with its justification, so the record shows what was known and when. That is the difference between an audit record and a scan log.</p>
     </div>
   </section>
 
@@ -324,7 +324,7 @@ chain <span class="ok">VALID</span>
     <div class="wrap">
       <p class="eyebrow" style="color:var(--seal)">New · <code>attestral validate --remediate</code></p>
       <h2>It verifies the fix, not just the flaw.</h2>
-      <p class="section-lede">A finding tells you something is wrong. Attestral goes further: for each reachable path it names the minimal fix and <b>verifies it by re-synthesis</b> - it strips the rung, rebuilds the whole system model, and re-runs the walk to confirm the path is actually gone from the graph. Not "this is risky," but "here is the one change, and here is the re-synthesis that removes the path." It ranks the fixes by how far each drops your worst agentic risk score, so the highest-leverage change comes first.</p>
+      <p class="section-lede">A finding tells you something is wrong. Attestral goes further: for each reachable path it names the minimal fix and <b>verifies it by re-synthesis</b> - it strips the rung, rebuilds the whole system model, and re-runs the walk to confirm the path is actually gone from the graph. Not "this is risky," but "here is the one change, and here is the re-synthesis that removes the path." It ranks the fixes by how far each drops your worst agentic risk, scored as an AARS (Agentic AI Risk Score, 0–10), so the highest-leverage change comes first.</p>
       <div class="term" aria-label="attestral validate --remediate output">
 <span class="p">$</span> attestral validate examples/vulnerable-agent --remediate<br>
 <br>
