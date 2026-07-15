@@ -6,8 +6,8 @@ answer key) that proves the rules keep working. This is different: **attestral
 run against 33 of the most widely-used real MCP servers**, at pinned commits.
 
 **Aggregate only.** No repository is named here. attestral reviews the
-*documented launch configuration* — the `mcpServers` block users copy from a
-README — not the server's source code, and every hit is a **configuration
+*documented launch configuration* - the `mcpServers` block users copy from a
+README - not the server's source code, and every hit is a **configuration
 default, not an exploited vulnerability**. Per-repo results are held under
 responsible disclosure until each maintainer has been notified; the named table
 and the full reproducible harness publish with that disclosure. The aggregate
@@ -18,7 +18,7 @@ below carries no embargo.
 - **33** popular public MCP servers scanned (all scanned OK).
 - **23** shipped a committed or README-documented config attestral could model.
   Percentages below are out of those 23.
-- **3** of those 23 were clean — a config with zero findings (good counter-examples).
+- **3** of those 23 were clean - a config with zero findings (good counter-examples).
 
 ## What their shipped configs contain (192-rule pack)
 
@@ -40,7 +40,7 @@ These are solid, act-on-them findings:
 
 The lethal-trifecta and toxic-flow hits are the headline: they are fleet-level,
 compositional risks that exist only once you model several servers (and, in one
-case, a committed sub-agent) together — the finding no config-by-config scanner
+case, a committed sub-agent) together - the finding no config-by-config scanner
 produces.
 
 ## Findings we deliberately do NOT headline (honest caveats)
@@ -58,8 +58,8 @@ as alarms:
 
 ## The false-positive read (the number that decides adoption)
 
-- The **9 newest agentic rules (ATL-125..133)** — MCP sampling/elicitation,
-  coding-agent trust flags, registry-manifest secrets, A2A card signing — fired
+- The **9 newest agentic rules (ATL-125..133)** - MCP sampling/elicitation,
+  coding-agent trust flags, registry-manifest secrets, A2A card signing - fired
   on **0 of 33** servers. Correctly: these repos do not ship those surfaces, so
   there is nothing to match. The rules did not spuriously fire on real code.
 - **3** real servers with a committed config produced **zero** findings.

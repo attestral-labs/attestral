@@ -90,7 +90,7 @@ def render_pr_summary(
             rungs = " → ".join(
                 f"`{', '.join(s.components)}`" for s in (p.entry, p.pivot, p.impact)
             )
-            lines.append(f"- **{p.kind} chain** — {rungs}")
+            lines.append(f"- **{p.kind} chain** - {rungs}")
             lines.append(
                 f"  <br>entry: {p.entry.label} · pivot: {p.pivot.label} · "
                 f"impact: {p.impact.label}"
@@ -102,7 +102,7 @@ def render_pr_summary(
         by_sev = {s: [f for f in active if f.severity.value == s] for s in _SEV_ORDER}
         for sev in _SEV_ORDER:
             for f in by_sev[sev]:
-                reach = "—"
+                reach = "-"
                 if f.reachability:
                     role = f.reachability_role or "on path"
                     reach = f"on {f.reachability.split(':')[0]} ({role})"
