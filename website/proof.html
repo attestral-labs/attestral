@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Proof, not findings - Attestral adversarial validation</title>
-<meta name="description" content="Attestral doesn't just flag the attack path. It walks it and proves it holds, then commits the proof to a tamper-evident evidence chain. Watch a live proof render in your browser, then run it on your own fleet with attestral validate.">
+<title>Reachability, not just findings - Attestral adversarial validation</title>
+<meta name="description" content="Attestral doesn't just flag the attack path. It walks it over your system model and shows it is reachable in the modeled design, then chains the result to a tamper-evident evidence chain. Reachability over declared capability is necessary, not sufficient, for exploitation. Watch it render live, then run attestral validate on your own fleet.">
 <link rel="canonical" href="https://attestral.vercel.app/proof.html">
 <meta name="theme-color" content="#96222E">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Attestral">
-<meta property="og:title" content="Proof, not findings - Attestral adversarial validation">
-<meta property="og:description" content="Attestral walks the attack path and proves it holds, then chains the proof so an auditor can verify it offline. Watch it render live, then run attestral validate on your own fleet.">
+<meta property="og:title" content="Reachability, not just findings - Attestral adversarial validation">
+<meta property="og:description" content="Attestral walks the attack path and shows it is reachable in your modeled design, then chains the result so an auditor can verify it offline. Watch it render live, then run attestral validate on your own fleet.">
 <meta property="og:url" content="https://attestral.vercel.app/proof.html">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Proof, not findings - Attestral adversarial validation">
-<meta name="twitter:description" content="A static finding is arguable. A walked, chained proof of the exact path is not. Watch it render in your browser.">
+<meta name="twitter:title" content="Reachability, not just findings - Attestral adversarial validation">
+<meta name="twitter:description" content="A static finding is a claim about one config block. A walked, chained path names every rung and the boundaries it crosses - reachable in your modeled design. Watch it render in your browser.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -249,7 +249,8 @@
   <div class="wrap hero">
     <p class="eyebrow"><b>New</b> · adversarial validation · <code>attestral validate</code></p>
     <h1><em>Proof</em>, not findings.</h1>
-    <p class="lede">Every other scanner stops at "this looks risky." Attestral takes the attack path it assembled from your system model, <b>walks it over the model's own edges, and proves it holds</b> - entry, pivot, impact, stage by stage - then commits the proof to a tamper-evident evidence chain. A static finding is arguable. A walked, chained proof of the exact path is not.</p>
+    <p class="lede">Every other scanner stops at "this looks risky." Attestral takes the attack path it assembled from your system model, <b>walks it over the model's own edges, and shows it is reachable in the modeled design</b> - entry, pivot, impact, stage by stage - then chains the walked path to a tamper-evident evidence chain. A static finding is a claim about one config block. A walked, chained path names every rung and the boundaries it crosses.</p>
+    <p class="lede" style="font-size:.82rem;opacity:.72;margin-top:-6px"><b>What this claims.</b> Reachability is computed over the capability your design <em>declares</em>, treated as a sound over-approximation. It is a necessary, not sufficient, condition for a working attack: it does not model whether the agent follows an injection, or whether a guardrail or human approval sits in the path. We report feasibility over the modeled graph, never proof that an attacker succeeds.</p>
     <div class="cmd"><span class="dollar">$</span> <span>attestral validate .</span> <button type="button" data-copy="attestral validate .">Copy</button></div>
     <div class="badges">
       <span class="badge new">Tier 0 · <b>symbolic</b></span>
@@ -289,7 +290,7 @@
       <p class="section-lede">Each proof commits to a SHA-256 hash chain exactly as <code>attestral verify</code> does: entry <em>N</em> hashes its canonical JSON together with the hash of entry <em>N-1</em>, from a zero genesis. The head is the integrity commitment for the run. Recomputed live below from the proofs above. <b>Tamper with one entry and the whole chain gives it away.</b></p>
       <div class="chain-grid" id="chainEntries"></div>
       <div class="chain-verdict" id="chainVerdict"><span>chain VALID</span><button class="chain-reset" id="chainReset" type="button" hidden>reset</button></div>
-      <p class="section-lede" style="margin-top:20px;font-size:.86rem">A waived proof is never deleted, only marked. A proven path that you accept and document stays in the chain with its justification, so the record shows what was known and when. That is what makes it audit-grade rather than a scan log.</p>
+      <p class="section-lede" style="margin-top:20px;font-size:.86rem">A waived path is never deleted, only marked. A reachable path that you accept and document stays in the chain with its justification, so the record shows what was known and when. That is what makes it audit-grade rather than a scan log.</p>
     </div>
   </section>
 
@@ -299,9 +300,9 @@
       <p class="section-lede">Real output from <code>attestral validate examples/vulnerable-agent</code>. The browser engine above is a faithful port; the CLI is the source of truth, and it also writes the proof report and the evidence chain when you pass <code>-o</code>.</p>
       <div class="term" aria-label="attestral validate terminal output">
 <span class="p">$</span> attestral validate examples/vulnerable-agent<br>
-<span class="crit">Adversarial validation (1 proven)</span><br>
+<span class="crit">Adversarial validation (1 reachable)</span><br>
 <br>
-&nbsp;&nbsp;<span class="crit">ATL-RT-INTERNAL</span>&nbsp;&nbsp;<b>Proven traversable: a prompt injection can reach exfiltration</b><br>
+&nbsp;&nbsp;<span class="crit">ATL-RT-INTERNAL</span>&nbsp;&nbsp;<b>Reachable in the modeled design: a prompt injection can reach exfiltration</b><br>
 &nbsp;&nbsp;&nbsp;&nbsp;1. <span class="dim">entry:</span> <b>jira</b>&nbsp;&nbsp;<span class="dim">- ingests untrusted input via saas_data</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;2. <span class="dim">entry:</span> <b>web</b>&nbsp;&nbsp;<span class="dim">- ingests untrusted input via network</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;3. <span class="dim">pivot:</span> <b>deploy</b>&nbsp;&nbsp;<span class="dim">- runs code via shell</span><br>
@@ -322,17 +323,17 @@ chain <span class="ok">VALID</span>
   <section id="remediate">
     <div class="wrap">
       <p class="eyebrow" style="color:var(--seal)">New · <code>attestral validate --remediate</code></p>
-      <h2>It proves the fix, not just the flaw.</h2>
-      <p class="section-lede">A finding tells you something is wrong. Attestral goes further: for each proven path it names the minimal fix and <b>verifies it by re-synthesis</b> - it strips the rung, rebuilds the whole system model, and re-runs the proof to confirm the path is actually gone. Not "this is risky," but "here is the one change, and here is proof it closes it." It ranks the fixes by how far each drops your worst agentic risk score, so the highest-leverage change comes first.</p>
+      <h2>It verifies the fix, not just the flaw.</h2>
+      <p class="section-lede">A finding tells you something is wrong. Attestral goes further: for each reachable path it names the minimal fix and <b>verifies it by re-synthesis</b> - it strips the rung, rebuilds the whole system model, and re-runs the walk to confirm the path is actually gone from the graph. Not "this is risky," but "here is the one change, and here is the re-synthesis that removes the path." It ranks the fixes by how far each drops your worst agentic risk score, so the highest-leverage change comes first.</p>
       <div class="term" aria-label="attestral validate --remediate output">
 <span class="p">$</span> attestral validate examples/vulnerable-agent --remediate<br>
 <br>
 <span class="ok">Verified remediations (2)</span><br>
 &nbsp;&nbsp;<b>Scope or remove the outbound channel on web</b><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip network/messaging, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip network/messaging, re-synthesize -&gt; <span class="ok">VERIFIED: path removed from model</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">posture:</span> worst agentic risk AARS 10.0 -&gt; <span class="ok">7.6</span><br>
 &nbsp;&nbsp;<b>Remove code execution (shell) from deploy, shell</b><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip shell, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip shell, re-synthesize -&gt; <span class="ok">VERIFIED: path removed from model</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">posture:</span> worst agentic risk AARS 10.0 -&gt; <span class="ok">9.3</span>
       </div>
       <p class="section-lede" style="margin-top:20px;font-size:.9rem"><code>--action-space</code> goes wider still: it enumerates the tool-call sequences the fleet can be <em>induced into</em>, not just the one collapsed chain, the behavioral surface a per-config scanner never sees.</p>
@@ -341,32 +342,32 @@ chain <span class="ok">VALID</span>
 
   <section id="tiers">
     <div class="wrap">
-      <h2>Three tiers. One proof schema.</h2>
-      <p class="section-lede">All three tiers ship: symbolic proves the path, generative drafts the exploit, and executed replays it in a sandbox harness. Each builds on the same proof and degrades gracefully: the tier you have installed is the tier you get, and a missing key or extra is never an error. Execution against your own live target stays gated.</p>
+      <h2>Three tiers. One walked-path schema.</h2>
+      <p class="section-lede">All three tiers ship: symbolic shows the path is reachable, generative drafts the predicted exploit, and executed replays it in a sandbox harness. Each builds on the same walked path and degrades gracefully: the tier you have installed is the tier you get, and a missing key or extra is never an error. Execution against your own live target stays gated.</p>
       <div class="cols">
         <div class="col">
           <span class="k">Tier 0 · symbolic</span>
           <h3>Prove the path holds</h3>
-          <p>Walk each attack path over the model's own edges. Deterministic, zero-dependency, no execution, no network. It proves the path is structurally traversable and names every rung. A design with no complete path proves nothing, which is itself an attestable result.</p>
+          <p>Walk each attack path over the model's own edges. Deterministic, zero-dependency, no execution, no network. It shows the path is reachable over the model’s own edges and names every rung. A design with no complete path yields no reachable path, which is itself an attestable result.</p>
           <span class="stat live">shipping now</span>
         </div>
         <div class="col">
           <span class="k">Tier 1 · generative</span>
           <h3>Draft the payload</h3>
-          <p>With <code>--generate</code>, an LLM turns a proven path into the concrete artifact that would traverse it: the injection shape, the predicted tool-call sequence, the transcript it expects. No live target is touched. Labeled predicted, not executed.</p>
+          <p>With <code>--generate</code>, an LLM turns a reachable path into the predicted artifact that would traverse it: the injection shape, the predicted tool-call sequence, the transcript it expects. No live target is touched. Labeled predicted, not executed.</p>
           <span class="stat live">shipping now · opt-in</span>
         </div>
         <div class="col">
           <span class="k">Tier 2 · executed</span>
           <h3>Capture the transcript</h3>
-          <p>With <code>--execute</code>, Attestral replays the proven path through its own sandbox harness with a planted canary, moving the marker from a stub secret store to a captured sink and recording the transcript. The harness ships today; execution against your own fingerprinted live target stays gated.</p>
+          <p>With <code>--execute</code>, Attestral replays the reachable path through its own sandbox harness with a planted canary, moving the marker from a stub secret store to a captured sink and recording the transcript. The harness ships today; execution against your own fingerprinted live target stays gated.</p>
           <span class="stat live">harness shipping · live target gated</span>
         </div>
       </div>
 
       <div class="callout" style="margin-top:20px">
         <h3>Scope, by design</h3>
-        <p>The symbolic tier never touches a live system at all. It reasons over the model you already attested. The executed tier will run only against a target whose fingerprint matches that attested model and only with explicit authorization, in a sandbox, moving planted canaries rather than real secrets. Attestral proves the flaws in a design you own so you can close them. It is not a point-it-at-any-endpoint attack tool, and it never will be.</p>
+        <p>The symbolic tier never touches a live system at all. It reasons over the model you already attested. The executed tier will run only against a target whose fingerprint matches that attested model and only with explicit authorization, in a sandbox, moving planted canaries rather than real secrets. Attestral surfaces the reachable attack paths in a design you own so you can close them. It is not a point-it-at-any-endpoint attack tool, and it never will be.</p>
       </div>
     </div>
   </section>
@@ -375,7 +376,7 @@ chain <span class="ok">VALID</span>
     <div class="wrap">
       <p class="eyebrow" style="color:var(--seal)">New · <code>attestral validate --execute</code></p>
       <h2>Tier 2: watch the canary walk out.</h2>
-      <p class="section-lede">The symbolic tier proves the path holds; the sandbox tier <b>replays it</b>. Attestral runs the proven path through its own stub tools with a planted canary, moving the marker from a fake secret store to a captured sink. No real system, no real secret, no network, just proof of the mechanics end to end, with the transcript to show for it.</p>
+      <p class="section-lede">The symbolic tier shows the path is reachable; the sandbox tier <b>replays it</b>. Attestral runs the reachable path through its own stub tools with a planted canary, moving the marker from a fake secret store to a captured sink. No real system, no real secret, no network, just a demonstration of the mechanics end to end, with the transcript to show for it.</p>
       <div class="sbx" id="sbx">
         <div class="sbx-flow">
           <div class="sbx-node" data-role="entry"><span class="sbx-k">entry</span><div class="sbx-t">web-fetch</div><div class="sbx-a">ingests the injected instruction</div></div>
@@ -503,7 +504,7 @@ chain <span class="ok">VALID</span>
         kind:kind,
         rule_id: kind==='external'?'ATL-RT-EXTERNAL':'ATL-RT-INTERNAL',
         severity: kind==='external'?'critical':'high',
-        title: 'Proven traversable: '+(kind==='external'?'an external caller':'a prompt injection')+' can reach '+label,
+        title: 'Reachable in the modeled design: '+(kind==='external'?'an external caller':'a prompt injection')+' can reach '+label,
         steps:steps,
         boundaries:Object.keys(bounds),
         impact_label:label
@@ -566,7 +567,7 @@ chain <span class="ok">VALID</span>
         '</div>'+
         '<div class="proof-foot">'+
           '<div class="pf-row">crosses '+p.boundaries.length+' trust boundar'+(p.boundaries.length===1?'y':'ies')+': <b>'+esc(p.boundaries.join(', '))+'</b></div>'+
-          '<div class="verdict-stamp"><span class="vs-seal">PROVEN<br>TRAVERSABLE</span><span class="vs-label">verdict: <b>traversable</b></span></div>'+
+          '<div class="verdict-stamp"><span class="vs-seal">REACHABLE<br>IN MODEL</span><span class="vs-label">verdict: <b>reachable in the modeled graph</b></span></div>'+
           '<div class="pf-row" style="margin-top:6px">fix: '+esc(fix)+'</div>'+
         '</div></div>';
     }
@@ -672,7 +673,7 @@ chain <span class="ok">VALID</span>
       if(!findingsNow.length){
         wrap.innerHTML='<div class="centry" style="border-top-color:var(--verify)"><div class="n">no findings</div><div class="rid">clean design</div><div class="hrow">nothing to chain. an empty proof set is itself an attestable result.</div></div>';
         verdict.classList.remove('bad');
-        verdict.firstElementChild.textContent='chain VALID · 0 entries · no path was proven';
+        verdict.firstElementChild.textContent='chain VALID · 0 entries · no path was reachable';
         reset.hidden=true; return;
       }
       await computeRecorded();

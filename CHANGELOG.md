@@ -6,7 +6,30 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Changed
+- **Adversarial validation reframed from "proof" to reachability.** The `validate`
+  walk shows an attack path is *reachable in the modeled graph* (over declared
+  capability, a sound over-approximation) - a necessary, not sufficient, condition
+  for exploitation. The CLI, terminal report, and every site page now say so
+  explicitly, and each non-empty report states the assumption. Overclaiming
+  "proof" of exploitability to a security audience is the fastest way to lose it;
+  the honest framing is more credible, not less. `--fail-on-reachable` is the new
+  flag name (`--fail-on-proof` stays as a deprecated alias). No logic changed.
+
 ### Added
+- **Agentic-detection benchmark (`evaluation/`).** The moat is agentic detection,
+  so it is now measured. `python -m evaluation.score` reports recall on labelled
+  positive cases (regression: every labelled finding must fire), the
+  false-positive rate on benign designs (the noise number that decides adoption),
+  and agentic-rule coverage, plus known design-time gaps (rug-pull-class threats a
+  static snapshot cannot see). Enforced in CI via `tests/test_evaluation.py`
+  (recall 100%, benign false positives 0). First honest numbers on the moat
+  surface; grows toward threat-labelled and adversarial cases (see ROADMAP.md).
+- **ROADMAP.md** - an adoption-ordered roadmap: conviction (time-to-first-value,
+  false-positive rate) first, the differentiated signed/IFC-grounded artifact
+  second, with the research-grounded uplifts (signed evidence chain, information-
+  flow lattice, provable policy narrowing, runtime rug-pull drift) sequenced after
+  the table stakes.
 - **MCP capability-abuse + coding-agent-trust rule wave (ATL-125..128).** Two new
   ingester signals feed four design-time rules grounded in this quarter's primary
   research:

@@ -394,26 +394,29 @@ def drift(policy_file: str, events_file: str, fail_on_drift: bool) -> None:
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option("-o", "--output", default=None,
-              help="Write the proof report (<stem>.md) and evidence chain (<stem>.json).")
-@click.option("--fail-on-proof", is_flag=True,
-              help="Exit non-zero if any exploit path is proven traversable (CI gate).")
+              help="Write the reachability report (<stem>.md) and evidence chain (<stem>.json).")
+@click.option("--fail-on-reachable", "--fail-on-proof", "fail_on_proof", is_flag=True,
+              help="Exit non-zero if any attack path is reachable in the modeled design (CI gate). "
+                   "(--fail-on-proof is a deprecated alias.)")
 @click.option("--remediate", is_flag=True,
-              help="Show the minimal fix for each proven path, each verified by re-synthesis.")
+              help="Show the minimal fix for each reachable path, each verified by re-synthesis.")
 @click.option("--action-space", "action_space_flag", is_flag=True,
               help="Enumerate the tool-call sequences the fleet can be induced into.")
 @click.option("--generate", is_flag=True,
               help="Tier 1: an LLM drafts the predicted exploit per path (needs an API key). Never executed.")
 @click.option("--execute", is_flag=True,
-              help="Tier 2: replay each proven path through Attestral's sandbox harness with a planted canary. No live target.")
+              help="Tier 2: replay each reachable path through Attestral's sandbox harness with a planted canary. No live target.")
 def validate(path: str, output: str | None, fail_on_proof: bool, remediate: bool,
              action_space_flag: bool, generate: bool, execute: bool) -> None:
-    """Prove whether the attack paths in PATH's attested design actually hold.
+    """Check which attack paths in PATH's attested design are reachable.
 
     Symbolic tier: walks each assembled attack path over the model's own edges,
-    with no execution and no network, and commits each proven path to the
-    evidence chain as an attestable proof. --remediate shows the fix verified to
-    close the path; --action-space enumerates the inducible sequences; --generate
-    drafts the predicted (never executed) exploit. See the spike for the tiers.
+    with no execution and no network, and commits each reachable path to the
+    evidence chain. Reachability is computed over declared capability (a sound
+    over-approximation) and is a necessary, not sufficient, condition for
+    exploitation - the report states this assumption. --remediate shows the fix
+    verified to close the path; --action-space enumerates the inducible
+    sequences; --generate drafts the predicted (never executed) exploit.
     """
     from attestral import redteam
     from attestral.report_terminal import render_proofs

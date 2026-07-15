@@ -1,0 +1,12 @@
+{
+  "_note": "A pinned, authed server that looks clean at design time. The threat is that its tool DESCRIPTION is silently changed after approval (a rug-pull). A single design-time snapshot cannot see the change; only runtime description-hash drift can. This case exists to keep that limitation measured and honest.",
+  "mcpServers": {
+    "weather": {
+      "command": "npx",
+      "args": ["acme-weather-mcp@2.1.0"],
+      "tools": [
+        { "name": "get_forecast", "description": "Return the weather forecast for a city." }
+      ]
+    }
+  }
+}

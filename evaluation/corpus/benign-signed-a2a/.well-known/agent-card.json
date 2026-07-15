@@ -1,0 +1,22 @@
+{
+  "name": "status-reporter",
+  "description": "Reports build status to other agents in the mesh.",
+  "url": "https://status.acme.example/a2a",
+  "version": "1.0.0",
+  "security": [{ "oauth": ["status:read"] }],
+  "securitySchemes": {
+    "oauth": {
+      "type": "oauth2",
+      "flows": {
+        "authorizationCode": {
+          "authorizationUrl": "https://status.acme.example/authorize",
+          "tokenUrl": "https://status.acme.example/token",
+          "scopes": { "status:read": "Read build status" }
+        }
+      }
+    }
+  },
+  "signatures": [
+    { "protected": "eyJhbGciOiJFZERTQSJ9", "signature": "c2lnbmVkLWNhcmQtZXhhbXBsZQ" }
+  ]
+}

@@ -1,18 +1,26 @@
-"""Adversarial validation, tier 0: symbolic proof-of-traversability.
+"""Adversarial validation, tier 0: symbolic attack-path reachability.
 
 `paths.py` assembles the attack paths a whole-system model can express - a way
 IN, a way to RUN CODE, a way to GET DATA OUT, all reachable in one agent
 session. This module walks each of those paths over the model's own edges and
-turns it into a *proof*: stage by stage, it names the capability that gives each
-rung its role and the trust boundaries the walk crosses, then commits the result
-to the evidence chain as a Finding. A path is no longer only displayed; it is
+records it stage by stage: the capability that gives each rung its role and the
+trust boundaries the walk crosses, then commits the result to the evidence chain
+as a Finding. A path is no longer only displayed; the reachability claim is
 attested.
+
+What this establishes, and what it does not. The walk shows a path is *reachable
+in the modeled graph*: every rung is a capability the design DECLARES, so the
+model is a sound over-approximation of declared capability. Reachability is a
+necessary, not a sufficient, condition for exploitation - it does not model
+whether the LLM would follow an injection, whether a guardrail or human approval
+sits in the path, or whether the sink is reachable at runtime. We report
+feasibility over the modeled design, never "proof that an attacker succeeds."
 
 This is the symbolic tier. It is deterministic - no LLM, no execution, no
 network - so it always runs with zero dependencies, and it never touches a live
-system. The generative tier (an LLM drafts the concrete payload for a path) and
+system. The generative tier (an LLM drafts the predicted payload for a path) and
 the executed tier (a sandboxed, own-target-only run captures a real transcript)
-build on the same proof schema. See research/adversarial-validation-spike.md.
+build on the same schema. See research/adversarial-validation-spike.md.
 """
 from __future__ import annotations
 
@@ -43,8 +51,9 @@ class ProofStep:
 @dataclass
 class Proof:
     """A walked attack path: the ordered steps, the trust boundaries it spans,
-    and a verdict. The symbolic tier's verdict is always `traversable` - it
-    proves the path *holds structurally*, not that a payload was executed."""
+    and a verdict. The symbolic tier's verdict is always `reachable` - the path
+    *holds structurally over declared capability*, not that a payload was
+    executed or that an attacker would in fact succeed."""
     kind: str            # external | internal
     impact_label: str
     steps: list[ProofStep] = field(default_factory=list)
@@ -69,7 +78,7 @@ class Proof:
 
     def title(self) -> str:
         return (
-            f"Proven traversable: {self._entry_summary()} can reach "
+            f"Reachable in the modeled design: {self._entry_summary()} can reach "
             f"{self.impact_label}"
         )
 

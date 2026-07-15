@@ -122,7 +122,7 @@
   <div class="wrap hero">
     <p class="eyebrow"><b>Playground</b> · the whole loop, live</p>
     <h1>Run Attestral. <em>Right here.</em></h1>
-    <p class="lede">Every line below is <b>real captured CLI output</b>, streamed like a live session. Click a command to run it, or hit <b>run the full loop</b> and watch a design go from scan, to a proven attack path, to a runtime policy, to caught drift. No install needed to look; <code>pip install attestral</code> when you want it on your own repo.</p>
+    <p class="lede">Every line below is <b>real captured CLI output</b>, streamed like a live session. Click a command to run it, or hit <b>run the full loop</b> and watch a design go from scan, to a reachable attack path, to a runtime policy, to caught drift. No install needed to look; <code>pip install attestral</code> when you want it on your own repo.</p>
 
     <div class="pg">
       <div class="pg-bar" aria-hidden="true">
@@ -197,9 +197,9 @@
         L('dim','  … 16 findings total · run  attestral explain <ID>  for any')
       ]},
       validate:{label:'validate',sub:'prove the path',cmd:'attestral validate examples/vulnerable-agent',out:[
-        L('crit','Adversarial validation (1 proven)'),
+        L('crit','Adversarial validation (1 reachable)'),
         L('',''),
-        L('b','  ATL-RT-INTERNAL  Proven traversable: a prompt injection can reach exfiltration'),
+        L('b','  ATL-RT-INTERNAL  Reachable in the modeled design: a prompt injection can reach exfiltration'),
         L('dim','    1. entry:  jira    - ingests untrusted input via saas_data'),
         L('dim','    2. entry:  web     - ingests untrusted input via network'),
         L('dim','    3. pivot:  shell   - runs code via shell'),
@@ -211,10 +211,10 @@
       remediate:{label:'validate --remediate',sub:'prove the fix',cmd:'attestral validate examples/vulnerable-agent --remediate',out:[
         L('ok','Verified remediations (2)'),
         L('b','  Scope or remove the outbound channel on web'),
-        L('dim','    verify: strip network/messaging, re-synthesize -> PROVEN: closes every path'),
+        L('dim','    verify: strip network/messaging, re-synthesize -> VERIFIED: path removed from model'),
         L('dim','    posture: worst agentic risk AARS 10.0 -> 7.6'),
         L('b','  Remove code execution (shell) from deploy, shell'),
-        L('dim','    verify: strip shell, re-synthesize -> PROVEN: closes every path'),
+        L('dim','    verify: strip shell, re-synthesize -> VERIFIED: path removed from model'),
         L('dim','    posture: worst agentic risk AARS 10.0 -> 9.3')
       ]},
       execute:{label:'validate --execute',sub:'tier 2 sandbox',cmd:'attestral validate examples/vulnerable-agent --execute',out:[

@@ -9,6 +9,7 @@ build/
 .DS_Store
 .vercel
 report.json
+evaluation/results.json
 .claude/
 .codegraph/
 research/

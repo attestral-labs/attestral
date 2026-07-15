@@ -1,0 +1,95 @@
+# Attestral agentic-detection benchmark.
+#
+# Three kinds of case, each measuring a different thing the tool's credibility
+# rests on (see evaluation/README.md):
+#   positive - a design that SHOULD raise specific agentic findings. Measures
+#              recall / regression: every labelled finding must still fire.
+#   benign   - a realistic, well-configured design that should raise NO agentic
+#              finding. Measures the false-positive rate - the number that
+#              decides whether a skeptical engineer keeps the tool past run one.
+#   gap      - a real 2026 threat the design-time model cannot see today (e.g. a
+#              runtime rug-pull). Labelled with the threat and reported as a
+#              known limitation, never as a pass. Intellectual honesty on record.
+#
+# `expect` lists agentic rule ids (ATL-1xx / 2xx). Positive labels are grounded
+# in each fixture's documented intent (its README) and the cited research.
+
+positive:
+  - id: agentic-risks
+    path: examples/agentic-risks
+    expect: [ATL-101, ATL-103, ATL-104, ATL-107, ATL-108, ATL-109, ATL-110, ATL-111, ATL-112, ATL-114, ATL-115, ATL-116, ATL-117, ATL-202, ATL-203, ATL-207]
+    cite: "OWASP ASI02/03/04/05; the lethal trifecta (Willison 2025)"
+  - id: tool-shadowing
+    path: examples/tool-shadowing
+    expect: [ATL-106, ATL-204, ATL-205, ATL-206]
+    cite: "MCP tool poisoning / shadowing (Invariant Labs 2025); SAFE-MCP"
+  - id: multi-agent
+    path: examples/multi-agent
+    expect: [ATL-119, ATL-120, ATL-121, ATL-122, ATL-130, ATL-202, ATL-203, ATL-207, ATL-208, ATL-210]
+    cite: "OWASP ASI07 inter-agent comms; A2A Spec 1.0"
+  - id: rag-shared-identity
+    path: examples/rag-shared-identity
+    expect: [ATL-104, ATL-105, ATL-114, ATL-121, ATL-130, ATL-208, ATL-211]
+    cite: "RAG confused-deputy; OWASP ASI03; A2A Spec 1.0 s8.4"
+  - id: a2a-hardening
+    path: examples/a2a-hardening
+    expect: [ATL-123, ATL-129, ATL-130]
+    cite: "A2A Spec 1.0 (removed OAuth flows; card signing)"
+  - id: mcp-capabilities
+    path: examples/mcp-capabilities
+    expect: [ATL-125, ATL-126]
+    cite: "Unit 42 2025-12 (sampling); When MCP Servers Attack 2025-09 (elicitation)"
+  - id: coding-agent-trust
+    path: examples/coding-agent-trust
+    expect: [ATL-127, ATL-128]
+    cite: "CVE-2026-33068 (permission bypass); CVE-2026-21852 (auto-enable MCP)"
+  - id: mcp-registry
+    path: examples/mcp-registry
+    expect: [ATL-131, ATL-132, ATL-133]
+    cite: "MCP Registry server.json schema; SEP-2596 (SSE deprecation)"
+  - id: guardrails-gap
+    path: examples/guardrails-gap
+    expect: [ATL-103, ATL-108, ATL-124, ATL-212]
+    cite: "Guardrails cover dialog, not the tool fleet"
+  - id: attack-path
+    path: examples/attack-path
+    expect: [ATL-103, ATL-107, ATL-121, ATL-130, ATL-203, ATL-207, ATL-208, ATL-210]
+    cite: "External reachability: public A2A -> exec -> exfil"
+  - id: vulnerable-agent
+    path: examples/vulnerable-agent
+    expect: [ATL-101, ATL-102, ATL-103, ATL-104, ATL-105, ATL-106, ATL-107, ATL-108, ATL-115, ATL-202, ATL-203, ATL-207]
+    cite: "Broad insecure MCP fleet"
+  - id: hook-injection
+    path: examples/hook-injection
+    expect: [ATL-118]
+    cite: "CVE-2025-59536 (.claude/settings.json hook injection)"
+  - id: a2a-cloud-reach
+    path: examples/a2a-cloud-reach
+    expect: [ATL-104, ATL-112, ATL-123, ATL-130, ATL-209]
+    cite: "External agent reaches cloud through a public A2A endpoint"
+  - id: demo-project
+    path: examples/demo-project
+    expect: [ATL-101, ATL-102, ATL-103, ATL-104, ATL-105, ATL-115, ATL-201]
+    cite: "Agent runtime and cloud share no declared boundary controls"
+
+benign:
+  - id: benign-readonly-fleet
+    path: evaluation/corpus/benign-readonly-fleet
+    cite: "A narrowly-scoped, human-in-the-loop fleet should be quiet."
+  - id: benign-authed-remote
+    path: evaluation/corpus/benign-authed-remote
+    cite: "A properly authenticated remote MCP server should be quiet."
+  - id: benign-signed-a2a
+    path: evaluation/corpus/benign-signed-a2a
+    cite: "A signed, auth-required, modern-flow A2A agent should be quiet."
+
+gap:
+  - id: gap-description-rugpull
+    path: evaluation/corpus/gap-description-rugpull
+    threat: "Rug-pull: a tool's description is silently changed after approval."
+    expect_class: "runtime description-hash drift"
+    note: >-
+      A single design-time snapshot structurally cannot see a description that
+      changes after review. Detection belongs on the runtime side (drift diff of
+      the served description hash vs the attested hash). Tracked as roadmap M-DRIFT.
+    cite: "Tool poisoning / rug-pull (Invariant Labs 2025); Microsoft 2026-06-30"

@@ -623,8 +623,8 @@
   <section id="prove">
     <div class="wrap">
       <p class="eyebrow" style="color:var(--seal)">Adversarial validation · <code>attestral validate</code></p>
-      <h2>It no longer just flags the path. It proves it holds.</h2>
-      <p class="section-lede">A finding is an opinion. <code>attestral validate</code> takes the attack path it built from your system model and walks it over the model's own edges, proving whether it actually holds: entry, pivot, impact. The proof lands in the tamper-evident evidence chain, it scores the risk with an OWASP AIVSS agentic score (AARS), and it even <b>proves the fix</b> - the one change that closes the path, verified by re-synthesis. Watch one prove itself below, then open the fully interactive walker.</p>
+      <h2>It no longer just flags the path. It shows the path is reachable.</h2>
+      <p class="section-lede">A finding is a claim about one config block. <code>attestral validate</code> takes the attack path it built from your system model and walks it over the model's own edges, showing whether it is reachable: entry, pivot, impact. The walked path lands in the tamper-evident evidence chain, it scores the risk with an OWASP AIVSS agentic score (AARS), and it even <b>verifies the fix</b> - the one change that removes the path, confirmed by re-synthesis. Reachability is computed over declared capability (a sound over-approximation); it is necessary, not sufficient, for exploitation. Watch one walk below, then open the fully interactive walker.</p>
       <div class="pshow">
         <div class="pshow-head">
           <p class="eyebrow">ATL-RT-INTERNAL · a prompt injection reaches exfiltration</p>
@@ -637,7 +637,7 @@
           <div class="ps-stage" data-role="impact"><span class="role">impact</span><div class="who">web-fetch</div><div class="via">exfiltrates via network</div></div>
         </div>
         <div class="pshow-foot">
-          <div class="ps-stamp" id="psStamp"><span class="ps-seal">PROVEN<br>TRAVERSABLE</span><span class="ps-hash">chained · <b>verify offline</b> · OWASP AIVSS <b style="color:var(--seal)">AARS 9.3</b></span></div>
+          <div class="ps-stamp" id="psStamp"><span class="ps-seal">REACHABLE<br>IN MODEL</span><span class="ps-hash">chained · <b>verify offline</b> · OWASP AIVSS <b style="color:var(--seal)">AARS 9.3</b></span></div>
           <button class="ps-replay" id="psReplay" type="button">replay</button>
         </div>
       </div>
@@ -1021,7 +1021,7 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
         <p class="labs-lede">Agents got tools before anyone secured them. The industry's answer was to bolt an agent tab onto scanners built for a pre-agent world. Attestral is built the other way around: a system model of the agent, its tools, and the cloud they can reach comes first, and everything else follows from that graph.</p>
         <div class="labs-pillars">
           <div class="labs-pillar"><span class="lp-k">Be #1, uncontested</span><h3>Agentic security is our identity</h3><p>MCP, prompt injection, tool poisoning, excessive agency, the OWASP Agentic and MITRE ATLAS surfaces. Depth here is the moat, and it is where we invest first.</p></div>
-          <div class="labs-pillar"><span class="lp-k">Structurally uncopyable</span><h3>Architecture, not a linter</h3><p>One system model lets us reason about agent-to-cloud reachability, secrets crossing a boundary, proven attack paths, and compile-to-policy drift. You cannot match that by adding rules.</p></div>
+          <div class="labs-pillar"><span class="lp-k">Structurally uncopyable</span><h3>Architecture, not a linter</h3><p>One system model lets us reason about agent-to-cloud reachability, secrets crossing a boundary, reachable attack paths, and compile-to-policy drift. You cannot match that by adding rules.</p></div>
           <div class="labs-pillar"><span class="lp-k">Parity, not volume</span><h3>Your cloud, covered too</h3><p>Around 150 high-signal CIS checks across AWS, Azure, GCP, and Kubernetes. Good enough that most teams need no second scanner, never an arms race.</p></div>
         </div>
         <p class="labs-foot"><b>Open source, forever.</b> The core is Apache 2.0 and always will be. The vision is a single artifact that carries a design from review, to proof, to runtime policy, so that "is this agent safe" stops being an opinion and becomes something anyone can verify. <a href="https://github.com/attestral-labs/attestral" style="color:var(--seal)">See the work on GitHub.</a></p>
@@ -1476,7 +1476,7 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       function step(ts){if(t0===null)t0=ts;var p=Math.min((ts-t0)/dur,1),d=p*total,acc=0,s=0;while(s<segs.length&&acc+segs[s]<d){acc+=segs[s];s++;}if(s>=segs.length)s=segs.length-1;var loc=segs[s]?(d-acc)/segs[s]:0,x=pathPts[s][0]+(pathPts[s+1][0]-pathPts[s][0])*loc,y=pathPts[s][1]+(pathPts[s+1][1]-pathPts[s][1])*loc;pulse.setAttribute('cx',x);pulse.setAttribute('cy',y);if(p<1)requestAnimationFrame(step);else{pulse.style.opacity='0';if(done)done();}}
       requestAnimationFrame(step);
     }
-    function finish(){if(hint)hint.innerHTML='<b style="color:var(--seal)">proven traversable</b>: web-fetch to ops-shell to cloud, across the trust boundary';tracing=false;}
+    function finish(){if(hint)hint.innerHTML='<b style="color:var(--seal)">reachable in the modeled graph</b>: web-fetch to ops-shell to cloud, across the trust boundary';tracing=false;}
     function trace(){
       timers.forEach(clearTimeout);timers=[];clearHL();pulse.style.opacity='0';tracing=true;
       var seq=['web','agent','shell','s3'];

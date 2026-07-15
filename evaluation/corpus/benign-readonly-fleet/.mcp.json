@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "notes": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/srv/project-notes/readonly"]
+    },
+    "docs-search": {
+      "command": "uvx",
+      "args": ["docs-search-mcp@1.4.2"]
+    }
+  }
+}
