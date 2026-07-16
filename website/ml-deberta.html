@@ -297,7 +297,7 @@
   <section>
     <p class="eyebrow">In the scan</p>
     <h2>Where it runs in Attestral</h2>
-    <p>The ML layer is optional and off by default. It runs when you pass <code>--ml</code>, and it is tiered: a zero-dependency heuristic, an ONNX build, and this DeBERTa build. All three emit the same finding shape. DeBERTa is the most accurate and the heaviest. It scores only the language surfaces an agent actually reads and can be steered by: server and tool descriptions, and system-prompt and instruction files.</p>
+    <p>The ML layer is tiered, and the zero-dependency heuristic tier runs by default on every scan (pass <code>--no-ml</code> to skip it). <code>--ml</code> upgrades to a model-grade tier: an ONNX build, or this DeBERTa build. All three emit the same finding shape. DeBERTa is the most accurate and the heaviest. It scores only the language surfaces an agent actually reads and can be steered by: server and tool descriptions, and system-prompt and instruction files.</p>
     <figure>
       <div class="diagram">
       <svg viewBox="0 0 620 250" role="img" aria-label="The scoring pipeline: surface text, split into overlapping windows, scored by DeBERTa, compared to a threshold, emitted as a finding.">

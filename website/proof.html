@@ -247,8 +247,8 @@
 
 <main>
   <div class="wrap hero">
-    <p class="eyebrow"><b>New</b> · adversarial validation · <code>attestral validate</code></p>
-    <h1><em>Proof</em>, not findings.</h1>
+    <p class="eyebrow">adversarial validation · <code>attestral validate</code></p>
+    <h1><em>Reachability</em>, not just findings.</h1>
     <p class="lede">Every other scanner stops at "this looks risky." Attestral takes the attack path it assembled from your system model, <b>walks it over the model's own edges, and shows it is reachable in the modeled design</b> - entry, pivot, impact, stage by stage - then chains the walked path to a tamper-evident evidence chain. A static finding is a claim about one config block. A walked, chained path names every rung and the boundaries it crosses.</p>
     <p class="lede" style="font-size:.82rem;opacity:.72;margin-top:-6px"><b>What this claims.</b> Reachability is computed over the capability your design <em>declares</em>, treated as a sound over-approximation. It is a necessary, not sufficient, condition for a working attack: it does not model whether the agent follows an injection, or whether a guardrail or human approval sits in the path. We report feasibility over the modeled graph, never proof that an attacker succeeds.</p>
     <div class="cmd"><span class="dollar">$</span> <span>attestral validate .</span> <button type="button" data-copy="attestral validate .">Copy</button></div>
@@ -263,13 +263,13 @@
 
   <section id="walker">
     <div class="wrap">
-      <h2>Watch a proof render. Then try to break it.</h2>
-      <p class="section-lede">This is a real fleet: a support agent with a web fetcher, a ticket reader, a shell, and a deploy tool. One tool description carries a hidden instruction to read <code>~/.ssh/id_rsa</code> and post it out. Hit <b>Run validation</b> and watch the path get walked. Then toggle a server off and watch the proof die: remove any one rung and the exploit is gone. That is the whole point. <b>The fix is one toggle, and now you can see it.</b></p>
+      <h2>Watch the path get walked. Then try to break it.</h2>
+      <p class="section-lede">This is a real fleet: a support agent with a web fetcher, a ticket reader, a shell, and a deploy tool. One tool description carries a hidden instruction to read <code>~/.ssh/id_rsa</code> and post it out. Hit <b>Run validation</b> and watch the path get walked. Then toggle a server off and watch it go away: remove any one rung and the path is no longer reachable. That is the whole point. <b>The fix is one toggle, and now you can see it.</b></p>
 
       <div class="lab">
         <div class="lab-bar" aria-hidden="true">
           <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-          <span class="lab-title">attestral validate · in-browser proof engine</span>
+          <span class="lab-title">attestral validate · in-browser reachability engine</span>
         </div>
         <div class="lab-body">
           <p class="lab-intro">The fleet (toggle any server, then re-run). Capability tags mirror the MCP ingester; the walk mirrors <code>attestral/paths.py</code> and <code>attestral/redteam.py</code>.</p>
@@ -330,10 +330,10 @@ chain <span class="ok">VALID</span>
 <br>
 <span class="ok">Verified remediations (2)</span><br>
 &nbsp;&nbsp;<b>Scope or remove the outbound channel on web</b><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip network/messaging, re-synthesize -&gt; <span class="ok">VERIFIED: path removed from model</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip network/messaging, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">posture:</span> worst agentic risk AARS 10.0 -&gt; <span class="ok">7.6</span><br>
 &nbsp;&nbsp;<b>Remove code execution (shell) from deploy, shell</b><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip shell, re-synthesize -&gt; <span class="ok">VERIFIED: path removed from model</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">verify:</span> strip shell, re-synthesize -&gt; <span class="ok">PROVEN: closes every path</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">posture:</span> worst agentic risk AARS 10.0 -&gt; <span class="ok">9.3</span>
       </div>
       <p class="section-lede" style="margin-top:20px;font-size:.9rem"><code>--action-space</code> goes wider still: it enumerates the tool-call sequences the fleet can be <em>induced into</em>, not just the one collapsed chain, the behavioral surface a per-config scanner never sees.</p>
@@ -399,7 +399,7 @@ chain <span class="ok">VALID</span>
     <div class="wrap">
       <div class="flinch">
         <h2>Does this make you flinch?</h2>
-        <p class="section-lede">Point it at your own fleet. If the proof makes you reach for the config, that is the signal a static finding could never give you. It reads only what you point it at, runs on your laptop, and sends nothing anywhere.</p>
+        <p class="section-lede">Point it at your own fleet. If the walked path makes you reach for the config, that is the signal a static finding could never give you. It reads only what you point it at, runs on your laptop, and sends nothing anywhere.</p>
         <div class="cmd" style="margin:0 auto 24px;max-width:max-content"><span class="dollar">$</span> <span>pip install attestral &amp;&amp; attestral validate .</span> <button type="button" data-copy="pip install attestral && attestral validate .">Copy</button></div>
         <div class="cta-row">
           <a class="btn primary" href="https://github.com/attestral-labs/attestral">★ Star on GitHub</a>

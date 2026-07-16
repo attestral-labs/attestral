@@ -180,7 +180,7 @@
     var CMD={
       scan:{label:'scan',sub:'review a design',cmd:'attestral scan examples/vulnerable-agent',out:[
         L('','attestral · examples/vulnerable-agent'),
-        L('b','6 components · 16 findings · 4 critical · 8 high · 4 medium'),
+        L('b','6 components · 16 findings · 4 critical · 11 high · 1 medium'),
         L('',''),
         L('crit','Attack paths (1)'),
         L('dim','  internal chain:'),
@@ -192,12 +192,13 @@
         L('','  ATL-202  Tool fleet forms an exfiltration chain (lethal trifecta)  (model)'),
         L('','  ATL-103  Shell-capable MCP server configured  (mcp_server.shell)'),
         L('','  ATL-108  Agent tool calls auto-approved without a human checkpoint  (mcp_server.shell)'),
-        L('high','HIGH (8)'),
+        L('high','HIGH (11)'),
+        L('','  ATL-107  MCP server grants outbound network access  (mcp_server.web)  · raised from medium'),
         L('','  ATL-ML-001  Prompt-injection text hidden in a tool description  (mcp_server.web)'),
-        L('','  ATL-207  Untrusted input can reach a sensitive action  (model)'),
+        L('','  ATL-207  Untrusted input can reach a code-execution tool  (model)'),
         L('dim','  … 16 findings total · run  attestral explain <ID>  for any')
       ]},
-      validate:{label:'validate',sub:'prove the path',cmd:'attestral validate examples/vulnerable-agent',out:[
+      validate:{label:'validate',sub:'show the path is reachable',cmd:'attestral validate examples/vulnerable-agent',out:[
         L('crit','Adversarial validation (1 reachable)'),
         L('',''),
         L('b','  ATL-RT-INTERNAL  Reachable in the modeled design: a prompt injection can reach exfiltration'),
@@ -206,16 +207,16 @@
         L('dim','    3. pivot:  shell   - runs code via shell'),
         L('dim','    4. impact: web     - exfiltrates via network'),
         L('dim','    boundaries: agent_runtime'),
-        L('crit','    verdict: traversable'),
+        L('crit','    verdict: traversable (in the modeled graph)'),
         L('dim','    fix: break the chain - remove any one rung')
       ]},
-      remediate:{label:'validate --remediate',sub:'prove the fix',cmd:'attestral validate examples/vulnerable-agent --remediate',out:[
+      remediate:{label:'validate --remediate',sub:'verify the fix',cmd:'attestral validate examples/vulnerable-agent --remediate',out:[
         L('ok','Verified remediations (2)'),
         L('b','  Scope or remove the outbound channel on web'),
-        L('dim','    verify: strip network/messaging, re-synthesize -> VERIFIED: path removed from model'),
+        L('dim','    verify: strip network/messaging, re-synthesize -> PROVEN: closes every path'),
         L('dim','    posture: worst agentic risk AARS 10.0 -> 7.6'),
         L('b','  Remove code execution (shell) from deploy, shell'),
-        L('dim','    verify: strip shell, re-synthesize -> VERIFIED: path removed from model'),
+        L('dim','    verify: strip shell, re-synthesize -> PROVEN: closes every path'),
         L('dim','    posture: worst agentic risk AARS 10.0 -> 9.3')
       ]},
       execute:{label:'validate --execute',sub:'tier 2 sandbox',cmd:'attestral validate examples/vulnerable-agent --execute',out:[
