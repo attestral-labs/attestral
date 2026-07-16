@@ -43,6 +43,22 @@ def test_kubernetes_rules_fire():
     } <= ids
 
 
+def test_kubernetes_hardening_rules_fire():
+    """The ingester-expansion wave: AppArmor-unconfined and plaintext env
+    secrets, over the k8s-hardening fixture (leaky-pod triggers both)."""
+    model = build_model("examples/k8s-hardening")
+    ids = {f.rule_id for f in RuleEngine().evaluate(model)}
+    assert {"ATL-530", "ATL-531"} <= ids
+
+
+def test_kubernetes_rbac_rules_fire():
+    """RBAC/binding component types from the ingester expansion: wildcard
+    verbs/resources, secrets access, and a cluster-admin binding."""
+    model = build_model("examples/k8s-rbac")
+    ids = {f.rule_id for f in RuleEngine().evaluate(model)}
+    assert {"ATL-532", "ATL-533", "ATL-534", "ATL-535"} <= ids
+
+
 def test_rule_pack_has_no_duplicate_ids():
     rules = RuleEngine().rules
     ids = [r["id"] for r in rules]

@@ -1,0 +1,32 @@
+# Under-hardened Pod exercising the pod- and container-level hardening signals
+# the ingester now emits. Everything here is a risky value a future rule matches.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: leaky-pod
+  namespace: app
+  annotations:
+    # Legacy per-container AppArmor annotation, keyed by container name -> "unconfined".
+    container.apparmor.security.beta.kubernetes.io/app: unconfined
+spec:
+  hostNetwork: true          # host_network: true
+  hostPID: true              # host_pid: true
+  hostIPC: true              # host_ipc: true
+  # No serviceAccountName -> resolves to "default" (the risky case).
+  securityContext:
+    runAsUser: 0             # run_as_user: 0 (root), inherited by the container
+    seLinuxOptions:          # _has_selinux_options: true (pod level)
+      level: "s0:c123,c456"
+  containers:
+    - name: app
+      image: registry.example.com/app:1.2.3
+      env:
+        # Literal value on a secret-named var -> _env_plaintext_secret: true
+        - name: DB_PASSWORD
+          value: "hunter2"
+        # The good pattern -> _env_uses_secret_ref: true
+        - name: API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: api-creds
+              key: token

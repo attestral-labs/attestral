@@ -1,0 +1,15 @@
+# Minimal Pod with no securityContext and no env: the "unset" baseline. Proves
+# the ingester leaves resolvable-but-absent signals unset (attr_missing) rather
+# than inventing safe defaults, and emits the derived booleans as false.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: plain-pod
+  namespace: app
+spec:
+  # No serviceAccountName -> "default"; no hostNetwork/PID/IPC -> false.
+  containers:
+    - name: app
+      image: registry.example.com/app:2.0.0
+      # No securityContext -> run_as_user / _apparmor_profile absent,
+      # _has_selinux_options false. No env -> both env signals false.

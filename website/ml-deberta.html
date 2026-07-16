@@ -56,6 +56,13 @@
   .nav-links a[aria-current="page"]{color:var(--seal)}
   @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
 
+  /* review-layers sub-nav */
+  .layernav{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;font-family:var(--mono);font-size:.8rem;padding:13px 0;border-bottom:1px solid var(--rule)}
+  .layernav>span{color:var(--muted);letter-spacing:.09em;text-transform:uppercase;font-size:.66rem}
+  .layernav a{color:var(--ink);text-decoration:none}
+  .layernav a:hover{color:var(--seal)}
+  .layernav a[aria-current="page"]{color:var(--seal)}
+
   /* Article */
   article{max-width:760px;margin:0 auto;padding:56px 0 40px}
   .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);display:flex;align-items:center;gap:.6rem}
@@ -124,18 +131,26 @@
     <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect class="p" x="8" y="8" width="84" height="84" rx="18"/><g class="k" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
     <nav class="nav-links" aria-label="Main">
       <a href="system.html">System</a>
-      <a href="index.html#how">How it works</a>
+      <a href="index.html#how" aria-current="page">Review layers</a>
       <a href="index.html#start">Get started</a>
       <a href="proof.html">Proof</a>
       <a href="playground.html">Playground</a>
       <a href="docs.html">Docs</a>
-      <a href="ml-deberta.html" aria-current="page">ML layer</a>
       <a href="architecture.html">Architecture</a>
       <a href="https://github.com/attestral-labs/attestral">GitHub</a>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">&#9790;</button>
     </nav>
   </div>
 </header>
+
+<div class="wrap">
+  <nav class="layernav" aria-label="Review layers">
+    <span>Review layers</span>
+    <a href="deterministic.html">1 &#183; Deterministic</a>
+    <a href="ml-deberta.html" aria-current="page">2 &#183; ML classifier</a>
+    <a href="judge.html">3 &#183; LLM judge</a>
+  </nav>
+</div>
 
 <div class="wrap">
 <article>
@@ -292,6 +307,47 @@
     <p class="eyebrow">From model to detector</p>
     <h2>Fine-tuning it to answer one question</h2>
     <p>The pre-trained model understands language but answers no particular question. To turn it into a prompt-injection detector you <strong>fine-tune</strong> it: attach a small classification head on top of the pooled output, then train on a labeled set of injection and benign examples. The head learns to map the model's representation to two scores, injection and benign, which a softmax normalizes into probabilities. Attestral uses a community model fine-tuned exactly this way, <code>protectai/deberta-v3-base-prompt-injection-v2</code>.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Proper supervision</p>
+    <h2>What "supervised" actually requires</h2>
+    <p>Fine-tuning is one line to say and a real cost to pay. Supervised training needs <strong>labeled examples</strong>, thousands of them, each a span of text with a known answer: this description is an injection, this one is benign. You feed batches through the model, compare its predicted probability to the truth with a cross-entropy loss, and nudge the weights by gradient descent until the error stops falling on a held-out set you never trained on. The community model was built this way on public injection and jailbreak corpora, which is exactly why it generalizes to phrasings it never saw verbatim: it learned the <em>shape</em> of an override instruction, not a blocklist of strings.</p>
+    <p>So can you use DeBERTa? You already are, it is the tier-3 build, and it is fully fine-tunable. The heavy <code>attestral[ml]</code> extra pulls <code>transformers</code> and <code>torch</code> precisely so a team can continue-train the classifier on its own labeled data locally, offline, and pin the resulting revision. The interesting question is where the labels come from, and here Attestral has an asset most projects do not.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The idea worth trying</p>
+    <h2>Weak supervision from the rule packs</h2>
+    <p>Hand-labeling tens of thousands of tool descriptions is the expensive part of any supervised effort. But Attestral already owns a labeler that is cheap, fast, and precise on the cases it knows: <strong>the deterministic rules</strong>. Run the pack across a large corpus of real MCP configs and agent prompts, and every surface a rule fires on gets a high-quality positive label for free; the vast benign remainder gives you negatives. This is <strong>weak supervision</strong>, and it turns the rules into a training-data factory.</p>
+    <p>The point is not to make the model reproduce the rules, that would be pointless, the rules already run. The point is to make it <strong>generalize past them</strong>. Deterministic matchers catch known patterns; a model trained on their labels learns the family those patterns belong to and flags the paraphrase, the reordering, the novel wording that no fixed matcher anticipated. The rules label; the model reaches.</p>
+    <figure>
+      <div class="diagram">
+      <svg viewBox="0 0 620 250" role="img" aria-label="A weak-supervision loop: rules label a real-config corpus, DeBERTa is fine-tuned on the labels, it catches variants the rules miss, and a human reviews the disagreements to correct the labels.">
+        <g font-size="11">
+          <rect class="tok" x="18" y="96" width="140" height="56" rx="7"/><text x="88" y="120" text-anchor="middle" font-weight="600">real-config</text><text x="88" y="136" text-anchor="middle">corpus</text>
+          <rect class="chip" x="200" y="96" width="140" height="56" rx="7"/><text x="270" y="116" text-anchor="middle" font-weight="600" class="t-seal">rules label it</text><text x="270" y="132" text-anchor="middle" class="t-mut" font-size="9.5">precise, narrow</text>
+          <rect class="tok-ink" x="382" y="96" width="140" height="56" rx="7" stroke-width="1.6"/><text x="452" y="116" text-anchor="middle" font-weight="600">fine-tune</text><text x="452" y="132" text-anchor="middle" font-size="9.5" class="t-mut">DeBERTa</text>
+          <rect class="tok" x="382" y="186" width="200" height="44" rx="7"/><text x="482" y="205" text-anchor="middle" class="t-verify" font-weight="600">catches variants rules miss</text><text x="482" y="220" text-anchor="middle" font-size="9.5" class="t-mut">paraphrase, reorder, novel wording</text>
+          <rect class="tok" x="150" y="186" width="200" height="44" rx="7"/><text x="250" y="205" text-anchor="middle" font-weight="600">human reviews disagreements</text><text x="250" y="220" text-anchor="middle" font-size="9.5" class="t-mut">corrects the weak labels</text>
+        </g>
+        <g class="stroke-rule" stroke-width="1.4" fill="none">
+          <path d="M158,124 L198,124" marker-end="url(#aw1)"/>
+          <path d="M340,124 L380,124" marker-end="url(#aw1)"/>
+          <path d="M452,152 L452,184" marker-end="url(#aw1)"/>
+          <path d="M382,208 L352,208" marker-end="url(#aw1)"/>
+        </g>
+        <path d="M150,204 C90,204 88,170 88,154" class="stroke-seal" stroke-width="1.5" fill="none" marker-end="url(#aw2)"/>
+        <text x="300" y="28" text-anchor="middle" font-size="10.5" class="t-mut">the rules are the labeler; the model becomes the generalizer</text>
+        <defs>
+          <marker id="aw1" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-rule" stroke-width="1.5"/></marker>
+          <marker id="aw2" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-seal" stroke-width="1.5"/></marker>
+        </defs>
+      </svg>
+      </div>
+      <figcaption>The loop closes with a human. Where the fine-tuned model and the rules <b>disagree</b>, a reviewer adjudicates, and those corrections become the highest-value labels of all: the hard cases neither the rules nor the first model got right. This is how the corpus improves faster than either could alone.</figcaption>
+    </figure>
+    <p>The honest caveat is that weak labels inherit the labeler's blind spots. If the rules never catch a certain injection style, the corpus never labels it positive, and the model is not magically taught it either. That is why the human-reviewed disagreements matter, and why the deterministic layer stays the ground truth an audit rests on. Weak supervision widens the net; it does not replace the judgment about what belongs in it.</p>
   </section>
 
   <section>

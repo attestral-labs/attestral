@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How the judge cross-examines a finding - Attestral</title>
+<meta name="description" content="The LLM-as-judge layer: an independent panel that re-examines every finding, votes confirmed / false-positive / needs-review with a confidence and reasoning, and auto-waives confident false positives without ever deleting them from the evidence chain.">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --code-bg:#E9EBE6;
+    --seal-tint:rgba(150,34,46,.06); --verify-tint:rgba(31,106,74,.09);
+    --display:'Libre Caslon Text',Georgia,serif;
+    --body:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --code-bg:#232B1E;
+      --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+    --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+    --term-bg:#0B0E08; --code-bg:#232B1E;
+    --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+  }
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)}
+  a:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .wordmark svg .p{fill:var(--seal)}
+  .wordmark svg .k{stroke:var(--paper)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--ink);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
+
+  /* review-layers sub-nav */
+  .layernav{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;font-family:var(--mono);font-size:.8rem;padding:13px 0;border-bottom:1px solid var(--rule)}
+  .layernav>span{color:var(--muted);letter-spacing:.09em;text-transform:uppercase;font-size:.66rem}
+  .layernav a{color:var(--ink);text-decoration:none}
+  .layernav a:hover{color:var(--seal)}
+  .layernav a[aria-current="page"]{color:var(--seal)}
+
+  /* Article */
+  article{max-width:760px;margin:0 auto;padding:56px 0 40px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);display:flex;align-items:center;gap:.6rem}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--seal)}
+  article h1{font-family:var(--display);font-weight:400;font-size:clamp(2.1rem,5vw,3rem);line-height:1.12;margin:16px 0 14px;text-wrap:balance}
+  .standfirst{color:var(--muted);font-size:1.15rem;max-width:56ch;margin-bottom:26px;text-wrap:pretty}
+  .meta{font-family:var(--mono);font-size:.73rem;color:var(--muted);letter-spacing:.03em;display:flex;gap:22px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  section{padding:44px 0;border-bottom:1px solid var(--rule)}
+  section:last-of-type{border-bottom:none}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,3.4vw,1.9rem);line-height:1.16;margin:8px 0 14px;text-wrap:balance}
+  h3{font-size:1.02rem;font-weight:600;margin:24px 0 6px}
+  p{margin:0 0 14px;max-width:66ch;text-wrap:pretty}
+  p:last-child{margin-bottom:0}
+  .lede{font-size:1.1rem}
+  em{font-style:italic}
+  strong{font-weight:600}
+  code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:2px}
+  ul{margin:0 0 14px;padding-left:20px;max-width:66ch}
+  li{margin:0 0 6px}
+
+  .pull{font-family:var(--display);font-size:1.35rem;line-height:1.36;border-left:3px solid var(--seal);padding:2px 0 2px 20px;margin:22px 0;max-width:60ch;text-wrap:pretty}
+
+  /* Diagram figure */
+  figure{margin:20px 0 6px}
+  .diagram{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:20px;overflow-x:auto}
+  .diagram svg{display:block;width:100%;height:auto;min-width:460px;overflow:visible}
+  figcaption{font-size:.88rem;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--rule);max-width:70ch;text-wrap:pretty}
+  figcaption b{color:var(--ink);font-weight:600}
+
+  /* SVG shared */
+  svg text{font-family:var(--mono);fill:var(--ink)}
+  .t-mut{fill:var(--muted)} .t-seal{fill:var(--seal)} .t-verify{fill:var(--verify)}
+  .tok{fill:var(--card);stroke:var(--rule)}
+  .tok-ink{fill:var(--paper);stroke:var(--ink)}
+  .chip{fill:var(--seal-tint);stroke:color-mix(in srgb,var(--seal) 40%,transparent)}
+  .chip-v{fill:var(--verify-tint);stroke:color-mix(in srgb,var(--verify) 40%,transparent)}
+  .stroke-rule{stroke:var(--rule)} .stroke-ink{stroke:var(--ink)} .stroke-seal{stroke:var(--seal)} .stroke-verify{stroke:var(--verify)}
+  .fill-seal{fill:var(--seal)} .fill-verify{fill:var(--verify)}
+
+  /* good/bad split */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0;max-width:66ch}
+  .split>div{border:1px solid var(--rule);border-radius:2px;padding:14px 16px;background:var(--card)}
+  .split h4{margin:0 0 6px;font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+  .split.bad h4{color:var(--seal)} .split.good h4{color:var(--verify)}
+  .split p{font-size:.92rem;margin:0;color:var(--muted)}
+  @media(max-width:600px){.split{grid-template-columns:1fr}}
+
+  /* Terminal / code */
+  pre{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:16px 18px;overflow-x:auto;margin:18px 0;border-radius:2px;max-width:66ch}
+  pre .c{color:#8FA398} pre .s{color:#E5697A} pre .g{color:#7CC7A1} pre .y{color:#E2A65B} pre .k{color:#9FC7EA}
+
+  footer{border-top:1px solid var(--rule);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+  .refs{font-family:var(--mono);font-size:.8rem;line-height:1.95;margin:8px 0 0}
+  .refs a{text-decoration:none} .refs a:hover{text-decoration:underline}
+  @media(prefers-reduced-motion:no-preference){a,figure{transition:border-color .15s}}
+  ::selection{background:var(--seal);color:var(--paper)}
+  [id]{scroll-margin-top:24px}
+</style>
+<script>
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect class="p" x="8" y="8" width="84" height="84" rx="18"/><g class="k" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="system.html">System</a>
+      <a href="index.html#how" aria-current="page">Review layers</a>
+      <a href="index.html#start">Get started</a>
+      <a href="proof.html">Proof</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">&#9790;</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="layernav" aria-label="Review layers">
+    <span>Review layers</span>
+    <a href="deterministic.html">1 &#183; Deterministic</a>
+    <a href="ml-deberta.html">2 &#183; ML classifier</a>
+    <a href="judge.html" aria-current="page">3 &#183; LLM judge</a>
+  </nav>
+</div>
+
+<div class="wrap">
+<article>
+
+  <p class="eyebrow">Field notes / The LLM-as-judge layer</p>
+  <h1>How the judge cross-examines a finding</h1>
+  <p class="standfirst">The first two layers produce findings. This one puts each finding on trial. An independent panel reads the finding and its context, votes on whether it is real, and writes down why, so the reviewer inherits fewer false alarms and every verdict is on the record.</p>
+  <div class="meta">
+    <span>Layer: L3, optional</span>
+    <span>Origin: llm</span>
+    <span>Needs: ANTHROPIC_API_KEY</span>
+  </div>
+
+  <section>
+    <p class="lede">A design review has two failure modes. It can miss a real problem, and it can drown a real problem in false positives until someone mutes the tool. The deterministic and ML layers are tuned to miss little; the cost is that some of what they raise is context-dependent. The judge is the layer that reads that context and says, with a confidence and a reason, whether a finding deserves a human's attention.</p>
+    <p>Crucially, it is a <strong>verifier, not a generator</strong>. It never invents findings. It only rules on findings the earlier layers already produced, which keeps the model on a narrow, checkable job.</p>
+    <p class="pull">The judge does not decide what is true. It decides what is worth reading, and it shows its work. The deterministic layer remains the source of truth.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The input</p>
+    <h2>A finding, with its context attached</h2>
+    <p>For each finding, the judge receives the rule that fired, the component it fired on, and the surrounding graph: what the component is, how untrusted input could reach it, which trust boundaries it spans, and what the earlier layers concluded. That context is the difference between "an MCP server uses non-TLS transport" as an abstract rule and the same finding when the endpoint resolves to <code>127.0.0.1</code>. One is a real exposure; the other is a dev loopback where TLS buys nothing.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The mechanism</p>
+    <h2>A three-panelist majority, each a different lens</h2>
+    <p>The judge does not ask one model once. It convenes a small <strong>panel</strong>. Each panelist reviews the same finding through a different lens, exploitability, blast radius, whether the flagged condition even reproduces, and returns its own vote. The <strong>majority verdict wins</strong>, the confidence is the mean of the winning votes, and one winner's reasoning is kept as the record. A single confident model can be confidently wrong; a panel that has to agree is harder to fool.</p>
+    <figure>
+      <div class="diagram">
+      <svg viewBox="0 0 620 260" role="img" aria-label="One finding goes to three panelists with different lenses; their votes are tallied into a majority verdict with a mean confidence.">
+        <rect class="tok-ink" x="20" y="104" width="150" height="52" rx="7" stroke-width="1.6"/><text x="95" y="126" text-anchor="middle" font-size="12" font-weight="600">finding</text><text x="95" y="143" text-anchor="middle" font-size="10" class="t-mut">+ graph context</text>
+        <g font-size="10.5">
+          <rect class="tok" x="235" y="26" width="170" height="52" rx="7"/><text x="320" y="46" text-anchor="middle" font-weight="600" font-size="11.5">panelist A</text><text x="320" y="63" text-anchor="middle" class="t-mut">lens: exploitability</text>
+          <rect class="tok" x="235" y="104" width="170" height="52" rx="7"/><text x="320" y="124" text-anchor="middle" font-weight="600" font-size="11.5">panelist B</text><text x="320" y="141" text-anchor="middle" class="t-mut">lens: blast radius</text>
+          <rect class="tok" x="235" y="182" width="170" height="52" rx="7"/><text x="320" y="202" text-anchor="middle" font-weight="600" font-size="11.5">panelist C</text><text x="320" y="219" text-anchor="middle" class="t-mut">lens: does it reproduce</text>
+        </g>
+        <g class="stroke-rule" stroke-width="1.3" fill="none">
+          <path d="M170,120 C200,120 205,52 233,52" marker-end="url(#aj)"/>
+          <path d="M170,130 L233,130" marker-end="url(#aj)"/>
+          <path d="M170,140 C200,140 205,208 233,208" marker-end="url(#aj)"/>
+        </g>
+        <g class="stroke-rule" stroke-width="1.3" fill="none">
+          <path d="M405,52 C440,52 452,120 480,120" marker-end="url(#aj)"/>
+          <path d="M405,130 L480,130" marker-end="url(#aj)"/>
+          <path d="M405,208 C440,208 452,140 480,140" marker-end="url(#aj)"/>
+        </g>
+        <rect class="chip-v" x="482" y="100" width="118" height="60" rx="7"/><text x="541" y="122" text-anchor="middle" font-size="11.5" font-weight="600">majority</text><text x="541" y="139" text-anchor="middle" font-size="10" class="t-verify">verdict</text><text x="541" y="152" text-anchor="middle" font-size="9.5" class="t-mut">mean confidence</text>
+        <defs><marker id="aj" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-rule" stroke-width="1.4"/></marker></defs>
+      </svg>
+      </div>
+      <figcaption>Diversity of lens is deliberate. Redundant panelists catch the same failure and miss the same failure; panelists with different questions catch failures a single reviewer would not. The panel size and the model are configuration, not magic constants.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">The output</p>
+    <h2>Three verdicts, a confidence, and a reason</h2>
+    <p>Every finding leaves the judge with one of three verdicts and a schema-constrained answer, so a stray sentence from the model can never become a malformed record.</p>
+    <ul>
+      <li><strong>confirmed</strong>: the finding holds up under the panel's scrutiny.</li>
+      <li><strong>false_positive</strong>: the flagged condition is not a real risk in this context.</li>
+      <li><strong>needs_review</strong>: genuinely ambiguous; a human should look.</li>
+    </ul>
+    <pre aria-label="The structured verdict"><span class="c"># the model must answer in this shape, nothing else</span>
+{
+  <span class="k">"verdict"</span>: <span class="g">"false_positive"</span>,
+  <span class="k">"confidence"</span>: <span class="y">0.83</span>,
+  <span class="k">"reasoning"</span>: <span class="g">"endpoint resolves to 127.0.0.1 loopback;</span>
+               <span class="g">TLS adds no confidentiality on the local host."</span>
+}</pre>
+    <p>The verdict is recorded on the finding and carried into the terminal output, the evidence chain, and SARIF. A finding never silently changes state; you see <code>judge: confirmed 0.94</code> next to it, and the reasoning travels with it.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The move that saves time</p>
+    <h2>A confident false positive is waived, never deleted</h2>
+    <p>When the panel returns <strong>false_positive</strong> above a confidence threshold, and only then, Attestral can auto-suppress it: the finding becomes a machine-generated <strong>waiver</strong>, stamped with the judge's model and reasoning. It drops out of your must-fix list without dropping out of the record. This is the same discipline the whole tool runs on, a waived finding is marked, not erased, so the evidence chain still verifies and an auditor can see exactly what was set aside and why.</p>
+    <figure>
+      <div class="diagram">
+      <svg viewBox="0 0 620 150" role="img" aria-label="A high-confidence false positive becomes a machine waiver that stays on the evidence chain.">
+        <rect class="chip" x="20" y="52" width="176" height="46" rx="7"/><text x="108" y="72" text-anchor="middle" font-size="11.5" class="t-seal" font-weight="600">false_positive 0.83</text><text x="108" y="88" text-anchor="middle" font-size="10" class="t-mut">above threshold</text>
+        <path d="M196,75 L258,75" class="stroke-rule" stroke-width="1.4" fill="none" marker-end="url(#aw)"/>
+        <rect class="tok" x="260" y="52" width="150" height="46" rx="7"/><text x="335" y="72" text-anchor="middle" font-size="11.5" font-weight="600">machine waiver</text><text x="335" y="88" text-anchor="middle" font-size="10" class="t-mut">reason recorded</text>
+        <path d="M410,75 L472,75" class="stroke-verify" stroke-width="1.4" fill="none" marker-end="url(#awv)"/>
+        <rect class="chip-v" x="474" y="52" width="126" height="46" rx="7"/><text x="537" y="72" text-anchor="middle" font-size="11.5" class="t-verify" font-weight="600">on the chain</text><text x="537" y="88" text-anchor="middle" font-size="10" class="t-mut">still verifies</text>
+        <text x="335" y="128" text-anchor="middle" font-size="10.5" class="t-mut">out of your must-fix list, never out of the record</text>
+        <defs>
+          <marker id="aw" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-rule" stroke-width="1.5"/></marker>
+          <marker id="awv" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-verify" stroke-width="1.5"/></marker>
+        </defs>
+      </svg>
+      </div>
+      <figcaption>Auto-suppression is opt-in (<code>--judge-suppress</code>) and gated on both the verdict and the confidence. A <code>needs_review</code> or a low-confidence call is never suppressed; it stays in front of a person.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">In the scan</p>
+    <h2>Where it runs</h2>
+    <p>The judge runs last, after the deterministic and ML layers have produced findings, and only when you pass <code>--judge</code> with an API key set. It reviews what exists and records verdicts; it does not gate the earlier layers. Everything it emits is tagged <code>origin=llm</code>.</p>
+    <pre aria-label="Example scan output"><span class="c"># attestral scan examples/vulnerable-agent --judge --judge-suppress</span>
+<span class="c">cross-examining 16 findings with the judge...</span>
+  ATL-202  lethal trifecta        <span class="g">judge: confirmed 0.94</span>
+  ATL-101  non-TLS transport      <span class="y">judge: false_positive 0.83</span>  <span class="c">auto-waived</span>
+  ATL-ML-001  injection text      <span class="y">judge: needs_review 0.55</span>
+16 findings &#183; <span class="g">13 confirmed</span> &#183; 1 auto-waived FP &#183; 2 need review
+           <span class="c">origin=llm  verdicts recorded in the chain</span></pre>
+  </section>
+
+  <section>
+    <p class="eyebrow">Honest limits</p>
+    <h2>Why this layer is optional, and last</h2>
+    <div class="split">
+      <div class="good"><h4>What it buys</h4><p>Context a fixed rule cannot hold: the loopback that makes non-TLS moot, the internal-only tool that makes a path unreachable. Fewer false alarms, each with a written reason.</p></div>
+      <div class="bad"><h4>What it costs</h4><p>It is non-deterministic, it needs an API key, and it spends tokens. Two runs can disagree at the margin. It can be wrong, which is why it labels rather than decides.</p></div>
+    </div>
+    <p>That trade is exactly why the judge sits on top of a deterministic floor rather than replacing it. The reproducible layer is what an audit rests on; the judge is a triage assistant that makes the pile of findings smaller and better-explained. It is powerful and it is clearly fenced, and the output tells you, on every finding, which layer spoke.</p>
+    <p class="pull">A model in the loop is fine when it is a verifier that shows its reasoning and cannot silently delete evidence. It is not fine as the thing an auditor has to trust on faith.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Keep reading</p>
+    <h2>The layers underneath</h2>
+    <p>The judge only rules on findings the earlier layers raise: <a href="deterministic.html">the deterministic layer</a> that scores structure, and <a href="ml-deberta.html">the DeBERTa classifier</a> that scores language. All three feed one evidence chain, each tagged by origin.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">References</p>
+    <div class="refs">
+      Zheng et al., <a href="https://arxiv.org/abs/2306.05685">Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena</a> (2023)<br>
+      <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/">OWASP Top 10 for LLM Applications</a> and the Agentic Security Initiative<br>
+      <a href="https://atlas.mitre.org/">MITRE ATLAS</a> adversarial-ML technique catalog<br>
+      The code: <code>attestral/judge.py</code>, <code>attestral/llm.py</code>, <code>attestral/waivers.py</code>
+    </div>
+  </section>
+
+</article>
+</div>
+
+<footer>
+  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> &#183; An Attestral Labs project &#183; &#169; 2026 &#183; Apache 2.0</div>
+</footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, KEY='attestral-theme';
+    var mq=window.matchMedia('(prefers-color-scheme: dark)');
+    var btn=document.getElementById('themeToggle');
+    function active(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}
+    function paint(){if(btn)btn.textContent=active()==='dark'?'☀':'☾';}
+    if(btn)btn.addEventListener('click',function(){
+      var next=active()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      try{localStorage.setItem(KEY,next);}catch(e){}
+      paint();
+    });
+    mq.addEventListener('change',paint);
+    paint();
+  })();
+</script>
+
+</body>
+</html>
