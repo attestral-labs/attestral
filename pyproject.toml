@@ -16,6 +16,10 @@ dependencies = ["click>=8.1", "pyyaml>=6.0"]
 [project.optional-dependencies]
 llm = ["anthropic>=0.40"]
 terraform = ["python-hcl2>=4.3"]
+# Signing the evidence chain (attestral/signing.py): Ed25519 over a DSSE
+# envelope, so the chain is authentic, not just tamper-evident. Optional; the
+# hash-chain integrity check still works with zero dependencies.
+sign = ["cryptography>=42"]
 # Prompt-injection detection on agentic surfaces is TIERED (attestral/ml.py).
 # The default tier needs NO extra install and the two opt-in tiers share ONE
 # model, so findings are byte-identical whichever scores:

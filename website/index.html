@@ -1137,6 +1137,7 @@ chain <span class="ok">VALID</span>
       <p class="section-lede">Every finding commits to a SHA-256 chain: entry N hashes its own canonical JSON together with the hash of entry N-1, from a zero genesis. The head is the integrity commitment for the run. This recomputes live in your browser, the same construction <code>attestral verify</code> uses. Edit one entry and every hash after it stops matching.</p>
       <div class="echain" id="echain"></div>
       <div class="everdict" id="everdict"><span>chain VALID</span><button class="ereset" id="ereset" type="button" hidden>reset</button></div>
+      <p class="fp-note">That is <b>integrity</b>: the chain is internally consistent. A determined editor could recompute every hash and forge a fresh head, and this check alone would still pass. So <code>attestral sign</code> adds <b>authenticity</b>: an Ed25519 signature over the head, in a DSSE envelope (the Sigstore / in-toto envelope). <code>attestral verify --public-key</code> then catches a recomputed forgery, because re-sealing the chain needs the reviewer's private key. Tamper-evident, and now provably the chain <em>they</em> sealed.</p>
     </div>
   </section>
 

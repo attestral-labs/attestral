@@ -534,12 +534,85 @@ def explain(rule_id: str) -> None:
 
 @main.command()
 @click.argument("report", type=click.Path(exists=True))
-def verify(report: str) -> None:
-    """Verify the tamper-evident audit chain in a JSON report."""
+@click.option("--public-key", type=click.Path(exists=True), default=None,
+              help="Ed25519 public key (PEM) to check the report's signature against.")
+def verify(report: str, public_key: str | None) -> None:
+    """Verify a report's evidence chain: integrity always, authenticity if signed.
+
+    The hash chain is checked with zero dependencies (integrity: no past entry
+    was altered). If the report carries a signature and a --public-key is given,
+    the signature is also verified (authenticity: this is the chain that signer
+    sealed, not a recomputed forgery).
+    """
     data = json.loads(Path(report).read_text())
-    ok = verify_chain(data.get("chain", []))
+    chain = data.get("chain", [])
+    ok = verify_chain(chain)
     click.echo("chain VALID" if ok else "chain INVALID - report has been altered")
-    sys.exit(0 if ok else 1)
+    if not ok:
+        sys.exit(1)
+
+    envelope = data.get("signature")
+    if envelope and public_key:
+        from attestral.evidence import GENESIS
+        from attestral.signing import envelope_head, verify_envelope
+        pub = Path(public_key).read_text()
+        head = chain[-1]["hash"] if chain else GENESIS
+        sig_ok = verify_envelope(envelope, pub)
+        bound = envelope_head(envelope) == head
+        if sig_ok and bound:
+            click.echo("signature VALID - authentic, sealed by the key holder")
+        elif sig_ok and not bound:
+            click.echo("signature INVALID - signed a different chain head "
+                       "(report altered after signing)", err=True)
+            sys.exit(1)
+        else:
+            click.echo("signature INVALID - not signed by this key", err=True)
+            sys.exit(1)
+    elif envelope and not public_key:
+        click.echo("(report is signed; pass --public-key to verify authenticity)")
+    sys.exit(0)
+
+
+@main.command()
+@click.argument("report", type=click.Path(exists=True), required=False)
+@click.option("--key", "key_path", type=click.Path(exists=True), default=None,
+              help="Ed25519 private key (PEM) to sign with.")
+@click.option("--gen-key", "gen_key", default=None, metavar="STEM",
+              help="Generate a keypair to STEM.key + STEM.pub and exit.")
+@click.option("--signer", default="", help="Identity to record in the signature.")
+@click.option("-o", "--output", default=None, help="Write the signed report here (default: in place).")
+def sign(report: str | None, key_path: str | None, gen_key: str | None,
+         signer: str, output: str | None) -> None:
+    """Sign a report's evidence-chain head (tamper-evident -> authentic).
+
+    Wraps the chain head in a DSSE envelope signed with your Ed25519 key, so a
+    tampered chain can no longer be re-sealed without the private key. Generate a
+    keypair with --gen-key; verify a signed report with `attestral verify
+    --public-key`.
+    """
+    from attestral.signing import generate_keypair, sign_head
+    if gen_key:
+        priv, pub = generate_keypair()
+        Path(f"{gen_key}.key").write_text(priv)
+        Path(f"{gen_key}.pub").write_text(pub)
+        click.echo(f"wrote {gen_key}.key (private, keep secret) and {gen_key}.pub (public)")
+        return
+    if not report:
+        raise click.UsageError("provide a REPORT.json to sign, or --gen-key to make a keypair.")
+    if not key_path:
+        raise click.UsageError("pass --key <private.pem> to sign (or --gen-key first).")
+    from attestral.evidence import GENESIS
+    data = json.loads(Path(report).read_text())
+    chain = data.get("chain", [])
+    if not verify_chain(chain):
+        click.echo("refusing to sign: chain INVALID - report has been altered", err=True)
+        sys.exit(1)
+    head = chain[-1]["hash"] if chain else GENESIS
+    data["signature"] = sign_head(head, len(chain), str(data.get("target", "")),
+                                  Path(key_path).read_text(), signer=signer)
+    out = output or report
+    Path(out).write_text(json.dumps(data, indent=2))
+    click.echo(f"signed {out}  ·  head {head[:16]}  ·  signer {signer or '(unnamed)'}")
 
 
 @main.command()
