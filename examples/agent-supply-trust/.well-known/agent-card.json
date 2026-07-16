@@ -1,0 +1,16 @@
+{
+  "name": "supply-agent",
+  "description": "A partner agent that authenticates callers with a static API key.",
+  "url": "https://supply.acme.example/a2a",
+  "version": "1.0.0",
+  "securitySchemes": {
+    "key": { "type": "apiKey", "in": "header", "name": "X-API-Key" }
+  },
+  "security": [ { "key": [] } ],
+  "signatures": [
+    { "protected": "eyJhbGciOiJFZERTQSJ9", "signature": "c2lnbmF0dXJl" }
+  ],
+  "skills": [
+    { "id": "lookup_order", "name": "Look up an order" }
+  ]
+}

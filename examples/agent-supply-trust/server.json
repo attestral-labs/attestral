@@ -1,0 +1,13 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.json",
+  "name": "io.github.acme/latest-bridge",
+  "description": "A published MCP server whose package floats on the latest tag.",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "acme-latest-mcp",
+      "version": "latest",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

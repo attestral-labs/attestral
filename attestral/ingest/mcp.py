@@ -353,6 +353,16 @@ def registry_component_from_manifest(data, source: str) -> Component | None:
         if not v["has_value"] and not v["is_secret"] and _is_secret_named(v["name"])
     })
     deprecated = sorted({t for t in _registry_transports(data) if t == "sse"})
+    # A published package pinned to a mutable version (`latest`, or no version
+    # at all): whoever installs from this manifest gets whatever the registry
+    # serves that day, not the reviewed artifact - a supply-chain rug-pull
+    # surface, the registry analogue of ATL-106.
+    mutable = sorted({
+        str(p.get("identifier") or p.get("name") or "package")
+        for p in (data.get("packages") or [])
+        if isinstance(p, dict)
+        and str(p.get("version", "")).strip().lower() in ("", "latest")
+    }) if isinstance(data.get("packages"), list) else []
     attrs: dict = {
         "_registry_name": name,
         "_hardcoded_secret_vars": hardcoded,
@@ -360,6 +370,8 @@ def registry_component_from_manifest(data, source: str) -> Component | None:
         "_unmarked_secret_vars": unmarked,
         "_has_unmarked_secret": bool(unmarked),
         "_deprecated_transports": deprecated,
+        "_mutable_pin_packages": mutable,
+        "_has_mutable_pin": bool(mutable),
     }
     if data.get("description"):
         attrs["description"] = str(data["description"])

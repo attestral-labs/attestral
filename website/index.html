@@ -654,7 +654,7 @@
   <section id="metrics" style="padding:40px 0">
     <div class="wrap">
       <div class="metrics" id="metricsBand">
-        <div class="metric"><div class="num" data-to="203">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
+        <div class="metric"><div class="num" data-to="206">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
         <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
         <div class="metric"><div class="num" data-to="6">0</div><div class="lbl">standards mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2 · ASVS</div></div>
         <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
@@ -810,7 +810,7 @@
         <figure class="demo" aria-label="Browser review output">
           <div class="demo-bar" aria-hidden="true">
             <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-            <span class="demo-title">attestral · browser edition · 23 of 203 checks</span>
+            <span class="demo-title">attestral · browser edition · 23 of 206 checks</span>
           </div>
           <div class="demo-body try-out-body" id="tryOut" aria-live="polite"><span class="p">$</span> attestral scan <span class="dim">&lt;pasted config&gt;</span><br><span class="dim">waiting for a config. Load the example, or paste the mcpServers block your agent already uses.</span></div>
         </figure>
@@ -891,17 +891,17 @@
 
   <section id="coverage">
     <div class="wrap">
-      <h2>203 checks, and the balance is the strategy.</h2>
+      <h2>206 checks, and the balance is the strategy.</h2>
       <p class="section-lede">We do not chase rule count. Every check earns its place with a real control and a fixture. The agentic and cross-boundary rules are the hard-to-copy core, the surfaces nobody else models; the cloud packs are deliberately good enough that you need no second scanner, never an arms race.</p>
       <div class="cov" id="covBars">
-        <div class="cov-row"><div class="cov-label">MCP / Agentic<span class="sub">hardest to copy</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="74"></div></div><div class="cov-count" data-to="40">0</div></div>
+        <div class="cov-row"><div class="cov-label">MCP / Agentic<span class="sub">hardest to copy</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="80"></div></div><div class="cov-count" data-to="43">0</div></div>
         <div class="cov-row"><div class="cov-label">Cross-boundary<span class="sub">reachability</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="30"></div></div><div class="cov-count" data-to="16">0</div></div>
         <div class="cov-row"><div class="cov-label">AWS<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="100"></div></div><div class="cov-count" data-to="54">0</div></div>
         <div class="cov-row"><div class="cov-label">Azure<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="67"></div></div><div class="cov-count" data-to="36">0</div></div>
         <div class="cov-row"><div class="cov-label">GCP<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="59"></div></div><div class="cov-count" data-to="32">0</div></div>
         <div class="cov-row"><div class="cov-label">Kubernetes<span class="sub">Pod Security</span></div><div class="cov-track"><div class="cov-fill" data-w="46"></div></div><div class="cov-count" data-to="25">0</div></div>
       </div>
-      <p class="cov-note"><b>56 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>147 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 named control families across the six standards it cites. Depth where it counts most, parity where it just has to be solid. The newest checks cover MCP supply-chain provenance (Git/URL installs, non-default registries), disabled TLS verification and plaintext WebSocket transport, container isolation-breaking flags, and the cross-boundary flows a system model uniquely sees: untrusted input written into agent long-term memory (memory poisoning), a sampling-capable server driving tools on another with no human checkpoint, and indirect injection reaching cloud credentials.</p>
+      <p class="cov-note"><b>59 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>147 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 named control families across the six standards it cites. Depth where it counts most, parity where it just has to be solid. The newest checks cover MCP supply-chain provenance (Git/URL installs, non-default registries), disabled TLS verification and plaintext WebSocket transport, container isolation-breaking flags, and the cross-boundary flows a system model uniquely sees: untrusted input written into agent long-term memory (memory poisoning), a sampling-capable server driving tools on another with no human checkpoint, and indirect injection reaching cloud credentials.</p>
     </div>
   </section>
 
@@ -1456,7 +1456,7 @@ wrote policy.yaml · default deny · 1 allowed, 3 denied<br>
       html+="<br>"+sum+"<br>";
       var descs=comps.reduce(function(n,c){return n+c._tool_desc_count;},0);
       if(descs)html+='<span class="dim">'+descs+' tool description'+(descs===1?"":"s")+' detected: language surfaces need the CLI\'s --ml layer; this box checks structure only</span><br>';
-      html+='<span class="dim">23 of the pack\'s <a class="rlink dim" href="docs.html#rulepack">203 checks</a> ran in this tab · nothing was uploaded · pip install attestral for the rest</span>';
+      html+='<span class="dim">23 of the pack\'s <a class="rlink dim" href="docs.html#rulepack">206 checks</a> ran in this tab · nothing was uploaded · pip install attestral for the rest</span>';
       out.innerHTML=html;
     }
 

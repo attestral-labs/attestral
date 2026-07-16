@@ -7,6 +7,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Trust + supply-chain signal rules (203 -> 206).** Three more agentic checks,
+  each backed by a new ingester-derived signal so the rule stays pure data:
+  agent settings that pre-approve unrestricted command execution (`allow`
+  includes `Bash(*)` / bare `Bash` / `*`, ATL-141, `_permissive_allow`); an A2A
+  card that requires auth but via a long-lived static `apiKey` instead of
+  short-lived OAuth tokens (ATL-142, `_weak_auth_scheme`); and a published
+  registry manifest that pins a package to a mutable version (`latest` or none,
+  ATL-143, `_has_mutable_pin`). Each is precise: a scoped `Bash(git status)`, an
+  OAuth scheme, and an exact version pin all pass clean. Fixture
+  `examples/agent-supply-trust`; tests in `tests/test_trust_supply_signals.py`;
+  all three registered in the `evaluation/` benchmark.
 - **Agentic hardening + fleet-flow rule wave (193 -> 203).** Ten new
   research-grounded agentic checks, biased entirely to the moat. Seven
   per-component: an MCP server installed straight from a Git/URL source

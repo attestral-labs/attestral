@@ -190,6 +190,15 @@ def _a2a_component(f: Path) -> Component | None:
     has_signature = isinstance(signatures, list) and bool(signatures)
     effectively_public = no_auth or defined_not_required
     removed_flows = _removed_oauth_flows(schemes)
+    # The card requires auth, but via a long-lived static API key (an `apiKey`
+    # scheme) rather than short-lived OAuth tokens: a leaked key grants standing
+    # access with no rotation or per-caller scope. Only counts when auth is
+    # actually required (`security` present), so it is additive to ATL-123.
+    scheme_types = sorted({
+        str(s.get("type")) for s in (schemes.values() if isinstance(schemes, dict) else [])
+        if isinstance(s, dict) and s.get("type")
+    })
+    weak_auth = "apiKey" in scheme_types and bool(data.get("security"))
     attrs: dict = {
         "url": str(data.get("url", "")),
         "_no_auth_declared": no_auth,
@@ -204,6 +213,8 @@ def _a2a_component(f: Path) -> Component | None:
         "_public_unsigned": effectively_public and not has_signature,
         "_removed_oauth_flows": removed_flows,
         "_uses_removed_oauth_flow": bool(removed_flows),
+        "_auth_scheme_types": scheme_types,
+        "_weak_auth_scheme": weak_auth,
         "_skills": [s for s in skill_names if s],
     }
     if data.get("description"):
@@ -373,6 +384,15 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
         mode = perms.get("defaultMode") if isinstance(perms, dict) else None
         bypass = mode in ("bypassPermissions", "bypass")
         auto_enable_mcp = data.get("enableAllProjectMcpServers") is True
+        # An `allow` entry that grants a code-execution tool with no argument
+        # scope: `Bash(*)`, bare `Bash`, or `*` (everything). A committed
+        # settings file with this pre-approves arbitrary command execution for
+        # anyone who opens the repo - excessive standing agency.
+        allow = perms.get("allow") if isinstance(perms, dict) else None
+        permissive = sorted({
+            str(e) for e in (allow or []) if isinstance(e, str)
+            and e.strip() in ("*", "Bash", "Bash(*)", "Bash(:*)", "Bash( * )")
+        }) if isinstance(allow, list) else []
         # Name the component after the directory holding .claude, so two repos'
         # settings files never collide on one id.
         anchor = f.parent.parent.name or f.parent.name
@@ -387,6 +407,8 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
                     "_hook_commands": cmds,
                     "_bypass_permissions": bypass,
                     "_auto_enable_project_mcp": auto_enable_mcp,
+                    "_permissive_allow": bool(permissive),
+                    "_permissive_allow_entries": permissive,
                 },
                 trust_boundary="agent_runtime",
             )

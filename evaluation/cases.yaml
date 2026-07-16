@@ -79,6 +79,10 @@ positive:
     path: examples/agent-fleet-flows
     expect: [ATL-214, ATL-215, ATL-216]
     cite: "Fleet flows: OWASP ASI06 memory poisoning; Unit 42 MCP sampling 2025; ASI02/03"
+  - id: agent-supply-trust
+    path: examples/agent-supply-trust
+    expect: [ATL-141, ATL-142, ATL-143]
+    cite: "Trust + supply signals: OWASP ASI03/04/05; MCP04/07; OAuth 2.0 RFC 6749"
   - id: code-agent
     path: examples/code-agent
     expect: [ATL-139, ATL-203, ATL-207]

@@ -1112,6 +1112,33 @@ rules:
     recommendation: Serve the MCP endpoint over wss:// (TLS) only and update the server url.
     frameworks: ["OWASP-ASI03:2026", "OWASP-MCP MCP07:2025", "NIST SC-8"]
 
+  - id: ATL-141
+    title: Agent settings pre-approve unrestricted command execution
+    severity: high
+    target: agent_config
+    match: { attr_equals: { _permissive_allow: true } }
+    description: The committed agent settings (.claude/settings.json) carry an `allow` entry that grants a code-execution tool with no argument scope - `Bash(*)`, bare `Bash`, or `*` - so every command runs pre-approved with no human checkpoint for anyone who opens the repo. This is standing, unrestricted agency shipped in a file, distinct from the bypass-approval mode ATL-128 flags.
+    recommendation: Remove the unscoped allow entry. Grant only the specific, argument-scoped commands the workflow needs (e.g. `Bash(git status)`, `Bash(npm test)`), and let everything else prompt.
+    frameworks: ["OWASP-ASI03:2026", "OWASP-ASI05:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+
+  - id: ATL-142
+    title: A2A agent authenticates with a long-lived static API key
+    severity: medium
+    target: a2a_agent
+    match: { attr_equals: { _weak_auth_scheme: true } }
+    description: The agent card requires authentication, but the scheme is a static `apiKey` rather than short-lived OAuth tokens. A leaked or logged key grants standing access with no rotation, no expiry, and no per-caller scope, so one exposure is a persistent compromise. The card enforces auth (unlike ATL-123), but the method chosen is the weak one.
+    recommendation: Use OAuth 2.0 with short-lived access tokens (per the A2A and MCP auth guidance) instead of a static API key, or at minimum rotate the key on a schedule and scope it per caller.
+    frameworks: ["OWASP-ASI03:2026", "OWASP-MCP MCP07:2025", "OAuth 2.0 (RFC 6749)", "NIST IA-5"]
+
+  - id: ATL-143
+    title: Registry manifest ships a package pinned to a mutable version
+    severity: high
+    target: mcp_registry_manifest
+    match: { attr_equals: { _has_mutable_pin: true } }
+    description: A package in the published registry manifest is pinned to a mutable version (`latest`, or no version at all), so everyone who installs from it gets whatever the registry serves that day, not the reviewed artifact. That is a supply-chain rug-pull surface at the registry layer, the published-manifest analogue of ATL-106's mutable image tag.
+    recommendation: Pin every package to an exact, immutable version (and an integrity hash where the ecosystem supports it) in the manifest, so the tool that was reviewed is the tool that installs.
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP LLM03 Supply Chain", "NIST CM-2"]
+
   # --- Fleet-level flows (2026): three architecture-level crossings the system
   # --- model sees and a per-server linter cannot. Fixture: examples/agent-fleet-flows/.
 
