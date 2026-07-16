@@ -1,26 +1,91 @@
-name: 'Attestral Drift Check'
-description: 'Prove your deployment still matches its attested security design review'
-author: 'Attestral'
+name: 'Attestral'
+description: 'Security design review for AI agents, MCP servers, and the cloud they reach'
+author: 'Attestral Labs'
 branding:
   icon: 'shield'
   color: 'red'
 inputs:
-  policy:
-    description: 'Path to the compiled mcp-guard policy (from `attestral compile`)'
-    required: true
-  events:
-    description: 'Path to runtime telemetry JSONL (mcp-guard format)'
-    required: true
+  path:
+    description: 'Path to review (a repo, a directory, or an .mcp.json).'
+    required: false
+    default: '.'
+  fail-on:
+    description: 'Fail the job on findings at or above this severity (critical/high/medium/low).'
+    required: false
+    default: 'high'
+  baseline:
+    description: 'Baseline JSON file. When present, the gate and summary show only NET-NEW findings.'
+    required: false
+    default: ''
+  extras:
+    description: 'pip extras to install (e.g. terraform, ml).'
+    required: false
+    default: 'terraform'
   version:
-    description: 'attestral version to install'
+    description: 'pip spec to install. Default installs the latest with the chosen extras.'
     required: false
     default: 'attestral'
+  upload-sarif:
+    description: 'Upload findings to the GitHub Security tab (Code Scanning).'
+    required: false
+    default: 'true'
+  policy:
+    description: 'DRIFT MODE: path to a compiled mcp-guard policy. When set with `events`, runs drift instead of a scan.'
+    required: false
+    default: ''
+  events:
+    description: 'DRIFT MODE: path to runtime telemetry JSONL.'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
     - name: Install attestral
       shell: bash
-      run: pip install --quiet "${{ inputs.version }}"
-    - name: Check design-runtime drift (fail-closed)
+      run: |
+        if [ "${{ inputs.version }}" = "attestral" ]; then
+          pip install --quiet "attestral[${{ inputs.extras }}]"
+        else
+          pip install --quiet "${{ inputs.version }}"
+        fi
+
+    # --- Drift mode: prove runtime still matches the attested design ---------
+    - name: Design-runtime drift (fail-closed)
+      if: inputs.policy != '' && inputs.events != ''
       shell: bash
       run: attestral drift "${{ inputs.policy }}" "${{ inputs.events }}" --fail-on-drift
+
+    # --- Scan mode (default): review, annotate, summarize, gate --------------
+    - name: Review and write SARIF
+      if: inputs.policy == ''
+      shell: bash
+      run: attestral scan "${{ inputs.path }}" --format sarif -o attestral
+
+    - name: Upload to the Security tab
+      if: inputs.policy == '' && inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: attestral.sarif
+
+    - name: PR / job summary
+      if: inputs.policy == ''
+      shell: bash
+      run: |
+        BL=""
+        if [ -n "${{ inputs.baseline }}" ] && [ -f "${{ inputs.baseline }}" ]; then
+          BL="--baseline ${{ inputs.baseline }}"
+        fi
+        attestral scan "${{ inputs.path }}" $BL --format md-summary -o attestral
+        if [ -f attestral.summary.md ]; then
+          cat attestral.summary.md >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Gate on new findings
+      if: inputs.policy == ''
+      shell: bash
+      run: |
+        BL=""
+        if [ -n "${{ inputs.baseline }}" ] && [ -f "${{ inputs.baseline }}" ]; then
+          BL="--baseline ${{ inputs.baseline }}"
+        fi
+        attestral scan "${{ inputs.path }}" $BL --fail-on "${{ inputs.fail-on }}" --quiet

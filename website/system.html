@@ -181,7 +181,7 @@
   <section id="validation">
     <div class="wrap">
       <p class="h2num">04 · adversarial validation</p>
-      <h2>Prove the path, score it, execute it, prove the fix.</h2>
+      <h2>Show the path is reachable, score it, verify the fix.</h2>
       <p class="section-lede">The differentiator: <code>attestral validate</code> doesn't stop at findings. It runs a full loop over a design you own.</p>
       <div class="loop">
         <span class="step"><b>action-space</b> enumerate</span><span class="arr">→</span>
@@ -192,7 +192,7 @@
         <span class="step"><b>remediate</b> verified fix</span>
       </div>
       <div class="cols" style="margin-top:22px">
-        <div class="col"><span class="k">Tier 0 · symbolic</span><h3>Prove it holds</h3><p>Walk the path over the model's edges. Deterministic, zero-dep, no execution. Committed to the evidence chain.</p></div>
+        <div class="col"><span class="k">Tier 0 · symbolic</span><h3>Show it is reachable</h3><p>Walk the path over the model's edges. Deterministic, zero-dep, no execution. Reachability is necessary, not sufficient, for exploitation. Committed to the evidence chain.</p></div>
         <div class="col"><span class="k">Tier 1 · generative</span><h3>Draft the exploit</h3><p><code>--generate</code>: an LLM drafts the predicted payload and transcript. No live target, labeled predicted.</p></div>
         <div class="col"><span class="k">Tier 2 · executed</span><h3>Sandbox harness</h3><p><code>--execute</code>: replay the path through stub tools with a planted canary and capture the transcript. Live-target execution stays gated.</p></div>
       </div>
