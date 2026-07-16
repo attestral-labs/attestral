@@ -6,6 +6,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **Signed evidence chain: `attestral sign` (from tamper-evident to authentic).**
+  The SHA-256 chain is tamper-evident but not authentic: an attacker could edit a
+  finding, recompute the whole chain and a new head, and `verify` would still say
+  VALID. `attestral sign` signs the chain head with an Ed25519 key inside a DSSE
+  envelope (the Sigstore / in-toto envelope), and `attestral verify --public-key`
+  now checks both integrity (no entry altered) and authenticity (this is the
+  chain the key holder sealed, not a recomputed forgery). `--gen-key` makes a
+  keypair; `sign` refuses a chain that is already broken. Signing needs the new
+  `attestral[sign]` extra (`cryptography`, lazy-imported); the integrity check
+  still runs with zero dependencies. New `attestral/signing.py`; tests in
+  `tests/test_signing.py`.
+
 ## [0.17.0] - 2026-07-16
 
 A large release: the attest-compile-drift loop becomes end to end, the review

@@ -121,7 +121,7 @@
   <div class="wrap hero">
     <p class="eyebrow">The whole system, one page</p>
     <h1>Attestral, <em>laid out</em>.</h1>
-    <p class="lede">Every part of the system and how it fits: the pipeline from config to runtime policy, the eleven commands, the three review layers, the adversarial-validation loop, what it covers, and what it emits. A single map you can hold in your head. Everything here reflects the shipping CLI.</p>
+    <p class="lede">Every part of the system and how it fits: the pipeline from config to runtime policy, the twelve commands, the three review layers, the adversarial-validation loop, what it covers, and what it emits. A single map you can hold in your head. Everything here reflects the shipping CLI.</p>
   </div>
 
   <section id="pipeline">
@@ -143,7 +143,7 @@
   <section id="commands">
     <div class="wrap">
       <p class="h2num">02 · the commands</p>
-      <h2>Eleven commands, the whole loop.</h2>
+      <h2>Twelve commands, the whole loop.</h2>
       <div class="tw">
         <table>
           <thead><tr><th>Command</th><th>What it does</th><th>Key flags</th></tr></thead>
@@ -152,7 +152,8 @@
             <tr><td class="cmd">fleet</td><td>Model several repos as one agent fleet and find flows that span them (ATL-213).</td><td><span class="fl">repo-a repo-b … · --fail-on · -o</span></td></tr>
             <tr><td class="cmd">accept</td><td>Accept a finding as documented risk, recorded on the evidence chain with a content pin.</td><td><span class="fl">path rule component · -r reason · --expires · --by</span></td></tr>
             <tr><td class="cmd">validate</td><td>Check whether an assembled attack path is reachable in the modeled design, and verify the fix.</td><td><span class="fl">--remediate · --action-space · --generate · --execute · --fail-on-reachable · -o</span></td></tr>
-            <tr><td class="cmd">verify</td><td>Check a report's evidence chain, offline. VALID / INVALID.</td><td><span class="fl">report.json</span></td></tr>
+            <tr><td class="cmd">verify</td><td>Check a report's evidence chain, offline: integrity always, authenticity with a public key.</td><td><span class="fl">report.json · --public-key</span></td></tr>
+            <tr><td class="cmd">sign</td><td>Sign the chain head (Ed25519 / DSSE) so it is authentic, not just tamper-evident.</td><td><span class="fl">--key · --gen-key · --signer · -o</span></td></tr>
             <tr><td class="cmd">remediate</td><td>The concrete source edit that clears each finding: the flag to flip, the value to replace, tied to its file.</td><td><span class="fl">--rule</span></td></tr>
             <tr><td class="cmd">fix</td><td>Compile the enforceable mcp-guard control that neutralizes each finding, bound to the chain head.</td><td><span class="fl">--rule · -o policy.yaml</span></td></tr>
             <tr><td class="cmd">compile</td><td>Turn the attested design into a default-deny mcp-guard policy.</td><td><span class="fl">-o policy.yaml</span></td></tr>

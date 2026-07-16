@@ -125,7 +125,7 @@ flowchart TB
     REV --> RS["Reachability-based severity<br/>finding on a walked attack chain:<br/>chain attached · raised one band"]
     RS --> W["Waivers<br/>documented, expiring exceptions"]
     W --> BL["Baseline<br/>diff-aware: report only net-new findings"]
-    BL --> EV["3 · Evidence<br/>SHA-256 hash chain · verify offline"]
+    BL --> EV["3 · Evidence<br/>SHA-256 hash chain · verify offline<br/>+ optional Ed25519/DSSE signed head"]
     EV --> OUT["Output: Terminal (default, writes nothing) · Markdown · JSON · <b>SARIF</b> (Code Scanning) · <b>AI-BOM</b> (CycloneDX 1.6)"]
     style L1 fill:#0a7d3611,stroke:#0a7d36
     style L3 fill:#96222E11,stroke:#96222E
@@ -233,6 +233,10 @@ It merges every repo into one graph (tagging each component with its repo), then
 
 A scanner stops at a list of findings. Attestral turns the reviewed design into a tamper-evident record and a runtime policy: the depth that makes the review audit-grade, and the reason it can't be trivially cloned. Attest the design, prove the record has not been altered, compile it into a default-deny runtime policy, and detect when what runs diverges from what was reviewed. The whole loop runs offline, on a laptop, free.
 
+### Integrity, and now authenticity
+
+The SHA-256 chain is **tamper-evident**: edit any past finding and every later hash, and the head, stop matching. On its own that proves the chain is internally consistent, not that it is the chain *you* sealed, an attacker could edit a finding, recompute the whole chain and a new head, and `verify` would still say VALID. `attestral sign` closes that with an **Ed25519 signature over the head, wrapped in a DSSE envelope** (the same envelope Sigstore and in-toto use). Now `attestral verify --public-key` checks both: integrity (no entry altered) *and* authenticity (this is the chain the key holder sealed, not a recomputed forgery). Signing needs the `attestral[sign]` extra; the integrity check still runs with zero dependencies.
+
 ### The loop in one picture
 
 ```mermaid
@@ -278,6 +282,11 @@ attestral scan . --format sarif -o attestral       # SARIF -> GitHub Security ta
 
 # VERIFY: prove a report has not been altered (no network, no server)
 attestral verify review.json
+
+# SIGN: make the chain authentic, not just tamper-evident (Ed25519 / DSSE)
+attestral sign --gen-key reviewer                       # one-time: a keypair
+attestral sign review.json --key reviewer.key --signer "Ada L"
+attestral verify review.json --public-key reviewer.pub  # checks integrity AND authenticity
 
 # COMPILE: turn the attested design into a default-deny mcp-guard policy
 attestral compile ./my-project -o policy.yaml
