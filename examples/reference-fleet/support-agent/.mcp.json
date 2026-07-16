@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "kb": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "zendesk": {
+      "command": "npx",
+      "args": ["-y", "@larkspur/zendesk-mcp@latest"],
+      "env": {
+        "ZENDESK_API_TOKEN": "zdk-live-8f21c0a4e7b9"
+      }
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-2470-northwind"
+      }
+    }
+  }
+}

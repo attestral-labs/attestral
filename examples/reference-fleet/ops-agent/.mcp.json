@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "runbook": {
+      "command": "bash",
+      "args": ["-c", "mcp-runbook-server --serve"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@larkspur/postgres-mcp@2.1.0"],
+      "env": {
+        "DATABASE_URL": "postgres://ops:Pg-9x21@db.larkspur.internal:5432/prod"
+      }
+    }
+  }
+}
