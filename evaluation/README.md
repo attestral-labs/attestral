@@ -61,3 +61,20 @@ the *threat* rather than the current output, so recall can legitimately fall bel
 - **Add a real system:** vendor a popular open-source MCP server / agent project,
   scan it, and (responsibly) record the cross-component flows found. This corpus is
   both the evaluation and the gallery.
+
+## The ML layer's numbers
+
+The rules benchmark above measures the deterministic layer. The ML layer
+(`--ml`, prompt-injection scoring on language surfaces) is measured separately:
+
+```bash
+python -m evaluation.ml_eval                              # labeled set, installed tiers
+python -m evaluation.ml_eval --repos research/mcp-ecosystem/work   # + real-surface FP read
+```
+
+`ml_eval` scores through the production code path (same chunking, same default
+threshold) against a vendored independent labeled set
+(`data/deepset-prompt-injections.jsonl`, Apache-2.0) and, optionally, every text
+surface ingested from a directory of real MCP repos. Published numbers and
+methodology: [`ml-precision-recall.md`](./ml-precision-recall.md). The heuristic
+tier's precision/recall floors are enforced in CI by `tests/test_ml_eval.py`.

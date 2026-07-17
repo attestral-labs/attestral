@@ -180,3 +180,57 @@ rules:
     description: Placing an application workload in kube-system (or kube-public) shares a namespace with control-plane add-ons and their high-privilege service accounts and RBAC, so a compromise of the app sits next to cluster-critical identities and any namespace-scoped policy meant for it is diluted.
     recommendation: Deploy the workload to a dedicated, purpose-named namespace; reserve kube-system and kube-public for control-plane components.
     frameworks: ["CIS K8s 5.7.1", "CIS K8s 5.7.4", "NIST AC-4"]
+
+  - id: ATL-530
+    title: Container runs with AppArmor explicitly disabled (unconfined)
+    severity: high
+    target: k8s_container
+    match: { attr_equals: { _apparmor_profile: "unconfined" } }
+    description: The container sets its AppArmor profile to unconfined, switching off the kernel's mandatory-access-control confinement entirely. A process that escapes the container's namespaces then meets no AppArmor policy limiting which host files and syscalls it can reach, widening the blast radius of any code-execution bug.
+    recommendation: Remove the unconfined setting and apply the RuntimeDefault AppArmor profile (or a tailored one) via securityContext.appArmorProfile.type; never ship application workloads unconfined.
+    frameworks: ["CIS K8s 5.2.x", "PSS Baseline", "NIST AC-6", "NIST SC-39"]
+
+  - id: ATL-531
+    title: Secret hardcoded in a container environment variable
+    severity: high
+    target: k8s_container
+    match: { attr_equals: { _env_plaintext_secret: true } }
+    description: A secret-named environment variable (password, token, API key, or similar) carries a literal value instead of sourcing it from a Secret. That value is baked into the pod spec, so it lands in etcd unencrypted by default, in kubectl describe output, in CI logs, and in any manifest export, and it cannot be rotated without a redeploy.
+    recommendation: Move the value into a Kubernetes Secret and reference it with valueFrom.secretKeyRef (or mount it), so the plaintext never appears in the pod spec; rotate any value that was previously committed.
+    frameworks: ["CIS K8s 5.4.1", "NIST IA-5", "SOC2 CC6.1"]
+
+  - id: ATL-532
+    title: RBAC role grants wildcard resources
+    severity: high
+    target: k8s_rbac_role
+    match: { attr_equals: { _wildcard_resources: true } }
+    description: The Role or ClusterRole grants a verb over "*" resources, so any subject bound to it can act on every object type in scope, including ones added to the cluster later. Wildcard resource grants defeat least privilege and make the true reach of the binding impossible to audit.
+    recommendation: Replace the "*" resource with the explicit, minimal list of resource types the subject needs; split a broad role into narrowly scoped ones.
+    frameworks: ["CIS K8s 5.1.3", "NIST AC-6", "SOC2 CC6.3"]
+
+  - id: ATL-533
+    title: RBAC role grants wildcard verbs
+    severity: high
+    target: k8s_rbac_role
+    match: { attr_equals: { _wildcard_verbs: true } }
+    description: The Role or ClusterRole grants "*" verbs on its resources, so a bound subject can create, modify, and delete them as well as read them. Wildcard verbs quietly turn a read-scoped grant into full write access and are a common privilege-escalation stepping stone.
+    recommendation: Enumerate only the verbs the workload needs (typically get/list/watch for read-only clients); never grant "*" verbs to an application service account.
+    frameworks: ["CIS K8s 5.1.3", "NIST AC-6", "SOC2 CC6.3"]
+
+  - id: ATL-534
+    title: RBAC role grants access to Secrets
+    severity: medium
+    target: k8s_rbac_role
+    match: { attr_equals: { _grants_secrets: true } }
+    description: The Role or ClusterRole grants access to the secrets resource. A subject that can read secrets can read every credential in scope, so this grant is a direct path to lateral movement and should exist only where a workload provably needs a specific secret.
+    recommendation: Confine secret access to the exact service account that needs it, scoped to a namespace and, where possible, to named secrets via resourceNames; prefer projected or volume-mounted secrets over blanket list access.
+    frameworks: ["CIS K8s 5.1.2", "NIST AC-6", "NIST IA-5"]
+
+  - id: ATL-535
+    title: Binding grants the built-in cluster-admin role
+    severity: critical
+    target: k8s_rbac_binding
+    match: { attr_equals: { _binds_cluster_admin: true } }
+    description: The binding points at the built-in cluster-admin ClusterRole, granting its subjects unrestricted control over every resource in the cluster. A single compromised or over-shared subject with this binding is a full cluster takeover, which is why CIS treats it as the highest-priority RBAC finding.
+    recommendation: Remove the cluster-admin binding and grant a purpose-built role with only the permissions the subject needs; reserve cluster-admin for break-glass human access, never for a service account or CI identity.
+    frameworks: ["CIS K8s 5.1.1", "NIST AC-6", "SOC2 CC6.3"]

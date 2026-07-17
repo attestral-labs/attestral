@@ -1,0 +1,30 @@
+# Hardened Pod that sets the same fields at the CONTAINER level (not the pod),
+# and uses the good secret pattern. Exercises the container-first resolution
+# paths and the non-risky values of every new signal.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hardened-pod
+  namespace: app
+spec:
+  serviceAccountName: app-sa   # service_account_name: "app-sa" (non-default)
+  containers:
+    - name: app
+      image: registry.example.com/app@sha256:bbbbbbbb
+      securityContext:
+        runAsUser: 1000        # run_as_user: 1000 (non-root, container level)
+        appArmorProfile:
+          type: RuntimeDefault # _apparmor_profile: "runtimedefault" (GA field)
+        seLinuxOptions:        # _has_selinux_options: true (container level)
+          type: container_t
+      env:
+        # Not secret-named -> does not set _env_plaintext_secret
+        - name: LOG_LEVEL
+          value: "debug"
+        # Secret-named but sourced from a Secret -> _env_uses_secret_ref: true,
+        # _env_plaintext_secret stays false (no literal value).
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-creds
+              key: password
