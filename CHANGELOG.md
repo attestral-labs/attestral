@@ -14,6 +14,30 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   automated backups disabled). Each cites a real CIS/NIST/FSBP control and ships
   with an isolated fixture (examples/aws-pack-ext, azure-pack, gcp-pack) and a
   test asserting it fires alone.
+- **The benchmark's benign tier now counts every rule band.** A benign design
+  must be quiet across the whole pack, not just the agentic bands - a cloud
+  false positive gets the tool muted just as fast. New benign case
+  `benign-open-egress` (scoped ingress + world egress, the standard Terraform
+  shape) locks the ATL-002 regression into `python -m evaluation.score`.
+- **TerraGoat regression suite** (`tests/test_terragoat.py`): runs against the
+  vendored deliberately-vulnerable corpus when present (skipped otherwise -
+  `research/` is untracked). Pins the per-provider detection floor, exact
+  ATL-002 = world-open-ingress equivalence, the egress-idiom non-finding, and
+  that agentic rules stay silent on a pure-IaC repo.
+
+### Fixed
+- **Security-group CIDR matching is direction-aware (kills the first-scan false
+  positive on real Terraform).** The ingester collected `cidr_blocks` from any
+  nested block, ingress or egress, into one `_cidr_blocks` union, so ATL-002
+  ("Security group open to the world", HIGH, an *ingress* rule by its own
+  description) fired on the near-universal default-outbound idiom
+  (`egress { cidr_blocks = ["0.0.0.0/0"] }` and `aws_security_group_rule` with
+  `type = "egress"`). Both parse tiers now attribute every CIDR to a direction -
+  from the enclosing `ingress`/`egress` block, or a rule resource's resolved
+  `type` - and match ATL-002 on ingress only; a CIDR whose direction is not
+  statically decidable stays union-only and never becomes an ingress finding
+  (fail closed). ATL-032 (the default SG must hold *no* rules) deliberately
+  keeps the direction-blind union.
 
 ## [0.18.0] - 2026-07-17
 
