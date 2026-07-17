@@ -108,6 +108,10 @@
   .split.bad h4{color:var(--seal)} .split.good h4{color:var(--verify)}
   .split p{font-size:.92rem;margin:0;color:var(--muted)}
   @media(max-width:600px){.split{grid-template-columns:1fr}}
+  .mtable{border-collapse:collapse;margin:20px 0;font-size:.88rem;max-width:66ch}
+  .mtable th{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:8px 18px 8px 0}
+  .mtable td{border-top:1px solid var(--rule);padding:9px 18px 9px 0;vertical-align:top}
+  .mtable td.n{font-family:var(--mono);font-size:.84rem;white-space:nowrap}
 
   /* Terminal */
   pre{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:16px 18px;overflow-x:auto;margin:18px 0;border-radius:2px;max-width:66ch}
@@ -383,6 +387,21 @@
 <span class="c">score:</span>   <span class="s">0.97</span>  <span class="c">(&gt;= 0.50 threshold)</span>
 <span class="s">ATL-ML-001</span>  high  Prompt-injection text detected in tool 'fetch_page'
            <span class="c">origin=ml  OWASP LLM01  MITRE ATLAS AML.T0051</span></pre>
+  </section>
+
+  <section>
+    <p class="eyebrow">Measured</p>
+    <h2>How well it actually scores</h2>
+    <p>Numbers, not adjectives. Both tiers were measured through the production scan path (same chunking, same 0.5 threshold) against two things: an independent labeled set of 662 prompts (<a href="https://huggingface.co/datasets/deepset/prompt-injections">deepset/prompt-injections</a>, 263 injection / 399 benign), and the 106 real text surfaces Attestral's own ingest pulls from 33 popular public MCP server repos, with every flag human-adjudicated.</p>
+    <table class="mtable">
+      <thead><tr><th>Tier</th><th>Precision</th><th>Recall</th><th>Real surfaces flagged</th></tr></thead>
+      <tbody>
+        <tr><td>Heuristic (default)</td><td class="n">0.950</td><td class="n">0.144</td><td class="n">28 / 106, all benign</td></tr>
+        <tr><td>DeBERTa (<code>--ml</code>)</td><td class="n">0.965</td><td class="n">0.414</td><td class="n">3 / 106, all benign</td></tr>
+      </tbody>
+    </table>
+    <p>The recall number needs its context: the labeled set counts chat-style role-play and off-task steering as injections. On <strong>explicit injection phrasing</strong>, the shape that actually appears in a poisoned tool description, the DeBERTa tier catches <strong>17 of 18</strong> (the heuristic 12 of 18). And on the 20 real tool and manifest descriptions in the corpus, both tiers flagged zero, so the noise sits in long instruction files, not the surfaces this layer chiefly guards.</p>
+    <p>Full methodology, per-row scores, adjudication notes, and every caveat: <a href="https://github.com/attestral-labs/attestral/blob/main/evaluation/ml-precision-recall.md">evaluation/ml-precision-recall.md</a>. The heuristic's precision floor is enforced in CI, so these numbers cannot silently rot.</p>
   </section>
 
   <section>
