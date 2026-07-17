@@ -7,6 +7,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Research radar wave, 2026-07-17 (pack 232 -> 234).** ATL-144 (AWS Bedrock
+  AgentCore runtime role left attached to the `BedrockAgentCoreFullAccess`
+  quickstart policy, which grants account-wide AgentCore actions including
+  `GetWorkloadAccessTokenForUserId`, a caller-controlled workload-token mint)
+  and ATL-434 (GCP workload identity pool provider with no `attribute_condition`,
+  so any subject the external IdP issues can federate into the pool). Plus
+  CVE-2026-50143 (`@apify/actors-mcp-server` <= 0.10.10, URL-authority injection
+  that exfiltrates the Apify bearer token) added to the known-CVE table behind
+  ATL-117. Fixtures `examples/agentcore-iam` and the gcp-pack workload-identity
+  resource; both rules ship a fires-and-a-clean-negative test. Sourced from the
+  weekly automated research radar.
 - **Four cloud rules from the research radar sweep (pack 228 -> 232).** ATL-067
   (CloudTrail trail with logging switched off, an audit trail that records
   nothing), ATL-068 (GuardDuty detector declared but disabled), ATL-337 (Azure

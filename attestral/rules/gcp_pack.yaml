@@ -133,6 +133,17 @@ rules:
     recommendation: Set settings.backup_configuration.enabled = true (and keep point-in-time recovery on) so the instance retains restorable backups.
     frameworks: ["CIS GCP 6.7", "NIST CP-9", "SOC2 A1.2"]
 
+  # --- Workload Identity Federation ---------------------------------------
+
+  - id: ATL-434
+    title: Workload identity pool provider has no attribute condition
+    severity: high
+    target: google_iam_workload_identity_pool_provider
+    match: { attr_missing: attribute_condition }
+    description: With no attribute_condition, the provider accepts a token from any subject the external identity provider issues (any repository, any project, any principal) to federate into the pool, so one unrelated upstream credential can impersonate the pool's Google service account.
+    recommendation: Set attribute_condition to the exact expected claim (for example assertion.repository == "org/repo" for GitHub Actions OIDC) so only the intended workload can federate in.
+    frameworks: ["CIS GCP 1.x", "NIST AC-3", "NIST IA-5"]
+
   # --- Cloud Storage ------------------------------------------------------
 
   - id: ATL-425
