@@ -1,0 +1,39 @@
+# The support agent's runtime. A normal Deployment with the shortcuts real
+# teams ship: root user, a plaintext credential, and privileged mode left over
+# from debugging a filesystem mount.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: desk-agent
+  namespace: meridian
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: desk-agent
+  template:
+    metadata:
+      labels:
+        app: desk-agent
+    spec:
+      containers:
+        - name: agent
+          image: registry.meridian-app.dev/desk-agent:latest
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          env:
+            - name: STRIPE_SECRET_KEY
+              value: "sk_live_exampleNotReal"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: agent-creds
+                  key: anthropic
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          hostPath:
+            path: /var/lib/meridian/workspace

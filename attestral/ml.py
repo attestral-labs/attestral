@@ -105,6 +105,7 @@ class TextSurface:
     source: str
     label: str
     text: str
+    component_type: str = ""
 
 
 def gather_surfaces(model: SystemModel) -> list[TextSurface]:
@@ -118,18 +119,20 @@ def gather_surfaces(model: SystemModel) -> list[TextSurface]:
 def _collect_component_surfaces(c: Component, out: list[TextSurface]) -> None:
     content = c.attr("content")
     if content:
-        out.append(TextSurface(c.id, c.source, f"{c.type} '{c.name}'", str(content)))
+        out.append(
+            TextSurface(c.id, c.source, f"{c.type} '{c.name}'", str(content), c.type)
+        )
     desc = c.attr("description")
     if desc:
         out.append(
-            TextSurface(c.id, c.source, f"{c.type} '{c.name}' description", str(desc))
+            TextSurface(c.id, c.source, f"{c.type} '{c.name}' description", str(desc), c.type)
         )
     for t in c.attr("_tool_descriptions") or []:
         tname = t.get("name", "") if isinstance(t, dict) else ""
         tdesc = t.get("description", "") if isinstance(t, dict) else str(t)
         if tdesc:
             out.append(
-                TextSurface(c.id, c.source, f"tool '{tname}' description", str(tdesc))
+                TextSurface(c.id, c.source, f"tool '{tname}' description", str(tdesc), c.type)
             )
 
 
@@ -404,6 +407,24 @@ def _heuristic_engine(text: str) -> tuple[float, list[str]]:
     return heuristic_score(text)
 
 
+# On an agent instruction file (CLAUDE.md, .cursorrules, ...) imperative
+# agent-directive phrasing is the file's ordinary register: "when asked to
+# commit, first run the tests" matches the same patterns as a poisoned tool
+# description. Alone it flagged 26% of real-repo instruction files, every one
+# adjudicated benign, while real poisoning couples the trigger with concealment
+# or exfiltration. So on these surfaces a tool_poisoning hit only counts when a
+# second, intent-revealing family co-occurs. Model tiers carry no category
+# evidence and are never muted by this gate.
+_SOLO_MUTED_ON_INSTRUCTIONS = frozenset({"tool_poisoning"})
+
+
+def muted_on_surface(component_type: str, categories: set[str]) -> bool:
+    """True when heuristic evidence should not be reported on this surface."""
+    if component_type != "agent_instruction" or not categories:
+        return False
+    return categories <= _SOLO_MUTED_ON_INSTRUCTIONS
+
+
 # --------------------------------------------------------------------------- #
 # Tier 2: opt-in DeBERTa / transformer classifier
 # --------------------------------------------------------------------------- #
@@ -610,11 +631,15 @@ def scan(
     findings: list[Finding] = []
     for s in surfaces:
         best_prob, best_ev = 0.0, []  # type: tuple[float, list[str]]
+        cats: set[str] = set()
         for chunk in _chunks(s.text, cfg.max_chars, cfg.overlap):
             prob, ev = engine(chunk)
+            # The gate judges the whole surface, so categories pool across
+            # chunks: a trigger in one window plus secrecy in another counts.
+            cats.update(e.split(":", 1)[0] for e in ev)
             if prob > best_prob:
                 best_prob, best_ev = prob, ev
-        if best_prob >= cfg.threshold:
+        if best_prob >= cfg.threshold and not muted_on_surface(s.component_type, cats):
             findings.append(_finding(s, best_prob, best_ev))
     findings.sort(key=lambda f: f.severity.rank, reverse=True)
     return findings, notes

@@ -848,8 +848,8 @@ def validate(path: str, output: str | None, fail_on_proof: bool, remediate: bool
         )
         click.echo(f"wrote {output}.md · {output}.json")
     if fail_on_proof and proofs:
-        click.echo("PROVEN: at least one exploit path is traversable in the "
-                   "attested design", err=True)
+        click.echo("REACHABLE: at least one exploit path is traversable in the "
+                   "modeled design", err=True)
         sys.exit(1)
 
 

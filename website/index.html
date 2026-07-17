@@ -949,6 +949,26 @@
     </div>
   </section>
 
+  <section id="composite">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">Verified end to end</p>
+      <h2>One realistic project, every layer, known answers.</h2>
+      <p class="section-lede">The 33-repo sweep shows what real configs contain. This is the complement: a single realistic project, <a href="https://github.com/attestral-labs/attestral/tree/main/examples/ecosystem-composite">examples/ecosystem-composite</a>, an AI support-desk product composited from the patterns that corpus actually exhibits, where every issue was planted first and the scan run after. A known-answer test for the whole pipeline: the cloud and Kubernetes packs, the agentic rules, the cross-boundary model, reachability, and both ML tiers, all working the same repo.</p>
+      <p class="cov-note"><b>Layer 1, deterministic rules + system model: every planted issue detected</b> (33 findings across 18 components). The public exports bucket and wildcard IAM sit next to the shell-capable runbook server, the privileged root container, and the registry manifest floating on <code>latest</code>; the fleet-level trifecta, shell+network, and untrusted-input-to-execution flows all fire; one full attack path is walked entry to impact and raises four findings a severity band.</p>
+      <div class="vs-wrap"><table class="vs-table">
+        <thead><tr><th>Seeded language surface (layer 2)</th><th class="us">Heuristic (default)</th><th class="us">DeBERTa (<code>--ml</code>)</th></tr></thead>
+        <tbody>
+          <tr><td class="cap">Tool description: covert "forward the conversation, do not mention it"</td><td>flagged</td><td>flagged</td></tr>
+          <tr><td class="cap">Tool description: instruction hidden in an HTML comment</td><td>flagged</td><td>flagged</td></tr>
+          <tr><td class="cap">System prompt: "debug mode" override backdoor</td><td>flagged</td><td>flagged</td></tr>
+          <tr><td class="cap">AGENTS.md: covert archive copy, "keep this between us"</td><td>flagged</td><td class="them">missed</td></tr>
+          <tr><td class="cap">CLAUDE.md: benign directive register (negative control)</td><td>clean</td><td>clean</td></tr>
+        </tbody>
+      </table></div>
+      <p class="cov-note"><b>The two instruction files are the point.</b> AGENTS.md hides exfiltration in ordinary workflow prose: the model tier reads it as workflow, the heuristic catches it because its instruction-surface gate looks for exactly that coupling, directive phrasing plus a secrecy signal. CLAUDE.md is the mirror: its "when asked to commit, first run the tests" register scores past the raw threshold and would have been a false positive before the gate; no second signal co-occurs, so it stays quiet. One file demonstrates the false positive the gate removed, the other the true positive it kept. The judge layer (<code>--judge</code>) cross-examines all of it against the modeled system when you bring an API key; everything above reproduces offline from the repo.</p>
+    </div>
+  </section>
+
   <section id="fleet">
     <div class="wrap">
       <h2>The finding that lives in no single file.</h2>

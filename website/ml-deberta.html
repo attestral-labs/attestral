@@ -396,11 +396,12 @@
     <table class="mtable">
       <thead><tr><th>Tier</th><th>Precision</th><th>Recall</th><th>Real surfaces flagged</th></tr></thead>
       <tbody>
-        <tr><td>Heuristic (default)</td><td class="n">0.950</td><td class="n">0.144</td><td class="n">28 / 106, all benign</td></tr>
+        <tr><td>Heuristic (default)</td><td class="n">0.950</td><td class="n">0.144</td><td class="n">4 / 106, all benign</td></tr>
         <tr><td>DeBERTa (<code>--ml</code>)</td><td class="n">0.965</td><td class="n">0.414</td><td class="n">3 / 106, all benign</td></tr>
       </tbody>
     </table>
-    <p>The recall number needs its context: the labeled set counts chat-style role-play and off-task steering as injections. On <strong>explicit injection phrasing</strong>, the shape that actually appears in a poisoned tool description, the DeBERTa tier catches <strong>17 of 18</strong> (the heuristic 12 of 18). And on the 20 real tool and manifest descriptions in the corpus, both tiers flagged zero, so the noise sits in long instruction files, not the surfaces this layer chiefly guards.</p>
+    <p>The recall number needs its context: the labeled set counts chat-style role-play and off-task steering as injections. On <strong>explicit injection phrasing</strong>, the shape that actually appears in a poisoned tool description, the DeBERTa tier catches <strong>17 of 18</strong> (the heuristic 12 of 18). And on the 20 real tool and manifest descriptions in the corpus, both tiers flagged zero, so the noise sat in long instruction files, not the surfaces this layer chiefly guards.</p>
+    <p>That instruction-file noise is now gated at the source. On agent instruction surfaces (<code>CLAUDE.md</code>, <code>AGENTS.md</code>, skill files) the ordinary "always run X / when asked, first do Y" register used to trip the poisoning patterns on their own: the heuristic flagged 26.4% of the corpus's real surfaces, every one adjudicated benign. Since the gate, a poisoning hit there only reports when a second, intent-revealing signal co-occurs on the surface - secrecy ("do not tell the user"), exfiltration, or a hidden channel - which is exactly the coupling real poisoning carries and benign instructions lack. Re-measured through the same harness: 28 flags fell to 4, and the labeled-set numbers above did not move.</p>
     <p>Full methodology, per-row scores, adjudication notes, and every caveat: <a href="https://github.com/attestral-labs/attestral/blob/main/evaluation/ml-precision-recall.md">evaluation/ml-precision-recall.md</a>. The heuristic's precision floor is enforced in CI, so these numbers cannot silently rot.</p>
   </section>
 
