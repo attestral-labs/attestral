@@ -8,7 +8,9 @@ including every per-row score and every flagged surface, is
 [`ml-results.json`](./ml-results.json).
 
 Measured 2026-07-16 on the commit that added this file, with
-`protectai/deberta-v3-base-prompt-injection-v2` at `main`.
+`protectai/deberta-v3-base-prompt-injection-v2` at `main`. Re-measured
+2026-07-17 after the instruction-surface gate shipped (see the real-surface
+section); the labeled-set numbers were unchanged by it, by design.
 
 ## What was measured
 
@@ -49,7 +51,8 @@ Two datasets, mirroring the rules benchmark's two tiers:
 
 | Tier | Flagged | Adjudication |
 |---|---|---|
-| Heuristic | 28 / 106 (26.4%) | all 28 benign |
+| Heuristic, before the instruction gate | 28 / 106 (26.4%) | all 28 benign |
+| Heuristic, shipped (with the gate) | **4 / 106 (3.8%)** | all 4 benign |
 | DeBERTa | 3 / 106 (2.8%) | all 3 benign |
 
 **Recall by what the positive actually is.** The labeled set's positive class
@@ -97,24 +100,32 @@ default zero-dependency scan still catches the classic override, exfiltration,
 and hidden-channel phrasings (0.67 recall on the explicit class) with almost
 no noise on short surfaces.
 
-**The real-surface read found a real sore spot.** On the 33-repo corpus the
-DeBERTa tier flagged 3 surfaces (2.8%), all three being the repos' *own*
-AI-orchestrator prompts and Copilot instruction files - text whose literal job
-is to instruct an AI, so instruction-shaped language is expected; on a
-third-party surface the same flags would deserve the look. The heuristic
-flagged 28 (26.4%): 25 are developer-guideline files (`CLAUDE.md`,
-`AGENTS.md`, skill definitions) whose ordinary "ALWAYS use X / always run Y"
-style trips the `tool_poisoning` family at medium severity, plus 3 docs with
-example emails near words like "send". All benign. Two observations follow:
+**The real-surface read found a real sore spot, and the fix shipped.** On the
+33-repo corpus the DeBERTa tier flagged 3 surfaces (2.8%), all three being the
+repos' *own* AI-orchestrator prompts and Copilot instruction files - text whose
+literal job is to instruct an AI, so instruction-shaped language is expected.
+The heuristic originally flagged 28 (26.4%): 25 were developer-guideline files
+(`CLAUDE.md`, `AGENTS.md`, skill definitions) whose ordinary "ALWAYS use X /
+always run Y" register trips the `tool_poisoning` family, plus 3 docs with
+example emails near words like "send". All benign, and the noise was confined
+to long instruction files: on the surface class the ML layer chiefly exists
+for - **tool and manifest descriptions** - both tiers flagged **0 of 20**.
 
-- On the surface class the ML layer chiefly exists for - **tool and manifest
-  descriptions** - both tiers flagged **0 of 20**. The noise is confined to
-  long instruction files.
-- A 26% flag rate on real repos' instruction files is too high for a
-  default-on tier. The concrete fix is to require `tool_poisoning` to co-occur
-  with a second signal (secrecy, exfiltration, a hidden channel) on
-  `agent_instruction` surfaces before it crosses the threshold. That change is
-  queued; this page is the before/after harness for it.
+A 26% flag rate on real repos' instruction files is too high for a default-on
+tier, so the gate shipped (`ml.py::muted_on_surface`): on `agent_instruction`
+surfaces, a `tool_poisoning` hit alone no longer reports - it must co-occur
+with a second, intent-revealing family (secrecy, exfiltration, or a hidden
+channel), with categories pooled across chunks so a trigger in one window plus
+concealment in another still counts. Genuine poisoning couples the trigger
+with exactly those families; benign instructions do not. Re-measured through
+this harness: **28 flags fell to 4 (26.4% to 3.8%)** while the labeled-set
+precision/recall stayed byte-identical, because the labeled rows are chat
+prompts, not instruction surfaces. The 4 survivors are 2 instruction files
+that genuinely carry a second family and the 2 DynamoDB expert system prompts;
+`system_prompt` surfaces are deliberately outside the gate (they flagged 2 of
+19 against the instruction files' 26 of 66, and a poisoned system prompt is
+the higher-stakes read). Model tiers carry no category evidence and are never
+muted.
 
 ## Reproduce it
 
@@ -146,6 +157,7 @@ page cannot silently rot. The model tiers are re-measured by re-running
   possibly different verdict; the divergence is why the tier is a
   user-selectable knob. Do not expect the heuristic and the model to flag
   identical sets.
-- **Adjudication is ours.** The benign calls on all 31 real-surface flags were
-  made by reading each flagged text; the flagged items (with scores and
-  snippets) are preserved in `ml-results.json` so anyone can re-adjudicate.
+- **Adjudication is ours.** The benign calls on all 31 pre-gate real-surface
+  flags (the post-gate 4 are a subset) were made by reading each flagged text;
+  the flagged items (with scores and snippets) are preserved in
+  `ml-results.json` so anyone can re-adjudicate.

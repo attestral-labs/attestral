@@ -6,6 +6,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Changed
+- **Heuristic ML tier: instruction-surface gate (26.4% real-repo flag rate down
+  to 3.8%).** On `agent_instruction` surfaces (`CLAUDE.md`, `AGENTS.md`,
+  `.cursorrules`, skill files) a `tool_poisoning` pattern hit alone no longer
+  reports: imperative agent-directive phrasing is that file's ordinary register
+  ("when asked to commit, first run the tests"), and it flagged 26 of 66 real
+  repos' instruction files, every one adjudicated benign. The hit now counts
+  only when a second, intent-revealing family co-occurs on the surface -
+  secrecy, exfiltration, or a hidden channel - with evidence pooled across
+  chunks (`ml.py::muted_on_surface`). Re-measured through `evaluation/ml_eval.py`
+  on the 33-repo corpus: 28/106 flags fell to 4/106 while labeled-set
+  precision/recall was untouched (0.950/0.144). Tool and manifest descriptions,
+  system prompts, and the model tiers (which carry no category evidence) are
+  outside the gate.
+
 ### Added
 - **Signed evidence chain: `attestral sign` (from tamper-evident to authentic).**
   The SHA-256 chain is tamper-evident but not authentic: an attacker could edit a

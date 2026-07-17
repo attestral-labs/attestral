@@ -33,7 +33,7 @@ import argparse
 import json
 from pathlib import Path
 
-from attestral.ml import MLConfig, _chunks, _resolve_engine
+from attestral.ml import MLConfig, _chunks, _resolve_engine, muted_on_surface
 
 HERE = Path(__file__).resolve().parent
 LABELED = HERE / "data" / "deepset-prompt-injections.jsonl"
@@ -72,6 +72,16 @@ def score_text(engine, text: str, cfg: MLConfig) -> float:
     return best
 
 
+def score_surface(engine, text: str, cfg: MLConfig) -> tuple[float, set[str]]:
+    """Max chunk probability plus pooled evidence categories, as in ml.scan()."""
+    best, cats = 0.0, set()
+    for chunk in _chunks(text, cfg.max_chars, cfg.overlap):
+        prob, ev = engine(chunk)
+        cats.update(e.split(":", 1)[0] for e in ev)
+        best = max(best, prob)
+    return best, cats
+
+
 def metrics(scored: list[tuple[float, int]], threshold: float) -> dict:
     tp = sum(1 for p, y in scored if p >= threshold and y == 1)
     fp = sum(1 for p, y in scored if p >= threshold and y == 0)
@@ -102,7 +112,8 @@ def gather_repo_surfaces(repos_dir: Path) -> list[dict]:
             if s.text in seen:
                 continue
             seen.add(s.text)
-            rows.append({"repo": repo.name, "surface": s.label, "text": s.text})
+            rows.append({"repo": repo.name, "surface": s.label, "text": s.text,
+                         "ctype": s.component_type})
     return rows
 
 
@@ -152,8 +163,10 @@ def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None) -> dict:
         if surfaces:
             flagged = []
             for s in surfaces:
-                p = score_text(engine, s["text"], cfg)
-                if p >= cfg.threshold:
+                # Same surface-aware muting as ml.scan(), so the read measures
+                # what `attestral scan --ml` actually reports.
+                p, cats = score_surface(engine, s["text"], cfg)
+                if p >= cfg.threshold and not muted_on_surface(s.get("ctype", ""), cats):
                     flagged.append({**s, "score": round(p, 4)})
             rate = len(flagged) / len(surfaces) if surfaces else 0.0
             print(f"   real surfaces flagged: {len(flagged)}/{len(surfaces)} ({rate:.1%})")

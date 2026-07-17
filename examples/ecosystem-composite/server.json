@@ -1,0 +1,13 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.json",
+  "name": "io.github.meridian/desk-mcp",
+  "description": "Meridian Desk's own published MCP server: ticket lookup and account context for support agents.",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@meridian/desk-mcp",
+      "version": "latest",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}
