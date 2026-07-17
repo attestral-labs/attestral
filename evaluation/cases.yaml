@@ -14,12 +14,19 @@
 #
 # `expect` lists agentic rule ids (ATL-1xx / 2xx). Positive labels are grounded
 # in each fixture's documented intent (its README) and the cited research.
+#
+# Case fields beyond `path`/`expect`/`cite` (typed setup, never case-supplied code):
+#   fleet: [path, ...]       - build one model spanning repos via attestral fleet
+#                              (build_fleet_model); how ATL-213 is exercised.
+#   world_writable: [file..] - add o+w to these files for the duration of the
+#                              scan, then restore; how ATL-113 is exercised,
+#                              since git cannot store that permission bit.
 
 positive:
   - id: agentic-risks
     path: examples/agentic-risks
-    expect: [ATL-101, ATL-103, ATL-104, ATL-107, ATL-108, ATL-109, ATL-110, ATL-111, ATL-112, ATL-114, ATL-115, ATL-116, ATL-117, ATL-202, ATL-203, ATL-207]
-    cite: "OWASP ASI02/03/04/05; the lethal trifecta (Willison 2025)"
+    expect: [ATL-101, ATL-103, ATL-104, ATL-107, ATL-108, ATL-109, ATL-110, ATL-111, ATL-112, ATL-114, ATL-115, ATL-116, ATL-117, ATL-202, ATL-203, ATL-207, ATL-214, ATL-216]
+    cite: "OWASP ASI02/03/04/05; the lethal trifecta (Willison 2025); fleet flows per the fixture README"
   - id: tool-shadowing
     path: examples/tool-shadowing
     expect: [ATL-106, ATL-204, ATL-205, ATL-206]
@@ -74,12 +81,12 @@ positive:
     cite: "Agent runtime and cloud share no declared boundary controls"
   - id: mcp-supply-chain
     path: examples/mcp-supply-chain
-    expect: [ATL-134, ATL-135, ATL-136, ATL-137, ATL-138, ATL-140]
-    cite: "MCP launch-surface hardening: OWASP ASI04/05; MCP04/05/07; LLM05 (2026)"
+    expect: [ATL-109, ATL-134, ATL-135, ATL-136, ATL-137, ATL-138, ATL-140]
+    cite: "MCP launch-surface hardening: OWASP ASI04/05; MCP04/05/07; LLM05 (2026); ATL-109 per MCP spec 2025-06-18 (authenticate remote servers)"
   - id: agent-fleet-flows
     path: examples/agent-fleet-flows
-    expect: [ATL-214, ATL-215, ATL-216]
-    cite: "Fleet flows: OWASP ASI06 memory poisoning; Unit 42 MCP sampling 2025; ASI02/03"
+    expect: [ATL-104, ATL-107, ATL-108, ATL-112, ATL-114, ATL-125, ATL-202, ATL-214, ATL-215, ATL-216]
+    cite: "Fleet flows: OWASP ASI06 memory poisoning; Unit 42 MCP sampling 2025; ASI02/03; per-component checks per the fixture README"
   - id: agent-supply-trust
     path: examples/agent-supply-trust
     expect: [ATL-141, ATL-142, ATL-143]
@@ -88,6 +95,15 @@ positive:
     path: examples/code-agent
     expect: [ATL-139, ATL-203, ATL-207]
     cite: "Excessive agency in code: OWASP ASI05; LLM06"
+  - id: world-writable-instructions
+    path: evaluation/corpus/world-writable-instructions
+    world_writable: [CLAUDE.md]
+    expect: [ATL-113]
+    cite: "Persistent context poisoning via a host-writable instruction file: OWASP ASI06; MITRE ATLAS AML.T0051"
+  - id: fleet-cross-repo
+    fleet: [examples/fleet-repo-reader, examples/fleet-repo-runner]
+    expect: [ATL-103, ATL-105, ATL-107, ATL-203, ATL-207, ATL-213]
+    cite: "Cross-repo toxic flow (attestral fleet): reader ships input+egress, runner ships shell; only the fleet model completes the chain"
 
 benign:
   - id: benign-readonly-fleet

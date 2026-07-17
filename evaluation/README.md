@@ -46,9 +46,9 @@ is the point, not a footnote.
 `positive` recall is a **regression** guard: it proves the rules keep firing as the
 pack evolves, not that the rules are complete. The honest signal about *reach*
 comes from three other places: the benign false-positive rate, the coverage number
-(currently two genuine gaps - `ATL-113`, world-writable instruction file, has no
-fixture yet, and `ATL-213`, cross-repo toxic flow, fires through `attestral fleet`
-across repos, which this single-path benchmark does not drive), and the `gap` cases. As the corpus grows toward real-world systems
+(every agentic rule now has a positive case - `ATL-113` via the harness's
+`world_writable` setup field, `ATL-213` via a `fleet` case that spans two repos
+the way `attestral fleet` does), and the `gap` cases. As the corpus grows toward real-world systems
 (see roadmap M2, the real-systems gallery), positive cases will be labelled from
 the *threat* rather than the current output, so recall can legitimately fall below
 100% and expose true misses.

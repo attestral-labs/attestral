@@ -19,6 +19,12 @@ attestral scan examples/mcp-supply-chain
 | `debug-server` | ATL-138 | Launched with `--inspect`, leaving a Node debug port open - arbitrary code execution for anyone who can reach it. |
 | `ws-tool` | ATL-140 | Endpoint is `ws://` (plaintext WebSocket): tool traffic crosses the network unencrypted. |
 
+One finding is incidental to the supply-chain theme but true of the design:
+ATL-109 fires because the two remote servers (`insecure-remote`, `ws-tool`)
+declare no authentication, which the MCP spec's security best practices
+(2025-06-18) call out directly. It stays labelled rather than patched away -
+an unauthenticated remote is exactly what this config would deploy.
+
 The fix in every case is the same shape: pin to a reviewed, immutable source,
 keep transport encrypted and verified, and run tool servers with the least
 privilege that supports the workflow.

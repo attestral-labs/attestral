@@ -16,6 +16,15 @@ attestral scan examples/agent-fleet-flows
 | Covert tool invocation | ATL-215 | `assistant` declares the MCP `sampling` capability and is auto-approved, so a server-initiated model completion can drive tools with no human checkpoint (Unit 42, MCP sampling attack vectors, 2025). |
 | Injection reaches cloud | ATL-216 | `web` ingests untrusted content and `cloud` holds AWS credentials in one agent, so an indirect prompt injection can drive cloud APIs with those keys - agent-to-cloud reachability with no public endpoint required. |
 
-Each server also trips its own per-component checks (an auto-approved tool, a
-persistent memory store, cloud credentials in env). The point of the fixture is
-the fleet-level flows layered on top of them.
+Each server also trips its own per-component checks; the point of the fixture
+is the fleet-level flows layered on top of them:
+
+| Rule | Component-level finding |
+|---|---|
+| ATL-104 | `cloud` receives a secret (`AWS_SECRET_ACCESS_KEY`) via `env`. |
+| ATL-107 | `web` (mcp-server-fetch) is an outbound network / browser channel. |
+| ATL-108 | `assistant` auto-approves every tool call (`"autoApprove": ["*"]`). |
+| ATL-112 | `cloud` holds live cloud credentials. |
+| ATL-114 | `memory` (mem0) is a persistent memory / vector store. |
+| ATL-125 | `assistant` declares the MCP `sampling` capability. |
+| ATL-202 | Fleet-level lethal trifecta: private data (`cloud` creds) + untrusted input (`web`) + an exit (`web` outbound). |

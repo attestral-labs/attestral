@@ -11,6 +11,8 @@ evaluation/RESULTS.md and evaluation/results.json. Deterministic, offline.
 from __future__ import annotations
 
 import json
+import stat
+from contextlib import contextmanager
 from pathlib import Path
 
 import yaml
@@ -28,15 +30,45 @@ def _is_agentic(rule_id: str) -> bool:
     return rule_id.startswith("ATL-1") or rule_id.startswith("ATL-2")
 
 
-def _fired_agentic(path: str, engine: RuleEngine) -> set[str]:
-    model = build_model(str(ROOT / path))
+@contextmanager
+def _with_world_writable(case: dict):
+    """Temporarily add o+w to the files a case lists under `world_writable`.
+
+    ATL-113 fires on a file-permission fact git cannot store in a corpus, so
+    the harness sets the bit for the duration of the scan and always restores
+    it. A typed, named setup - never arbitrary case-supplied code."""
+    files = [ROOT / case["path"] / f for f in case.get("world_writable", [])]
+    saved = [(f, f.stat().st_mode) for f in files]
+    try:
+        for f, mode in saved:
+            f.chmod(mode | stat.S_IWOTH)
+        yield
+    finally:
+        for f, mode in saved:
+            f.chmod(mode)
+
+
+def _case_model(case: dict):
+    """A case scans one path (`path`) or a cross-repo fleet (`fleet`), the
+    same way `attestral fleet` composes one model spanning repositories."""
+    if "fleet" in case:
+        from attestral.fleet import build_fleet_model
+        model, _labels = build_fleet_model([str(ROOT / p) for p in case["fleet"]])
+        return model
+    return build_model(str(ROOT / case["path"]))
+
+
+def _fired_agentic(case: dict, engine: RuleEngine) -> set[str]:
+    with _with_world_writable(case):
+        model = _case_model(case)
     return {f.rule_id for f in engine.evaluate(model) if _is_agentic(f.rule_id)}
 
 
-def _fired_all(path: str, engine: RuleEngine) -> set[str]:
+def _fired_all(case: dict, engine: RuleEngine) -> set[str]:
     """Every band, not just agentic: a benign design must be quiet across the
     whole pack - a cloud-band false positive gets the tool muted just as fast."""
-    model = build_model(str(ROOT / path))
+    with _with_world_writable(case):
+        model = _case_model(case)
     return {f.rule_id for f in engine.evaluate(model)}
 
 
@@ -50,7 +82,7 @@ def run() -> dict:
     tp_total = exp_total = 0
     for case in data.get("positive", []):
         expected = set(case["expect"])
-        fired = _fired_agentic(case["path"], engine)
+        fired = _fired_agentic(case, engine)
         tp = expected & fired
         missed = expected - fired          # a labelled finding that no longer fires
         extra = fired - expected           # fired but not labelled (review, not auto-FP)
@@ -64,7 +96,7 @@ def run() -> dict:
     benign = []
     fp_total = 0
     for case in data.get("benign", []):
-        fired = _fired_all(case["path"], engine)
+        fired = _fired_all(case, engine)
         fp_total += len(fired)
         benign.append({"id": case["id"], "false_positives": sorted(fired)})
 
