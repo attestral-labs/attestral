@@ -1,6 +1,6 @@
 # The ML layer, measured
 
-The [DeBERTa page](https://attestral.vercel.app/ml-deberta) explains how the
+The [DeBERTa page](https://attestral.vercel.app/ml-deberta.html) explains how the
 classifier works. This page answers the question a skeptical engineer asks
 next: **how well does it actually score?** Everything below is reproducible
 with `python -m evaluation.ml_eval`; the machine-readable record of the run,
