@@ -1,11 +1,11 @@
-"""Service-coverage expansion for the AWS pack (ATL-055..ATL-067): Lambda URL,
+"""Service-coverage expansion for the AWS pack (ATL-055..ATL-068): Lambda URL,
 RDS IAM auth, Redshift VPC routing, ElastiCache encryption, DocumentDB, SageMaker,
-ALB, Kinesis, API Gateway, CloudFront WAF."""
+ALB, Kinesis, API Gateway, CloudFront WAF, CloudTrail logging, GuardDuty."""
 from attestral.ingest import build_model
 from attestral.rules import RuleEngine
 
 FIXTURE = "examples/aws-pack-ext"
-NEW_IDS = {f"ATL-{n:03d}" for n in range(55, 67)}   # 055..066 inclusive
+NEW_IDS = {f"ATL-{n:03d}" for n in range(55, 69)}   # 055..068 inclusive
 
 
 def _fired():
@@ -26,7 +26,7 @@ def test_new_ids_registered_and_unique():
 
 
 def test_no_stray_new_band_ids():
-    # Only 055..067 from the 0xx band's new range should fire here; a stray
-    # 068+ would mean a fixture resource drifted into an unintended new rule.
+    # Only 055..068 from the 0xx band's new range should fire here; a stray
+    # 069+ would mean a fixture resource drifted into an unintended new rule.
     fired_new = {i for i in _fired() if i.startswith("ATL-0") and i >= "ATL-055"}
     assert fired_new == NEW_IDS

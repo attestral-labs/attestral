@@ -216,3 +216,14 @@ rules:
     description: The search service - typically the retrieval index behind a RAG agent - is reachable from the public internet, so anyone holding a leaked admin or query key can read, rewrite or poison the indexed knowledge base from anywhere.
     recommendation: Set public_network_access_enabled = false and reach the service through private endpoints, or at minimum scope allowed_ips to known ranges.
     frameworks: ["NIST SC-7", "NIST AC-3", "SOC2 CC6.6"]
+
+  # --- SQL Server ---------------------------------------------------------
+
+  - id: ATL-337
+    title: Azure SQL Server accepts TLS below 1.2
+    severity: medium
+    target: azurerm_mssql_server
+    match: { attr_in: { minimum_tls_version: ["1.0", "1.1"] } }
+    description: The managed SQL server negotiates deprecated TLS 1.0/1.1, whose known weaknesses let an attacker downgrade the connection and intercept credentials or query data in transit.
+    recommendation: Set minimum_tls_version = "1.2" so only modern TLS is accepted.
+    frameworks: ["CIS Azure 4.1.8", "NIST SC-8", "SOC2 CC6.7"]

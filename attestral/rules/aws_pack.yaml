@@ -411,3 +411,23 @@ rules:
     recommendation: Require an authorizer (AWS_IAM, COGNITO_USER_POOLS, or a CUSTOM/Lambda authorizer); reserve NONE only for a deliberately public endpoint with its own rate limiting.
     frameworks: ["AWS FSBP APIGateway.8", "NIST AC-3", "SOC2 CC6.1"]
 
+  # --- CloudTrail / threat detection --------------------------------------
+
+  - id: ATL-067
+    title: CloudTrail trail has logging turned off
+    severity: high
+    target: aws_cloudtrail
+    match: { attr_equals: { enable_logging: false } }
+    description: The trail exists but is switched off, so no management or data events are recorded and every action taken in the account goes unaudited while the trail's presence gives a false sense of coverage.
+    recommendation: Set enable_logging = true so the trail actually captures events; a configured-but-disabled trail is worse than none because it reads as covered in an inventory.
+    frameworks: ["CIS AWS 3.1", "NIST AU-12", "SOC2 CC7.2"]
+
+  - id: ATL-068
+    title: GuardDuty detector is disabled
+    severity: medium
+    target: aws_guardduty_detector
+    match: { attr_equals: { enable: false } }
+    description: The GuardDuty detector is declared but disabled, so continuous threat detection across CloudTrail, VPC flow, and DNS logs is not running and account compromise can proceed with no managed detection in its path.
+    recommendation: Set enable = true so GuardDuty actively analyzes account activity and raises findings on reconnaissance, credential abuse, and exfiltration.
+    frameworks: ["AWS FSBP GuardDuty.1", "NIST SI-4", "SOC2 CC7.1"]
+

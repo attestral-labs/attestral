@@ -6,6 +6,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **Four cloud rules from the research radar sweep (pack 228 -> 232).** ATL-067
+  (CloudTrail trail with logging switched off, an audit trail that records
+  nothing), ATL-068 (GuardDuty detector declared but disabled), ATL-337 (Azure
+  SQL Server accepting TLS below 1.2), and ATL-433 (Cloud SQL instance with
+  automated backups disabled). Each cites a real CIS/NIST/FSBP control and ships
+  with an isolated fixture (examples/aws-pack-ext, azure-pack, gcp-pack) and a
+  test asserting it fires alone.
+
 ## [0.18.0] - 2026-07-17
 
 ### Added

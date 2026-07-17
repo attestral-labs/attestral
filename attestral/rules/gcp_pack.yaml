@@ -124,6 +124,15 @@ rules:
     recommendation: Set settings.backup_configuration.point_in_time_recovery_enabled = true (and keep automated backups on) so the database can be restored to any moment within the retention window.
     frameworks: ["CIS GCP 6.x", "NIST CP-10", "SOC2 A1.2"]
 
+  - id: ATL-433
+    title: Cloud SQL instance has automated backups disabled
+    severity: high
+    target: google_sql_database_instance
+    match: { attr_equals: { enabled: false } }
+    description: Automated backups are turned off, so a deletion, corruption, or ransomware event on the instance has no restore point to fall back to and the data is unrecoverable.
+    recommendation: Set settings.backup_configuration.enabled = true (and keep point-in-time recovery on) so the instance retains restorable backups.
+    frameworks: ["CIS GCP 6.7", "NIST CP-9", "SOC2 A1.2"]
+
   # --- Cloud Storage ------------------------------------------------------
 
   - id: ATL-425

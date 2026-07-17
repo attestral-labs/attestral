@@ -78,6 +78,22 @@ resource "google_sql_database_instance" "orders" {
   }
 }
 
+# ATL-433: automated backups disabled. PITR is left true so only ATL-433 fires
+# (ATL-424 stays quiet); ip_configuration is omitted, mirroring "orders", so no
+# core public-IP/SSL rule co-fires.
+resource "google_sql_database_instance" "reports" {
+  name             = "reports"
+  database_version = "POSTGRES_15"
+
+  settings {
+    tier = "db-custom-2-8192"
+    backup_configuration {
+      enabled                        = false
+      point_in_time_recovery_enabled = true
+    }
+  }
+}
+
 # --- Cloud Storage --------------------------------------------------------
 
 # ATL-425: public access prevention left inherited (not enforced).

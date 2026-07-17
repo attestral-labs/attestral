@@ -90,3 +90,19 @@ resource "aws_api_gateway_method" "open" {
   http_method   = "GET"
   authorization = "NONE"
 }
+
+# ATL-067: trail configured but logging switched off. Multi-region, log-file
+# validation, and a KMS key are all set so only ATL-067 fires (ATL-019/020/054
+# stay quiet).
+resource "aws_cloudtrail" "disabled" {
+  name                       = "acme-disabled"
+  is_multi_region_trail      = true
+  enable_log_file_validation = true
+  kms_key_id                 = "arn:aws:kms:us-east-1:111122223333:key/abcd-1234"
+  enable_logging             = false
+}
+
+# ATL-068: GuardDuty detector present but disabled.
+resource "aws_guardduty_detector" "main" {
+  enable = false
+}

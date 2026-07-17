@@ -138,3 +138,15 @@ resource "azurerm_search_service" "rag" {
   sku                           = "standard"
   public_network_access_enabled = true    # ATL-336
 }
+
+# --- SQL Server accepting deprecated TLS -------------------------------------
+# Fires ATL-337. public_network_access_enabled = false keeps core ATL-303 quiet.
+resource "azurerm_mssql_server" "sql" {
+  name                          = "acme-sql"
+  resource_group_name           = "acme-rg"
+  location                      = "eastus"
+  version                       = "12.0"
+  administrator_login           = "sqladmin"
+  public_network_access_enabled = false
+  minimum_tls_version           = "1.1"    # ATL-337
+}
