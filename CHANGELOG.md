@@ -18,6 +18,40 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   `attestral[sign]` extra (`cryptography`, lazy-imported); the integrity check
   still runs with zero dependencies. New `attestral/signing.py`; tests in
   `tests/test_signing.py`.
+- **The ML layer's precision/recall, measured and published.**
+  `evaluation/ml_eval.py` scores every tier through the production scan path
+  against a vendored independent labeled set (`deepset/prompt-injections`,
+  Apache-2.0, 662 rows) and the 106 real surfaces ingested from the 33-repo
+  MCP ecosystem corpus, with every flag human-adjudicated. Results:
+  heuristic 0.950 precision / 0.144 recall, DeBERTa 0.965 / 0.414 (0.944
+  recall on explicit injection phrasing); real-surface flags 28/106 vs 3/106,
+  all benign. Full write-up in `evaluation/ml-precision-recall.md`, cited on
+  the site's DeBERTa page; the heuristic's floors are enforced in CI
+  (`tests/test_ml_eval.py`).
+- **Kubernetes ingester expansion.** The K8s ingester now parses RBAC and
+  network resources into first-class components: `k8s_rbac_role` (Role /
+  ClusterRole, with wildcard-verb, wildcard-resource, and secrets-access
+  signals), `k8s_rbac_binding` (RoleBinding / ClusterRoleBinding, with a
+  cluster-admin-binding signal), and `k8s_network_policy` (default-deny
+  detection). Pod and container hardening signals were added too: AppArmor
+  profile, SELinux options, service-account name, a plaintext-secret-in-env
+  detector, and a pod-level fallback for `runAsUser` so root is caught when it
+  is set only at the pod level.
+- **Six Kubernetes rules (ATL-530..535), pack 222 -> 228.** AppArmor explicitly
+  unconfined (ATL-530), a secret hardcoded in a container env var (ATL-531),
+  RBAC roles with wildcard resources (ATL-532) or wildcard verbs (ATL-533),
+  RBAC access to Secrets (ATL-534), and a binding to the built-in cluster-admin
+  role (ATL-535). Each cites its CIS Kubernetes control and ships with a
+  fixture under `examples/k8s-hardening` and `examples/k8s-rbac`.
+
+### Changed
+- **Site: the three review layers each get a dedicated deep-dive.** The landing
+  page gains an interactive terminal that runs each layer (deterministic, ML,
+  LLM-judge) against the same insecure agent with the real command output; new
+  `deterministic.html` and `judge.html` field-notes pages, and the DeBERTa page
+  gains a supervision section (proper supervised fine-tuning and weak
+  supervision from the rule packs). Nav consolidates to a single "Review
+  layers" entry.
 
 ## [0.17.0] - 2026-07-16
 
