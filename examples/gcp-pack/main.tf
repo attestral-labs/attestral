@@ -1,5 +1,5 @@
 # Intentionally insecure GCP fixtures for the gcp_pack.yaml rule set
-# (ATL-414..ATL-432). Every resource below is deliberately misconfigured to
+# (ATL-414..ATL-434). Every resource below is deliberately misconfigured to
 # trigger a specific pack rule (or a small, disjoint set). Do not use as a
 # template for real infrastructure.
 #
@@ -170,4 +170,17 @@ resource "google_kms_crypto_key_iam_member" "key_public" {
   crypto_key_id = "projects/acme-prod/locations/us/keyRings/main/cryptoKeys/data"
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "allUsers"
+}
+
+# --- Workload Identity Federation ------------------------------------------
+
+# ATL-434: no attribute_condition, so any subject the external IdP issues can
+# federate into the pool and assume its Google service account.
+resource "google_iam_workload_identity_pool_provider" "github_ci" {
+  workload_identity_pool_id          = "github-pool"
+  workload_identity_pool_provider_id = "github-provider"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
 }

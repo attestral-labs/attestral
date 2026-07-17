@@ -59,6 +59,11 @@ _KNOWN_VULNS = (
     # CVE-2025-6514: OS command injection -> RCE in mcp-remote when connecting to
     # an untrusted remote MCP server. Affected 0.0.5 through 0.1.15.
     ("mcp-remote", (0, 1, 15), "CVE-2025-6514"),
+    # CVE-2026-50143: URL-authority injection in @apify/actors-mcp-server - a
+    # standby-Actor URL is built from an attacker-controlled path, and the
+    # client attaches the Apify bearer token to whatever host that resolves
+    # to. Affected through 0.10.10; fixed in 0.10.11.
+    ("actors-mcp-server", (0, 10, 10), "CVE-2026-50143"),
 )
 
 

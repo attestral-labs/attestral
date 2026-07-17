@@ -1,4 +1,4 @@
-"""Coverage for the GCP rule pack (rules/gcp_pack.yaml, ATL-414..ATL-433).
+"""Coverage for the GCP rule pack (rules/gcp_pack.yaml, ATL-414..ATL-434).
 
 Mirrors tests/test_aws_pack.py: build a model from the fixture and assert every
 new GCP id fires, then guard id uniqueness across the whole loaded ruleset.
@@ -9,7 +9,7 @@ from attestral.rules import RuleEngine
 FIXTURE = "examples/gcp-pack"
 
 # Every id the pack ships, ATL-414 through ATL-433 inclusive.
-PACK_IDS = {f"ATL-{n:03d}" for n in range(414, 434)}
+PACK_IDS = {f"ATL-{n:03d}" for n in range(414, 435)}
 
 # Core GCP rules that legitimately co-fire on this fixture via by_type() prefix
 # matching. ATL-413 (target google_kms_crypto_key, attr_missing rotation_period)

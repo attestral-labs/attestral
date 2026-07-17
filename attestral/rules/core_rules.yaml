@@ -1139,6 +1139,15 @@ rules:
     recommendation: Pin every package to an exact, immutable version (and an integrity hash where the ecosystem supports it) in the manifest, so the tool that was reviewed is the tool that installs.
     frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP LLM03 Supply Chain", "NIST CM-2"]
 
+  - id: ATL-144
+    title: Bedrock AgentCore runtime role attached to the full-access managed policy
+    severity: high
+    target: aws_iam_role_policy_attachment
+    match: { attr_contains: { policy_arn: "BedrockAgentCoreFullAccess" } }
+    description: BedrockAgentCoreFullAccess is the dev/quickstart default the AgentCore starter toolkit auto-generates, and it grants broad, account-wide AgentCore actions, including GetWorkloadAccessTokenForUserId, which mints a workload access token from a caller-supplied user id with no identity-provider verification. Left attached in production, a compromised agent runtime can mint tokens for arbitrary users, not just act within its own workload.
+    recommendation: Replace the managed policy with a role scoped to the exact AgentCore resource ARNs the runtime needs, and deny GetWorkloadAccessTokenForUserId unless the agent genuinely has no JWT available (prefer GetWorkloadAccessTokenForJWT, which validates signature, issuer, and expiry).
+    frameworks: ["NIST AC-6", "OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency"]
+
   # --- Fleet-level flows (2026): three architecture-level crossings the system
   # --- model sees and a per-server linter cannot. Fixture: examples/agent-fleet-flows/.
 

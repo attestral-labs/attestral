@@ -270,3 +270,51 @@ def test_malformed_combo_spec_fails_closed(tmp_path):
     model = build_model(FIXTURE)
     ids = {f.rule_id for f in RuleEngine(rule_paths=[rules]).evaluate(model)}
     assert "X-1" not in ids
+
+
+def test_agentcore_full_access_policy_fires_atl144():
+    # Bedrock AgentCore runtime role attached to BedrockAgentCoreFullAccess.
+    model = build_model("examples/agentcore-iam")
+    ids = {f.rule_id for f in RuleEngine().evaluate(model)}
+    assert "ATL-144" in ids
+
+
+def test_scoped_agentcore_policy_not_flagged(tmp_path):
+    (tmp_path / "main.tf").write_text(
+        'resource "aws_iam_role_policy_attachment" "scoped" {\n'
+        '  role       = "agentcore-runtime-role"\n'
+        '  policy_arn = "arn:aws:iam::123456789012:policy/agentcore-scoped-policy"\n'
+        "}\n"
+    )
+    model = build_model(str(tmp_path))
+    ids = {f.rule_id for f in RuleEngine().evaluate(model)}
+    assert "ATL-144" not in ids
+
+
+def test_known_cve_actors_mcp_server_fires_atl117(tmp_path):
+    # CVE-2026-50143: @apify/actors-mcp-server <= 0.10.10, URL-authority
+    # injection leaking the Apify bearer token to an attacker host.
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(
+        '{"mcpServers": {"apify": {"command": "npx", '
+        '"args": ["@apify/actors-mcp-server@0.10.10"]}}}'
+    )
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+    model = ingest_mcp(cfg, SystemModel())
+    srv = model.get("mcp_server.apify")
+    assert srv.attr("_has_known_cve") is True
+    assert srv.attr("_known_cve") == "CVE-2026-50143"
+    assert "ATL-117" in {f.rule_id for f in RuleEngine().evaluate(model)}
+
+
+def test_patched_actors_mcp_server_not_flagged(tmp_path):
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(
+        '{"mcpServers": {"apify": {"command": "npx", '
+        '"args": ["@apify/actors-mcp-server@0.10.11"]}}}'
+    )
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+    model = ingest_mcp(cfg, SystemModel())
+    assert model.get("mcp_server.apify").attr("_has_known_cve") is False
