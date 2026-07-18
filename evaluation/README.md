@@ -55,6 +55,17 @@ labelled from the advisory, not from our output, and reports full-set coverage o
 [`external-recall.md`](./external-recall.md). This benchmark stays the regression
 guard; the external set is the honest-recall companion.
 
+## Defense-aware tier (M10)
+
+Recall measures what we catch; this measures what an adaptive attacker gets past
+us. `python -m evaluation.adversarial` takes designs we *do* detect, applies the
+transformations an attacker would use to hide the same malice (paraphrase,
+homoglyphs, interpreter shell-out, capability splitting), and reports which evade.
+Today four of eight adaptive attacks evade, and we publish exactly which and why
+in [`defense-aware.md`](./defense-aware.md). `--check` (run by
+`tests/test_adversarial.py`) fails if any outcome diverges from the recorded
+matrix, so a robustness regression, or an undocumented new strength, is caught.
+
 ## Growing it
 
 - **Add a positive case:** point `path` at a fixture and list the agentic rule ids

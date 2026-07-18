@@ -70,10 +70,17 @@ against that, not just against fixtures we wrote:
   false-positive read, including the borderline classes we deliberately do *not*
   headline (the Windows `cmd /c npx` idiom read as a shell, benign instructional
   text scored by the heuristic tier).
-- A defense-aware attacker who knows our capability hints can name a tool to dodge
-  them, or split a trifecta across a session boundary we do not model. We treat
-  closing these as roadmap work (defense-aware evaluation), and we would rather
-  say so than imply coverage we do not have.
+- A defense-aware attacker who knows our detection can evade it, so we measure
+  that directly: `python -m evaluation.adversarial` runs adaptive attacks against
+  our own detection and publishes the matrix ([`evaluation/defense-aware.md`](../evaluation/defense-aware.md)).
+  Today **half of the eight adaptive attacks evade**: a semantic paraphrase or a
+  confusable-homoglyph rewrite slips past the prompt-injection heuristic, and a
+  shell hidden inside `node -e` interpreter code or an opaquely named wrapper is
+  not seen as a declared shell. The other half hold (base64 and zero-width text
+  are decoded; `env`-prefixing and splitting a trifecta across files do not evade
+  the fleet model). Both gaps share one root, that we review the *declared*
+  design, which is precisely what the compile -> drift runtime loop exists to
+  close. The matrix is gated in CI, so a robustness regression fails the suite.
 
 ## Reporting and posture
 

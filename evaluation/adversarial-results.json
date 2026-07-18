@@ -1,0 +1,98 @@
+{
+  "cases": 11,
+  "adaptive_attacks": 8,
+  "evaded": 4,
+  "evasion_rate": 0.5,
+  "diverged": [],
+  "rows": [
+    {
+      "surface": "language",
+      "attack": "identity (control)",
+      "outcome": "detected",
+      "expected": "detected",
+      "diverged": false
+    },
+    {
+      "surface": "language",
+      "attack": "paraphrase",
+      "outcome": "evaded",
+      "expected": "evaded",
+      "diverged": false
+    },
+    {
+      "surface": "language",
+      "attack": "homoglyph substitution",
+      "outcome": "evaded",
+      "expected": "evaded",
+      "diverged": false
+    },
+    {
+      "surface": "language",
+      "attack": "zero-width spacing",
+      "outcome": "detected",
+      "expected": "detected",
+      "diverged": false
+    },
+    {
+      "surface": "language",
+      "attack": "base64-encoded",
+      "outcome": "detected",
+      "expected": "detected",
+      "diverged": false
+    },
+    {
+      "surface": "structural",
+      "attack": "shell / declared `bash -c` (control)",
+      "rule": "ATL-103",
+      "note": "the plain shell server the attacker starts from",
+      "outcome": "detected",
+      "expected": "detected",
+      "diverged": false
+    },
+    {
+      "surface": "structural",
+      "attack": "shell / env-prefixed `env bash -c`",
+      "rule": "ATL-103",
+      "note": "prefixing with env does not hide the bash token in argv",
+      "outcome": "detected",
+      "expected": "detected",
+      "diverged": false
+    },
+    {
+      "surface": "structural",
+      "attack": "shell / interpreter `node -e child_process.exec`",
+      "rule": "ATL-103",
+      "note": "the shell-out lives inside interpreter code the model does not parse",
+      "outcome": "evaded",
+      "expected": "evaded",
+      "diverged": false
+    },
+    {
+      "surface": "structural",
+      "attack": "shell / opaque wrapper `uvx toolrunner`",
+      "rule": "ATL-103",
+      "note": "an innocuously named launcher that shells out internally",
+      "outcome": "evaded",
+      "expected": "evaded",
+      "diverged": false
+    },
+    {
+      "surface": "structural",
+      "attack": "trifecta / one config (control)",
+      "rule": "ATL-202",
+      "note": "read + untrusted-input + egress, all in one file",
+      "outcome": "detected",
+      "expected": "detected",
+      "diverged": false
+    },
+    {
+      "surface": "structural",
+      "attack": "trifecta / split across two files",
+      "rule": "ATL-202",
+      "note": "the fleet model spans every file in the repo, so the split does not hide it",
+      "outcome": "detected",
+      "expected": "detected",
+      "diverged": false
+    }
+  ]
+}

@@ -7,6 +7,22 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Defense-aware evaluation (roadmap M10): adaptive attacks on our own
+  detection.** A static benchmark scores well by construction; this measures the
+  opposite. `python -m evaluation.adversarial` takes designs Attestral does
+  detect, applies the transformations an adaptive attacker would use to hide the
+  same malice, and reports which evade. Today **four of eight adaptive attacks
+  evade (50%), and we publish exactly which and why** (`evaluation/defense-aware.md`):
+  a semantic paraphrase or a confusable-homoglyph rewrite slips past the
+  prompt-injection heuristic, and a shell hidden inside `node -e` interpreter code
+  or an opaquely named wrapper is not seen as a declared shell. The other half
+  hold: base64 and zero-width text are decoded before scoring, and `env`-prefixing
+  or splitting a trifecta across files does not evade the fleet model. Both gaps
+  share one root, that we review the declared design, which is the argument for
+  the compile -> drift runtime loop. The matrix is gated: `--check` (run by
+  `tests/test_adversarial.py`) fails if any outcome diverges, so a robustness
+  regression, or a silently closed gap, is caught. `docs/limitations.md` links
+  the result.
 - **Schema poisoning is now pinned and caught (roadmap M8).** The rug-pull pin
   (`manifest.py`, DRF-005) already covered each tool's name and description; it
   now also covers each tool's **input schema**. A tool whose `inputSchema` gains
