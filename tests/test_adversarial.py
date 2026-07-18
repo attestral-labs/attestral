@@ -9,7 +9,9 @@ thesis cannot drift even if EXPECTED were edited to match a regression.
 """
 from __future__ import annotations
 
-from evaluation.adversarial import run
+import pytest
+
+from evaluation.adversarial import EXPECTED_DEBERTA, run
 
 
 def _outcome(rows, attack_substr: str) -> str:
@@ -75,3 +77,37 @@ def test_evasion_rate_dropped_after_mitigations():
     assert r["adaptive_attacks"] == 8
     assert r["evaded"] == 2                                       # down from 4 (homoglyph + interpreter closed)
     assert 0.0 < r["evasion_rate"] < 1.0                          # honest: not perfect, not useless
+
+
+# --- the DeBERTa tier escalation (measured only when attestral[ml] is present) -
+# The escalation loads the model, so compute it once for the module and let the
+# heuristic-only tests above stay model-free.
+
+@pytest.fixture(scope="module")
+def escalation() -> dict:
+    return run(escalate=True)["tier_escalation"]
+
+
+def test_escalation_matrix_is_wellformed(escalation):
+    # Every language attack has a recorded DeBERTa expectation, installed or not.
+    assert {r["attack"] for r in escalation["rows"]} == set(EXPECTED_DEBERTA)
+    for row in escalation["rows"]:
+        assert row["tier"] == "deberta"
+        assert row["outcome"] in {"detected", "evaded", "unavailable"}
+
+
+def test_escalation_matches_recorded_matrix_when_present(escalation):
+    if not escalation["available"]:
+        pytest.skip("attestral[ml] not installed; DeBERTa escalation not measured")
+    assert escalation["diverged"] == []                           # no divergence from EXPECTED_DEBERTA
+
+
+def test_escalation_closes_paraphrase_but_not_base64_when_present(escalation):
+    # The point of the tier: it closes the semantic paraphrase the heuristic is
+    # blind to, and it is complementary, not strictly better - it misses the
+    # base64 payload the heuristic decodes.
+    if not escalation["available"]:
+        pytest.skip("attestral[ml] not installed; DeBERTa escalation not measured")
+    out = {r["attack"]: r["outcome"] for r in escalation["rows"]}
+    assert out["paraphrase"] == "detected"
+    assert out["base64-encoded"] == "evaded"

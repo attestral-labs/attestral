@@ -10,7 +10,14 @@ Floors are deliberately below the measured values (precision 0.95, recall 0.14
 at the 0.5 default threshold): the gate catches a pattern-bank regression that
 tanks the published claim, not normal drift from adding patterns.
 """
-from evaluation.ml_eval import LABELED, load_jsonl, metrics, score_text
+from evaluation.ml_eval import (
+    LABELED,
+    PARAPHRASE,
+    load_jsonl,
+    metrics,
+    paraphrase_slice,
+    score_text,
+)
 
 from attestral.ml import MLConfig, _resolve_engine
 
@@ -43,3 +50,24 @@ def test_heuristic_recall_floor_holds():
     # Low by design (a curated bank does not chase a generic jailbreak set),
     # but a collapse to near zero would mean the bank stopped matching at all.
     assert m["recall"] >= 0.10, m
+
+
+def test_paraphrase_slice_is_intact():
+    rows = load_jsonl(PARAPHRASE)
+    assert len(rows) == 27
+    assert sum(r["label"] for r in rows) == 15          # 15 paraphrased injections
+    assert {r["label"] for r in rows} == {0, 1}
+    assert all(r.get("class") for r in rows)
+
+
+def test_heuristic_holds_precision_on_paraphrase_slice():
+    cfg = MLConfig(engine="heuristic")
+    engine, notes = _resolve_engine(cfg)
+    assert notes == [], "the heuristic tier must resolve without fallback notes"
+    sl = paraphrase_slice(engine, cfg)
+    # The heuristic is precision-first: it stays silent on the benign look-alikes.
+    # It is also blind to the paraphrased injections (recall 0/15) - that is the
+    # whole reason to escalate to the model tier, whose recovery is measured (not
+    # gated) in ml-results.json and evaluation/ml-precision-recall.md.
+    assert sl["false_positives"] == 0, sl
+    assert sl["detected_pos"] == 0, sl

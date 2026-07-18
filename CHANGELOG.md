@@ -7,6 +7,23 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **DeBERTa-tier defense-aware evaluation and the adaptive-paraphrase slice.** The
+  defense-aware harness now escalates every language attack to the optional DeBERTa
+  tier, measured through the production scan path: the semantic paraphrase the
+  precision-first heuristic scores 0.0 the model scores 1.0 (the gap closes on
+  escalation), while a base64-smuggled instruction the heuristic decodes and catches
+  the model misses (the tiers are complementary, not ranked). Backed by a new
+  vendored slice `evaluation/data/paraphrase-injections.jsonl` (15 semantic
+  paraphrases of real injection intents plus 12 benign look-alikes): the heuristic
+  recovers 0/15, DeBERTa 13/15 at one benign false-positive on twelve, now reported
+  by `python -m evaluation.ml_eval` and gated for heuristic precision by
+  `tests/test_ml_eval.py`. The DeBERTa escalation matrix is gated by
+  `tests/test_adversarial.py` when `attestral[ml]` is installed and skipped cleanly
+  otherwise. The DeBERTa page (`website/ml-deberta.html`) gains a live in-browser
+  heuristic scorer that shows the tier complementarity interactively and cites the
+  character-injection evasion result (arXiv 2504.11168) as the reason the layer
+  keeps the heuristic in front of the model. Write-ups: `evaluation/defense-aware.md`,
+  `evaluation/ml-precision-recall.md`. No rule-pack change (stays 237).
 - **Closed two of the M10 evasions (ATL-146 + confusables normalization).** The
   defense-aware eval found four adaptive attacks that evaded detection; two are
   now closed and the harness proves it (evasion rate 50% -> 25%, gated by
