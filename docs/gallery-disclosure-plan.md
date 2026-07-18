@@ -41,12 +41,21 @@ Re-run the sweep at fresh pinned commits before disclosing (configs drift).
 5. Ship the harness, the pinned target list, and the per-repo results alongside
    the named write-up.
 
-## Decisions still needed from the owner
+## Owner decisions (resolved 2026-07-18)
 
-- Confirm the **90-day window** (or set another).
-- Confirm whether to **notify maintainers now** or hold until after the Show HN
-  (Wave 1) so the named gallery lands as Wave 2.
+- **Disclosure window: 90 days.** Confirmed. No named result publishes until 90
+  days after that target's maintainer is notified.
+- **Aggregate: deployed.** The publish-safe "Scanned in the wild" section is live
+  on attestral.vercel.app; no repo is named.
+- **Wave 2 prep: in progress.** A fresh sweep at the current 236-rule pack is
+  under way; the candidate target list and one staged draft disclosure per target
+  follow, for the owner to review and send. Sending remains a human action.
+
+Still open:
+
 - Approve the **final target list** once the fresh sweep produces candidates.
+- Decide **when to send** (now, or hold so the named gallery lands as a deliberate
+  Wave 2 after the aggregate launch).
 
 ## Status tracker
 
