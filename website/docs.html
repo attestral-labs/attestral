@@ -494,7 +494,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
       <tr><td><code>DRF-002</code></td><td>critical</td><td>A server the review denied is invoked at runtime.</td></tr>
       <tr><td><code>DRF-003</code></td><td>high</td><td>A filesystem path outside the attested roots is accessed.</td></tr>
       <tr><td><code>DRF-004</code></td><td>high</td><td>A TLS-constrained server is observed over plaintext.</td></tr>
-      <tr><td><code>DRF-005</code></td><td>critical</td><td>A server's tool manifest changed since attestation (a rug-pull, a tool silently changed after you approved it).</td></tr>
+      <tr><td><code>DRF-005</code></td><td>critical</td><td>A server's tool manifest changed since attestation: a rug-pull (a tool silently changed after you approved it) or schema poisoning (a tool's input schema gained a hidden parameter or an instruction-bearing field description). The pin covers each tool's name, description, and input schema.</td></tr>
       <tr><td><code>DRF-006</code></td><td>high</td><td>A runaway tool-call loop suggests resource drain.</td></tr>
       <tr><td><code>DRF-007</code></td><td>medium</td><td>A server's call volume exceeds its attested budget.</td></tr>
     </table>
@@ -606,7 +606,9 @@ attestral scan . --judge --judge-suppress</code></pre>
       <tr><td><code>args</code></td><td>no</td><td>Arguments; paths are checked against attested roots.</td></tr>
       <tr><td><code>url</code></td><td>no</td><td>Transport endpoint; checked against TLS constraints.</td></tr>
       <tr><td><code>ts</code></td><td>no</td><td>ISO-8601 timestamp, carried into drift findings.</td></tr>
+      <tr><td><code>manifest</code> / <code>manifest_sha256</code></td><td>no</td><td>The tool surface actually served at invocation: the launch identity and each tool's name, description, and <code>inputSchema</code>. Emit the object and Attestral hashes it, or emit a precomputed hash. Any change from the attested surface, including a poisoned input schema, fires <code>DRF-005</code>.</td></tr>
     </table>
+    <div class="note">Include each tool's <code>inputSchema</code> in the served manifest so schema poisoning is caught: a hidden parameter or an instruction smuggled into a field description changes the hash even when the tool's name and description are untouched.</div>
 
     <h2 id="action">GitHub Action</h2>
     <p>Run drift checks on a schedule so conformance is continuous, not annual:</p>

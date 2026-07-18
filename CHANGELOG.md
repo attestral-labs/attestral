@@ -7,6 +7,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Schema poisoning is now pinned and caught (roadmap M8).** The rug-pull pin
+  (`manifest.py`, DRF-005) already covered each tool's name and description; it
+  now also covers each tool's **input schema**. A tool whose `inputSchema` gains
+  a hidden parameter or an instruction smuggled into a field description after
+  approval now flips the manifest hash and fires DRF-005 at runtime, closing the
+  schema-poisoning half of the design-to-runtime gap the benchmark records as
+  `gap-description-rugpull`. The schema is accepted under any of `inputSchema`
+  (MCP spec), `input_schema`, or `parameters`, canonicalized so object-key order
+  does not matter, and pinned only when a tool declares one, so an existing
+  schema-less attestation's hash is unchanged (no spurious drift). The shared
+  canonicalization means both the attested (ingest/compile) and observed (drift)
+  sides get it symmetrically. Drift telemetry can carry the served `inputSchema`
+  in its `manifest` object; docs updated. Tests in `tests/test_manifest.py` and
+  `tests/test_drift.py`.
 - **Claude Code plugin + `attestral init` scaffolds it (roadmap M4).** Attestral
   now ships as an installable Claude Code plugin, so it is discoverable where
   agents are actually built: `/plugin marketplace add attestral-labs/attestral`
