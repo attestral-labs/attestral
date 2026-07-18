@@ -7,6 +7,32 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **False-positive budget (roadmap M3): per-rule confidence and
+  `--min-confidence`.** Recall says "we catch the real ones"; this says "and we
+  don't cry wolf." Every finding now carries a `confidence` (high | medium |
+  low). Deterministic rules are `high` by contract (structural, zero false
+  positives on the benign corpus); the ML tier's confidence tracks its
+  probability, so a borderline injection hit is `low` and can be filtered while
+  a clear one stays; a rule can opt down (the ATL-201 boundary advisory is
+  `low`). `attestral scan --min-confidence high` keeps only the CI-safe set and
+  reports how many lower-confidence findings it dropped. The confidence surfaces
+  as a tag in the terminal report (only when below high, so default output stays
+  clean) and as a SARIF result property. The benign-corpus zero-FP promise is a
+  gated contract: `tests/test_fp_budget.py` fails if `--min-confidence high`
+  ever fires on a benign design. Write-up `docs/false-positive-budget.md`.
+- **Inline suppression: `// attestral:ignore ATL-xxx` waives a finding in
+  place.** The waiver file stays the heavyweight, expiring, provenance-pinned
+  path; this is the one-line path for the everyday false positive. A marker in
+  the config a finding came from, naming its rule, waives it - kept in the
+  evidence chain (waived, not deleted), tagged with the marker's file and
+  optional `reason:`, so an auditor still sees the suppression. Matched by (rule
+  id, source file) and fail-safe: a marker that matches nothing does nothing.
+- **MCP ingester now parses JSONC.** Real Claude Desktop / Cursor / VS Code
+  configs carry `//` and `/* */` comments; a strict `json.loads` silently
+  dropped the whole file the moment one appeared (and blocked inline
+  suppression). `attestral/ingest/_jsonc.py` strips comments in a string-aware
+  way - the `//` in a URL survives - and nothing else, so a genuinely malformed
+  config still fails loudly. Tests in `tests/test_jsonc.py`.
 - **Compile as a narrowing (roadmap M7): `attestral compile --against`.** The
   compile step already emits a default-deny policy; this makes it a confinement
   guarantee. `--against PRIOR` compiles the current design and classifies the
