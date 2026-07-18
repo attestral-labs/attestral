@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Regenerate the data baked into the landing page's interactive widgets.
+"""Regenerate the pack-derived data and count strings baked into the site.
 
-website/index.html embeds three pack-derived payloads:
+website/index.html embeds interactive-widget payloads:
 
 - `var MCP_RULES=...`: the browser-edition checker's per-server rules, every
   mcp_server rule whose match spec the page's JavaScript mirror can evaluate
@@ -10,6 +10,14 @@ website/index.html embeds three pack-derived payloads:
   and the fleet playground evaluate (ATL-202/203 style);
 - the "N of M checks" count strings in the checker's window title, its output
   footer, and the section lede (spelled out in prose there).
+
+It ALSO owns every hand-written count string on index.html AND system.html:
+the coverage-section heading, the six per-band bars, the agentic/cloud note,
+the animated 'security checks' metric, the labs-pillar cloud number, and the
+typed-matcher prose. These previously drifted across rule waves because the
+render scripts only touched the widget data, not the decorative counts, so a
+stale numeral could pass --check. Now they are derived from the packs and
+enforced, so this whole class of drift is impossible.
 
 The playground's COMBOS block keeps hand-written narrative copy, so it is not
 regenerated wholesale; its `groups:` and `sev:` fields are synced per rule id
@@ -27,6 +35,7 @@ Needs the project environment (pyyaml).
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import re
 import sys
@@ -38,7 +47,12 @@ sys.path.insert(0, str(REPO))
 import yaml  # noqa: E402
 
 PAGE_PATH = REPO / "website" / "index.html"
+SYSTEM_PATH = REPO / "website" / "system.html"
 PACKS_DIR = REPO / "attestral" / "rules"
+
+# Rule-id band -> coverage bucket. 0xx AWS, 1xx MCP/agentic, 2xx cross-boundary,
+# 3xx Azure, 4xx GCP, 5xx K8s. Cloud = every band except agentic + cross.
+_CLOUD_BANDS = (0, 3, 4, 5)
 
 # Matcher kinds the page's `matches()` mirror implements. Anything else fails
 # closed in the engine AND is excluded here, so the page never advertises a
@@ -162,6 +176,74 @@ def sync_playground(html: str, fleet: list[dict]) -> tuple[str, list[str]]:
     return html, warnings
 
 
+def band_counts(rules: list[dict]) -> collections.Counter:
+    """Rule count per id band (ATL-0xx -> 0, ATL-1xx -> 1, ...)."""
+    c: collections.Counter = collections.Counter()
+    for r in rules:
+        c[int(r["id"].split("-")[1]) // 100] += 1
+    return c
+
+
+def apply_edits(html: str, edits: list[tuple[str, str]], page: Path) -> str:
+    """Apply each (pattern, replacement) exactly once, or fail loudly.
+
+    A pattern that matches zero times means the page's structure changed and the
+    renderer can no longer find the string it owns - that must fail, not silently
+    write a numeral into the wrong place. Patterns are number-agnostic (they match
+    ``\\d+`` next to a stable text anchor), so they re-derive the count from the
+    packs no matter what the page currently says.
+    """
+    for pattern, repl in edits:
+        html, n = re.subn(pattern, repl, html, count=1)
+        if n != 1:
+            sys.exit(f"error: coverage pattern not found in {page.name}: {pattern}")
+    return html
+
+
+def inject_coverage_index(html: str, rules: list[dict], n_total: int) -> str:
+    """Own every hand-written count string in index.html's coverage section:
+    the heading, the six per-band bars, the agentic/cloud note, the animated
+    'security checks' metric, the labs-pillar cloud number, and the typed-matcher
+    prose. Anchored on stable labels, so they track the pack automatically."""
+    c = band_counts(rules)
+    ac = c[1] + c[2]
+    cloud = sum(c[b] for b in _CLOUD_BANDS)
+    edits = [
+        (r"(<h2>)\d+( checks, and the balance)", rf"\g<1>{n_total}\g<2>"),
+        (r'(data-to=")\d+(">0</div><div class="lbl">security checks)',
+         rf"\g<1>{n_total}\g<2>"),
+        (r'(cov-label">MCP / Agentic<[^\n]*?data-to=")\d+', rf"\g<1>{c[1]}"),
+        (r'(cov-label">Cross-boundary<[^\n]*?data-to=")\d+', rf"\g<1>{c[2]}"),
+        (r'(cov-label">AWS<[^\n]*?data-to=")\d+', rf"\g<1>{c[0]}"),
+        (r'(cov-label">Azure<[^\n]*?data-to=")\d+', rf"\g<1>{c[3]}"),
+        (r'(cov-label">GCP<[^\n]*?data-to=")\d+', rf"\g<1>{c[4]}"),
+        (r'(cov-label">Kubernetes<[^\n]*?data-to=")\d+', rf"\g<1>{c[5]}"),
+        (r"<b>\d+( agentic and cross-boundary checks</b>)", rf"<b>{ac}\g<1>"),
+        (r"(over <b>)\d+( cloud checks</b>)", rf"\g<1>{cloud}\g<2>"),
+        (r"\d+( high-signal CIS checks)", rf"{cloud}\g<1>"),
+        (r"\d+( typed YAML matchers)", rf"{n_total}\g<1>"),
+    ]
+    return apply_edits(html, edits, PAGE_PATH)
+
+
+def inject_coverage_system(html: str, rules: list[dict], n_total: int) -> str:
+    """Own system.html's count strings: the two headings and the six cov-n band
+    numbers. These previously drifted the furthest (bars sat at a two-wave-old
+    value) because nothing regenerated them."""
+    c = band_counts(rules)
+    edits = [
+        (r"(<h3>)\d+( typed matchers</h3>)", rf"\g<1>{n_total}\g<2>"),
+        (r"(<h2>)\d+( checks, balanced by strategy)", rf"\g<1>{n_total}\g<2>"),
+        (r'(cov-l">MCP / Agentic</div>[^\n]*?cov-n">)\d+', rf"\g<1>{c[1]}"),
+        (r'(cov-l">Cross-boundary</div>[^\n]*?cov-n">)\d+', rf"\g<1>{c[2]}"),
+        (r'(cov-l">AWS</div>[^\n]*?cov-n">)\d+', rf"\g<1>{c[0]}"),
+        (r'(cov-l">Azure</div>[^\n]*?cov-n">)\d+', rf"\g<1>{c[3]}"),
+        (r'(cov-l">GCP</div>[^\n]*?cov-n">)\d+', rf"\g<1>{c[4]}"),
+        (r'(cov-l">Kubernetes</div>[^\n]*?cov-n">)\d+', rf"\g<1>{c[5]}"),
+    ]
+    return apply_edits(html, edits, SYSTEM_PATH)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true",
@@ -169,35 +251,51 @@ def main() -> int:
     ap.add_argument("--page", type=Path, default=PAGE_PATH)
     args = ap.parse_args()
 
-    html = args.page.read_text()
     rules = load_rules()
     mcp, fleet, excluded = split_checker_rules(rules)
     n_checks, n_total = len(mcp) + len(fleet), len(rules)
 
-    new_html = inject_var(html, "MCP_RULES", mcp)
-    new_html = inject_var(new_html, "FLEET_RULES", fleet)
-    new_html = inject_counts(new_html, n_checks, n_total)
-    new_html, warnings = sync_playground(new_html, fleet)
+    # index.html: interactive-widget vars + all count strings.
+    index_html = args.page.read_text()
+    new_index = inject_var(index_html, "MCP_RULES", mcp)
+    new_index = inject_var(new_index, "FLEET_RULES", fleet)
+    new_index = inject_counts(new_index, n_checks, n_total)
+    new_index = inject_coverage_index(new_index, rules, n_total)
+    new_index, warnings = sync_playground(new_index, fleet)
+
+    # system.html: count strings only (no interactive widgets).
+    system_html = SYSTEM_PATH.read_text()
+    new_system = inject_coverage_system(system_html, rules, n_total)
 
     for line in excluded:
         print(f"note: excluded from the browser checker: {line}")
     for line in warnings:
         print(f"warning: {line}", file=sys.stderr)
 
+    drifted = [
+        p.relative_to(REPO)
+        for p, old, new in [(args.page, index_html, new_index),
+                            (SYSTEM_PATH, system_html, new_system)]
+        if old != new
+    ]
+
     if args.check:
-        if new_html != html:
-            print(f"{args.page.relative_to(REPO)} has drifted from the rule packs;"
-                  " run scripts/render_index_data.py.", file=sys.stderr)
+        if drifted:
+            print("site pages have drifted from the rule packs "
+                  f"({', '.join(str(p) for p in drifted)}); "
+                  "run scripts/render_index_data.py.", file=sys.stderr)
             return 1
         if warnings:
             return 1
-        print(f"landing page matches the rule packs "
+        print(f"landing + system pages match the rule packs "
               f"({n_checks} browser checks of {n_total} total)")
         return 0
 
-    args.page.write_text(new_html)
-    print(f"wrote {args.page.relative_to(REPO)}: {len(mcp)} mcp_server rules, "
-          f"{len(fleet)} fleet rules, counts {n_checks} of {n_total}")
+    args.page.write_text(new_index)
+    SYSTEM_PATH.write_text(new_system)
+    print(f"wrote {args.page.relative_to(REPO)} + {SYSTEM_PATH.relative_to(REPO)}: "
+          f"{len(mcp)} mcp_server rules, {len(fleet)} fleet rules, "
+          f"counts {n_checks} of {n_total}")
     return int(bool(warnings))
 
 

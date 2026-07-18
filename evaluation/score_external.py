@@ -68,11 +68,12 @@ def taxonomy_coverage() -> dict:
     }
 
 
-def _fires(config: str, expect: str) -> bool:
-    """Reconstruct the advisory's mcp.json in a temp dir and scan it the
-    production way (build_model + RuleEngine); report whether `expect` fired."""
+def _fires(config: str, expect: str, config_format: str) -> bool:
+    """Reconstruct the advisory's config (mcp.json or requirements.txt) in a temp
+    dir and scan it the production way (build_model + RuleEngine); report whether
+    `expect` fired."""
     with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "mcp.json").write_text(config)
+        (Path(d) / config_format).write_text(config)
         model = build_model(d)
         fired = {f.rule_id for f in RuleEngine().evaluate(model)}
     return expect in fired
@@ -82,7 +83,8 @@ def run() -> dict:
     rows = []
     for c in load_cases():
         if c["scope"] == "design-visible":
-            outcome = "detected" if _fires(c["config"], c["expect"]) else "missed"
+            hit = _fires(c["config"], c["expect"], c["config_format"])
+            outcome = "detected" if hit else "missed"
         else:
             outcome = f"out-of-scope:{c['scope']}"
         rows.append({"id": c["id"], "advisory": c["advisory"], "ref": c["ref"],

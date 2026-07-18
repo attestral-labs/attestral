@@ -1,0 +1,6 @@
+# Intentionally vulnerable dependency pins for the ATL-145 fixture. Do not use
+# as a template. Each version below is at or below a published advisory's
+# affected ceiling; a real deployment should pin the fixed versions instead.
+langchain-core==1.2.4                 # CVE-2025-68664 (LangGrinch), fixed 1.2.5
+langgraph-checkpoint-sqlite==3.0.0    # CVE-2025-67644 (SQLi), fixed 3.0.1
+requests==2.31.0                      # not in the table: must NOT flag

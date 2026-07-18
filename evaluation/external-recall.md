@@ -32,29 +32,33 @@ Cases are classified by what a design-time review can even see:
 
 | Metric | Value |
 |---|---|
-| Design-visible recall | **4 / 4 (100%)** |
-| Full-set coverage (all 8 advisories) | **4 / 8 (50%)** |
-| Out of design-time scope | 4 (all agent-framework dependency CVEs) |
+| Design-visible recall | **7 / 7 (100%)** |
+| Full-set coverage (all 8 advisories) | **7 / 8 (88%)** |
+| Out of design-time scope | 1 (a langgraph CVE with no confirmable fixed version) |
 | Taxonomy attempted (covered + partial) | 28 / 32 (88%) |
 
-**Design-visible: 4 of 4.** The four MCP-package advisories (mcp-remote
-CVE-2025-6514, apify actors-mcp-server CVE-2026-50143, git-mcp-server
-CVE-2025-53107, mcp-atlassian CVE-2026-27826) all fire ATL-117 because their
-vulnerable versions are in the known-CVE table. This subset really measures one
-thing: **is the CVE table current.** It is only as good as its freshness, which
-is exactly what the weekly research radar keeps up (CVE-2026-50143 and the two
-newest entries arrived that way). The honest risk here is latency, not blindness.
+This set is also a worked example of the loop it exists to drive. Its **first
+version scored 4/8 (50%)**: it detected the four MCP-package advisories (via the
+known-CVE table, ATL-117) and named the other four - agent-framework dependency
+CVEs - as a structural gap, because the vulnerability lived in the agent's Python
+dependency tree, which no ingester read. That named gap became a build: the
+package-manifest ingester (`attestral/ingest/dependencies.py`, rule ATL-145).
+With it, three of those four now fire, and coverage rose to **7/8 (88%)**.
 
-**Full-set: 4 of 8.** The other four are the interesting half:
-`langchain-core` CVE-2025-68664 (LangGrinch, CVSS 9.3), and three `langgraph`
-advisories (CVE-2025-67644 SQLi, CVE-2026-28277 deserialization, CVE-2026-34070
-path traversal). These are real, high-severity, and **structurally invisible to
-a design-time architecture review**: they live in the agent's Python dependency
-tree, which Attestral does not ingest. We report them as a named limitation, not
-a silent miss. Closing them is a concrete build: a package-manifest ingester
-(`requirements.txt` / `pyproject` / lockfile) that emits a `_dependency_versions`
-signal the known-CVE mechanism already knows how to check. That is now a roadmap
-item, seeded directly by this measurement.
+**Design-visible: 7 of 7.** The four MCP-package advisories (mcp-remote
+CVE-2025-6514, apify CVE-2026-50143, git-mcp-server CVE-2025-53107,
+mcp-atlassian CVE-2026-27826) fire ATL-117; three framework advisories
+(langchain-core CVE-2025-68664 LangGrinch and CVE-2026-34070 path traversal,
+langgraph-checkpoint-sqlite CVE-2025-67644) now fire ATL-145 off a pinned
+`requirements.txt`. This subset measures one thing: **are the two known-CVE
+tables current**, which the weekly radar keeps up.
+
+**Full-set: 7 of 8, and the residual is honest.** The one miss is langgraph
+CVE-2026-28277 (a deserialization RCE that chains from CVE-2025-67644). It is a
+real, config-visible dependency vuln, but we could not confirm an exact fixed
+version from the public advisory, so it is not in the table - a data gap, marked
+out of scope rather than papered over. It stays in the set as the residual, and
+it is why coverage is 88% and not 100%.
 
 **Taxonomy: 28 of 32 attempted.** Against an independent denominator - the OWASP
 LLM Top 10, the OWASP MCP Top 10, and the OWASP ASI 2026 threat classes
@@ -72,9 +76,11 @@ Three things make this number trustworthy in a way the 116/116 is not:
 1. **The labels are external.** Each case is a published advisory with a CVE, a
    GHSA link, and an affected version. Nothing about the label was chosen to
    match a rule we ship.
-2. **It is allowed to be wrong, and is.** 50% full-set coverage is not a number
-   you report if you are optimizing for a clean pass. Each miss is itemised with
-   its advisory and a concrete path to close it.
+2. **It is allowed to be wrong, and was.** The first run scored 50%, which is
+   not a number you report if you are optimizing for a clean pass. Each miss was
+   itemised with its advisory and a concrete path to close it, and closing the
+   biggest one (a dependency ingester) is what moved it to 88% - with the one
+   residual still on the board.
 3. **It moves as the world moves.** The set grows as advisories land (the radar
    feeds it), so the denominator is not frozen to our advantage. A new
    dependency CVE lowers coverage until the ingester exists; a new MCP-package
@@ -95,12 +101,16 @@ if a known-CVE-table entry ever stops firing, the suite fails.
 - **Config reconstruction is a judgment call.** For each design-visible case we
   reconstruct the minimal launch config from the advisory; the label is the
   advisory's affected version, cited so anyone can check it.
-- **The design-visible subset is small (4).** It will grow with the radar. Do
-  not read 100% on four cases as a strong recall claim; read the 50% full-set
-  and the itemised gaps as the honest signal.
-- **Framework CVEs are marked out of scope, not solved.** "Our design-time model
-  cannot see this" is a real limitation, not a defense. The fix (a dependency
-  ingester) is on the roadmap, not shipped.
+- **The set is still small (8).** It will grow with the radar. Do not read the
+  100% design-visible recall as a strong claim on seven cases; read the 88%
+  full-set and the itemised residual as the honest signal.
+- **The dependency ingester matches exact pins only.** It flags a
+  known-vulnerable version pinned with `==` (or an exact npm pin); an open range
+  is left alone, so it under-reports rather than false-flags. A real lockfile
+  would tighten this.
+- **One residual is a data gap, not a scope gap.** langgraph CVE-2026-28277 is
+  config-visible in principle; it is missed only because we could not confirm an
+  exact fixed version from the public advisory to put in the table.
 - **The taxonomy mapping is ours.** The status of each item (covered / partial /
   gap) is our assessment against public taxonomies; the taxonomy itself is
   external, the placement is a defensible judgment, not a hand-labelled audit.

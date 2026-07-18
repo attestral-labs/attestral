@@ -1148,6 +1148,15 @@ rules:
     recommendation: Replace the managed policy with a role scoped to the exact AgentCore resource ARNs the runtime needs, and deny GetWorkloadAccessTokenForUserId unless the agent genuinely has no JWT available (prefer GetWorkloadAccessTokenForJWT, which validates signature, issuer, and expiry).
     frameworks: ["NIST AC-6", "OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency"]
 
+  - id: ATL-145
+    title: Agent dependency pinned to a version with a known CVE
+    severity: critical
+    target: dependency
+    match: { attr_equals: { _has_known_cve: true } }
+    description: The agent's declared dependencies pin a package version that carries a published security advisory (for example langchain-core below 0.3.81 / 1.2.5, CVE-2025-68664 "LangGrinch", a serialization-injection flaw that exfiltrates environment secrets). The vulnerability lives in the dependency tree, which a config-only review never sees; the exact advisory id is recorded on the component.
+    recommendation: Upgrade the dependency to a fixed version immediately and pin it exactly (or by hash / lockfile) so a resolver cannot silently reintroduce the vulnerable version.
+    frameworks: ["OWASP LLM03 Supply Chain", "OWASP-ASI04:2026", "NIST SA-10", "CWE-1395"]
+
   # --- Fleet-level flows (2026): three architecture-level crossings the system
   # --- model sees and a per-server linter cannot. Fixture: examples/agent-fleet-flows/.
 

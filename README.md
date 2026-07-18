@@ -85,7 +85,7 @@ attestral explain ATL-103    # title, severity, description, fix, and framework 
 
 Every finding in the terminal output carries a `run: attestral explain <RULE_ID>` pointer, so the reasoning and the fix are one command away. Rule ids are matched case-insensitively.
 
-## What it catches (234-rule pack)
+## What it catches (235-rule pack)
 
 | Area | Examples |
 |---|---|
@@ -112,12 +112,13 @@ flowchart TB
         SP["System prompts, agent instructions<br/>(CLAUDE.md/.cursorrules), skills (SKILL.md)<br/>+ tool descriptions"] --> M
         AC["Agent settings + hooks, subagents,<br/>A2A agent cards (.claude/**, .well-known/)"] --> M
         CODE["Agent code (.py)<br/>@tool functions, Anthropic/MCP tool defs,<br/>LangGraph · CrewAI · OpenAI Agents SDK"] --> M
+        DEP["Dependency manifests<br/>(requirements.txt · pyproject · package.json)<br/>known-CVE version match"] --> M
         LC["Installed agent configs<br/>(scan --local)"] --> M
         M["SystemModel<br/>components · edges · trust boundaries"]
     end
     M --> L1
     subgraph REV["2 · Review (layered, each finding tagged by origin)"]
-        L1["<b>L1 Deterministic rules</b><br/>234 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-repo fleet toxic-flow detection<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
+        L1["<b>L1 Deterministic rules</b><br/>235 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-repo fleet toxic-flow detection<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
         L2["<b>L2 ML classifier</b> (optional)<br/>DeBERTa prompt-injection on agentic surfaces<br/>origin: ml"]
         L3["<b>L3 LLM</b> (optional)<br/>elicitation + LLM-as-judge verifier<br/>origin: llm"]
         L1 --> L2 --> L3
@@ -133,7 +134,7 @@ flowchart TB
 
 | Layer | What it does | Reproducible? | Cost |
 |---|---|---|---|
-| **L1 Deterministic** | 234 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
+| **L1 Deterministic** | 235 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
 | **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
 | **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
 
@@ -318,7 +319,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on
 
 ## Real-world benchmark
 
-Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **234 rules** today; this table shows the historical progression, not the current pack size):
+Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **235 rules** today; this table shows the historical progression, not the current pack size):
 
 | | TerraGoat AWS | TerraGoat Azure | TerraGoat GCP | Distinct rules |
 |---|---|---|---|---|
