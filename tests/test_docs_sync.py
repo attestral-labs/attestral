@@ -44,6 +44,7 @@ DIAGRAM_KEYWORDS = {
     "baseline.py": "Baseline",
     "evidence.py": "Evidence",
     "signing.py": "signed head",
+    "memory.py": "signed-provenance audit",
     "sarif.py": "SARIF",
     "aibom.py": "AI-BOM",
     "report_terminal.py": "Terminal",

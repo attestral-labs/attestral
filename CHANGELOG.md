@@ -7,6 +7,23 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Memory-entry provenance signing (roadmap M9): a trust label you cannot
+  flip.** Extends the M5 evidence-chain signing to agent memory. An agent's
+  long-term memory is a poisoning target, and the classic attack is relabelling:
+  mark untrusted content trusted (or insert an entry claiming a trusted writer)
+  so injected text becomes authoritative on a later, unrelated run. The static
+  findings see the surface (ATL-112 memory store, ATL-113 world-writable,
+  ATL-214 poisoning flow); this makes each entry cryptographically accountable.
+  `attestral/memory.py` binds an entry's trust label to its content with the
+  writer's Ed25519 signature (the same DSSE pre-auth encoding as the chain
+  signature). `attestral memory verify STORE --keyring writers.yaml` audits a
+  store against a keyring of trusted writers: a relabelled or edited entry
+  (MEM-001, critical), an unknown writer (MEM-002), or a trust claim with no
+  signature (MEM-003) is reported, while an untrusted entry passes as the safe
+  default. `attestral memory sign` authors an entry. Fixture
+  `examples/signed-memory/`; write-up `docs/memory-signing.md`; tests in
+  `tests/test_memory.py`. CI now installs the `sign` extra so the signing and
+  memory-provenance crypto is exercised, not skipped.
 - **Schema poisoning is now pinned and caught (roadmap M8).** The rug-pull pin
   (`manifest.py`, DRF-005) already covered each tool's name and description; it
   now also covers each tool's **input schema**. A tool whose `inputSchema` gains
