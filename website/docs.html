@@ -239,6 +239,7 @@
     <a href="#validate">attestral validate</a>
     <a href="#sarif">Code scanning (SARIF)</a>
     <a href="#waivers">Baseline &amp; waivers</a>
+    <a href="#suppression">False-positive budget</a>
     <a href="#judge">LLM-as-judge</a>
     <a href="#rulepack">The rule pack</a>
     <a href="#rules">Writing rules</a>
@@ -451,7 +452,8 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
 
     <h2 id="scan">attestral scan</h2>
 <pre><code>attestral scan PATH [--local] [-o STEM] [--format md|json|both|sarif|aibom]
-               [--ml] [--llm] [--judge] [--waivers FILE] [--fail-on SEVERITY] [-q]</code></pre>
+               [--ml] [--llm] [--judge] [--waivers FILE] [--min-confidence LEVEL]
+               [--fail-on SEVERITY] [-q]</code></pre>
     <table>
       <tr><th>Flag</th><th>Behavior</th></tr>
       <tr><td><code>--local</code></td><td>Scan the MCP configs already installed on this machine (Claude Desktop, Cursor, VS Code, Windsurf) instead of a PATH.</td></tr>
@@ -462,6 +464,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
       <tr><td><code>--llm</code></td><td>Adds LLM threat elicitation on top of the deterministic layer. Requires <code>ANTHROPIC_API_KEY</code>. Findings are tagged <code>origin: llm</code> and never mixed silently with rule findings.</td></tr>
       <tr><td><code>--judge</code></td><td>Cross-examine findings with an LLM judge; see <a href="#judge">LLM-as-judge</a>.</td></tr>
       <tr><td><code>--waivers</code></td><td>YAML of documented waivers; <code>attestral-waivers.yaml</code> at the scan root is picked up automatically.</td></tr>
+      <tr><td><code>--min-confidence</code></td><td>Drop findings below this confidence (<code>high</code> | <code>medium</code> | <code>low</code>). Every finding carries a static confidence: deterministic rules are <code>high</code> by contract (structural, zero false positives on the benign corpus), while the ML tier's confidence tracks its probability. <code>--min-confidence high</code> keeps only the CI-safe set and reports how many lower-confidence findings it dropped. See the <a href="#suppression">false-positive budget</a>.</td></tr>
       <tr><td><code>--fail-on</code></td><td>Exit non-zero if findings at or above this severity exist. Works as a fail-closed CI gate.</td></tr>
       <tr><td><code>-q, --quiet</code></td><td>Suppress per-finding detail; print only the summary and gate.</td></tr>
     </table>
@@ -529,6 +532,14 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl</code></p
     expires: 2026-12-31              <span class="c"># optional; waiver lapses after this date</span></code></pre>
     <p>Two rules keep waivers honest. A waiver with no <code>reason</code> is ignored, and an expired waiver stops suppressing, so a finding can only be silenced by a current, justified exception. In SARIF, a waived finding becomes a suppression, which GitHub Code Scanning shows as dismissed rather than an open alert.</p>
     <div class="note">A waiver suppresses a finding from the <code>--fail-on</code> gate. It does not remove it. The whole point of the evidence chain is that accepted risk stays on the record.</div>
+
+    <h2 id="suppression">The false-positive budget</h2>
+    <p>Recall proves the tool catches the real findings; the false-positive budget is the other half, the number that decides whether an engineer leaves it on. Two levers keep the noise down without hiding anything.</p>
+    <p>The first is confidence-based filtering. Every finding carries a static <code>confidence</code>. Deterministic rules are <code>high</code> by contract, structural facts with zero false positives on the benign corpus, so <code>--min-confidence high</code> is a CI-safe set you can fail a build on. The ML tier's confidence tracks its probability, so a borderline injection hit is <code>low</code> and filtered while a confident one stays. The benign zero-false-positive promise is a gated test, not a claim.</p>
+<pre><code>attestral scan . --min-confidence high --fail-on high   <span class="c"># structural findings only, safe to gate</span></code></pre>
+    <p>The second is inline suppression, for the individual false positive a developer has already looked at. A one-line marker in the config the finding came from waives it in place, no separate file:</p>
+<pre><code>"web": { "command": "uvx", "args": ["mcp-server-fetch"] }  <span class="c">// attestral:ignore ATL-107 reason: egress is internal-only</span></code></pre>
+    <p>The finding is matched by rule and source file and waived, not deleted: it stays in the evidence chain tagged with the marker's file and reason, exactly like a waiver-file entry, so silence always has a recorded cause. Reach for the waiver file when the exception needs an expiry or an owner; reach for the inline marker for the quick, local "yes, I know, this one is fine." (Markers ride an ordinary comment, and the MCP config reader now parses JSONC, so a commented <code>.mcp.json</code> no longer breaks the scan.)</p>
 
     <h2 id="judge">LLM-as-judge</h2>
     <p>Deterministic rules fire on patterns; some are false positives in context. The judge is an optional layer that cross-examines each finding. It sees the finding plus its component and returns a structured verdict, <code>confirmed</code>, <code>false_positive</code>, or <code>needs_review</code>, with a confidence and reasoning. Verdicts are recorded on the finding and carried into the evidence chain, so the judgment itself is auditable.</p>
