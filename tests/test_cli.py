@@ -114,39 +114,5 @@ def test_explain_unknown_rule_is_helpful():
 
 # --- init --------------------------------------------------------------------
 
-def test_init_scaffolds_files():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        result = runner.invoke(main, ["init"])
-        assert result.exit_code == 0
-        assert Path(".github/workflows/attestral.yml").exists()
-        assert Path(".pre-commit-config.yaml").exists()
-        assert Path("attestral-waivers.yaml").exists()
-        assert "created" in result.output
-        assert "Next steps" in result.output
-
-
-def test_init_never_overwrites_existing_files():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        # Pre-seed one of the three targets with sentinel content.
-        Path("attestral-waivers.yaml").write_text("SENTINEL - do not touch\n")
-        result = runner.invoke(main, ["init"])
-        assert result.exit_code == 0
-        # The existing file is reported as skipped and left untouched.
-        assert "skipped attestral-waivers.yaml" in result.output
-        assert Path("attestral-waivers.yaml").read_text() == "SENTINEL - do not touch\n"
-        # The other two are still created.
-        assert Path(".github/workflows/attestral.yml").exists()
-        assert Path(".pre-commit-config.yaml").exists()
-
-
-def test_init_is_idempotent_second_run_skips_all():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        first = runner.invoke(main, ["init"])
-        assert first.exit_code == 0
-        second = runner.invoke(main, ["init"])
-        assert second.exit_code == 0
-        assert second.output.count("skipped") == 3
-        assert "Nothing to do" in second.output
+# `attestral init` scaffolding is covered in depth in tests/test_init.py
+# (all four files, skip-if-exists, idempotency, and the plugin/skill sync).

@@ -1,0 +1,11 @@
+{
+  "name": "attestral",
+  "description": "Security design review for AI agents and MCP servers. Scans agent configs, MCP servers, system prompts, and IaC for prompt injection, tool poisoning, excessive agency, and the cross-tool toxic flows that only exist across servers. Runs the attestral CLI.",
+  "author": {
+    "name": "Attestral Labs"
+  },
+  "homepage": "https://attestral.vercel.app",
+  "repository": "https://github.com/attestral-labs/attestral",
+  "license": "Apache-2.0",
+  "keywords": ["security", "mcp", "agents", "prompt-injection", "design-review", "agentic"]
+}

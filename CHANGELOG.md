@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Claude Code plugin + `attestral init` scaffolds it (roadmap M4).** Attestral
+  now ships as an installable Claude Code plugin, so it is discoverable where
+  agents are actually built: `/plugin marketplace add attestral-labs/attestral`
+  then `/plugin install attestral@attestral-labs`. The bundled `attestral-review`
+  skill teaches Claude Code when to run a scan (a new or edited MCP server, agent
+  prompt, or tool), how to read the findings, and how to gate CI. `attestral
+  init` also scaffolds that skill into a project's `.claude/skills/`, alongside
+  the existing GitHub Action, pre-commit hook, and waivers file, so a team gets
+  the review reflex in their own repo. The scaffolded CI gate now filters to the
+  high-confidence, zero-FP-on-benign set (`--min-confidence high`), so a
+  probabilistic ML hit can never break a build by default. Plugin at `plugin/`
+  with `.claude-plugin/marketplace.json`; tests in `tests/test_init.py`.
 - **False-positive budget (roadmap M3): per-rule confidence and
   `--min-confidence`.** Recall says "we catch the real ones"; this says "and we
   don't cry wolf." Every finding now carries a `confidence` (high | medium |

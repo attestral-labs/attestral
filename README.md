@@ -39,17 +39,29 @@ Discovers and scans configs from Claude Code (user scope, project `.mcp.json`, a
 ## Get started in one command
 
 ```sh
-attestral init      # scaffold CI, pre-commit, and a waivers file into this repo
+attestral init      # scaffold CI, pre-commit, a waivers file, and a Claude Code skill
 attestral scan .    # review the current project - prints straight to your terminal
 ```
 
-`attestral init` writes three onboarding files, and **never overwrites anything that already exists** (existing files are skipped and reported):
+`attestral init` writes four onboarding files, and **never overwrites anything that already exists** (existing files are skipped and reported):
 
 | File | What it does |
 |---|---|
 | `.github/workflows/attestral.yml` | Gates every PR in CI and uploads findings to the Security tab. |
 | `.pre-commit-config.yaml` | Runs attestral on every commit (see [pre-commit](#run-attestral-on-every-commit)). |
 | `attestral-waivers.yaml` | Starter for documented, expiring exceptions. |
+| `.claude/skills/attestral-review/SKILL.md` | Makes Attestral a review reflex in Claude Code: it knows to scan when you add or edit an MCP server, agent prompt, or tool. |
+
+### Use it inside Claude Code
+
+Attestral also ships as a Claude Code plugin, so the review reflex travels with you across projects:
+
+```
+/plugin marketplace add attestral-labs/attestral
+/plugin install attestral@attestral-labs
+```
+
+The plugin's `attestral-review` skill runs `attestral scan` when your agent's attack surface changes (a new MCP server, tool, or system prompt), then explains the findings and how to gate them. `attestral init` scaffolds the same skill into a single repo; the plugin makes it available everywhere.
 
 ### Zero config: point it at a repo
 

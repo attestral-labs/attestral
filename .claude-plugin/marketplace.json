@@ -1,0 +1,14 @@
+{
+  "name": "attestral-labs",
+  "description": "Attestral: continuous, audit-ready security design review for AI agents, MCP servers, and the cloud they can reach.",
+  "owner": {
+    "name": "Attestral Labs"
+  },
+  "plugins": [
+    {
+      "name": "attestral",
+      "source": "./plugin",
+      "description": "Run Attestral security design review on agent configs and MCP servers from inside Claude Code. Surfaces prompt injection, tool poisoning, excessive agency, and cross-tool toxic flows."
+    }
+  ]
+}
