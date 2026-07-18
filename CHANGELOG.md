@@ -7,6 +7,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Dependency-manifest ingester + ATL-145 (agent dependency with a known CVE);
+  external recall 50% -> 88%.** `attestral/ingest/dependencies.py` reads
+  `requirements.txt` / `pyproject.toml` / `package.json`, and a pinned
+  known-vulnerable version fires ATL-145 - the same known-CVE mechanism ATL-117
+  gives MCP servers, now over the agent's own dependency tree, the surface a
+  config-only review misses. The curated table uses exact affected version
+  ranges (branch-precise: langchain-core CVE-2025-68664 fixed on 0.3.81 and
+  1.2.5, CVE-2026-34070 fixed on 1.2.22, langgraph-checkpoint-sqlite
+  CVE-2025-67644 fixed on 3.0.1) and matches only an exact pin, so an open range
+  never false-flags. This is the build M-EVAL v2 seeded: it closes the framework
+  gap the external recall set exposed, lifting full-set coverage from 4/8 to 7/8
+  (the residual is one langgraph CVE with no confirmable fixed version). Fixture
+  `examples/vulnerable-deps`; tests in `tests/test_dependencies_ingest.py`. Pack
+  234 -> 235.
 - **M-EVAL v2: threat-labelled external recall (recall you cannot self-grade).**
   The regression benchmark scores 116/116 because its labels come from each
   fixture's own README. `evaluation/external/cases.yaml` labels from published

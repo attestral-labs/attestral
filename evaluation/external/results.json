@@ -1,10 +1,10 @@
 {
   "total": 8,
-  "design_visible": 4,
-  "design_visible_detected": 4,
+  "design_visible": 7,
+  "design_visible_detected": 7,
   "design_visible_recall": 1.0,
-  "full_coverage": 0.5,
-  "out_of_scope": 4,
+  "full_coverage": 0.875,
+  "out_of_scope": 1,
   "missed": [],
   "rows": [
     {
@@ -47,19 +47,28 @@
       "id": "langchain-core-langgrinch",
       "advisory": "CVE-2025-68664",
       "ref": "https://github.com/advisories/GHSA-c67j-w6g6-q2cm",
-      "scope": "dependency",
-      "expect": null,
+      "scope": "design-visible",
+      "expect": "ATL-145",
       "threat": "serialization 'lc' marker confusion exfiltrates env-var secrets (CVSS 9.3)",
-      "outcome": "out-of-scope:dependency"
+      "outcome": "detected"
+    },
+    {
+      "id": "langchain-core-path-traversal",
+      "advisory": "CVE-2026-34070",
+      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-34070",
+      "scope": "design-visible",
+      "expect": "ATL-145",
+      "threat": "path traversal in the prompt-loading subsystem (CVSS 7.5)",
+      "outcome": "detected"
     },
     {
       "id": "langgraph-sqlite-checkpoint-sqli",
       "advisory": "CVE-2025-67644",
       "ref": "https://nvd.nist.gov/vuln/detail/CVE-2025-67644",
-      "scope": "dependency",
-      "expect": null,
-      "threat": "SQL injection in the SQLite checkpointer, chainable toward RCE",
-      "outcome": "out-of-scope:dependency"
+      "scope": "design-visible",
+      "expect": "ATL-145",
+      "threat": "SQL injection in the SQLite checkpointer, chainable toward RCE (CVSS 7.3)",
+      "outcome": "detected"
     },
     {
       "id": "langgraph-deserialization",
@@ -67,16 +76,7 @@
       "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-28277",
       "scope": "dependency",
       "expect": null,
-      "threat": "unsafe deserialization in checkpoint restore",
-      "outcome": "out-of-scope:dependency"
-    },
-    {
-      "id": "langgraph-prompt-path-traversal",
-      "advisory": "CVE-2026-34070",
-      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-34070",
-      "scope": "dependency",
-      "expect": null,
-      "threat": "path traversal in the prompt-loading subsystem",
+      "threat": "unsafe deserialization in checkpoint restore, chained from CVE-2025-67644",
       "outcome": "out-of-scope:dependency"
     }
   ],

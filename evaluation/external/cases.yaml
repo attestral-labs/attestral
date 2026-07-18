@@ -67,45 +67,47 @@ cases:
     config: '{"mcpServers": {"atlassian": {"command": "uvx", "args": ["mcp-atlassian@0.16.0"]}}}'
     expect: ATL-117
 
-  # --- out of design-time scope: agent-framework dependency code vulns ---------
-  # Real, high-severity, and structurally invisible to a config/architecture
-  # review: they live in the agent's Python dependency tree, which Attestral does
-  # not ingest. Each is a concrete argument for a package-manifest ingester.
+  # --- design-visible via the dependency ingester: framework pins with a CVE ---
+  # These live in the agent's Python dependency tree. Once the package-manifest
+  # ingester exists (attestral/ingest/dependencies.py), a pinned vulnerable
+  # version fires ATL-145 - the same known-CVE mechanism ATL-117 gives MCP
+  # servers. This is exactly the gap the first version of this set exposed.
   - id: langchain-core-langgrinch
     advisory: CVE-2025-68664
     ref: https://github.com/advisories/GHSA-c67j-w6g6-q2cm
     affected: "langchain-core < 0.3.81 / < 1.2.5"
     threat: serialization 'lc' marker confusion exfiltrates env-var secrets (CVSS 9.3)
-    scope: dependency
+    scope: design-visible
     config_format: requirements.txt
     config: "langchain-core==1.2.4"
-    expect: null
+    expect: ATL-145
+
+  - id: langchain-core-path-traversal
+    advisory: CVE-2026-34070
+    ref: https://nvd.nist.gov/vuln/detail/CVE-2026-34070
+    affected: "langchain-core < 1.2.22"
+    threat: path traversal in the prompt-loading subsystem (CVSS 7.5)
+    scope: design-visible
+    config_format: requirements.txt
+    config: "langchain-core==1.2.21"
+    expect: ATL-145
 
   - id: langgraph-sqlite-checkpoint-sqli
     advisory: CVE-2025-67644
     ref: https://nvd.nist.gov/vuln/detail/CVE-2025-67644
-    affected: "langgraph SQLite checkpointer (see advisory)"
-    threat: SQL injection in the SQLite checkpointer, chainable toward RCE
-    scope: dependency
+    affected: "langgraph-checkpoint-sqlite < 3.0.1"
+    threat: SQL injection in the SQLite checkpointer, chainable toward RCE (CVSS 7.3)
+    scope: design-visible
     config_format: requirements.txt
-    config: "langgraph"
-    expect: null
+    config: "langgraph-checkpoint-sqlite==3.0.0"
+    expect: ATL-145
 
+  # --- honest residual: real advisory, no pinned fixed version we could confirm
   - id: langgraph-deserialization
     advisory: CVE-2026-28277
     ref: https://nvd.nist.gov/vuln/detail/CVE-2026-28277
-    affected: "langgraph (see advisory)"
-    threat: unsafe deserialization in checkpoint restore
-    scope: dependency
-    config_format: requirements.txt
-    config: "langgraph"
-    expect: null
-
-  - id: langgraph-prompt-path-traversal
-    advisory: CVE-2026-34070
-    ref: https://nvd.nist.gov/vuln/detail/CVE-2026-34070
-    affected: "langgraph prompt-loading subsystem (see advisory)"
-    threat: path traversal in the prompt-loading subsystem
+    affected: "langgraph msgpack checkpoint decoder (no exact fixed version confirmed)"
+    threat: unsafe deserialization in checkpoint restore, chained from CVE-2025-67644
     scope: dependency
     config_format: requirements.txt
     config: "langgraph"

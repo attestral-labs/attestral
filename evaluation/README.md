@@ -51,7 +51,7 @@ comes from three other places: the benign false-positive rate, the coverage numb
 the way `attestral fleet` does), and the `gap` cases. That threat-labelled measurement now exists as **M-EVAL v2**:
 `python -m evaluation.score_external` scores eight published CVE-GHSA advisories
 labelled from the advisory, not from our output, and reports full-set coverage of
-4/8 (allowed to be below 100%) plus a taxonomy denominator. See
+7/8 (allowed to be below 100%) plus a taxonomy denominator. See
 [`external-recall.md`](./external-recall.md). This benchmark stays the regression
 guard; the external set is the honest-recall companion.
 
