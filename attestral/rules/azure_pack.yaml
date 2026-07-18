@@ -175,6 +175,15 @@ rules:
     recommendation: Set private_cluster_enabled = true so the API server is reachable only over the VNet, or at minimum restrict it with api_server_access_profile authorized IP ranges.
     frameworks: ["CIS AKS 5.x", "NIST SC-7", "SOC2 CC6.6"]
 
+  - id: ATL-338
+    title: Azure Kubernetes Service has local accounts enabled
+    severity: high
+    target: azurerm_kubernetes_cluster
+    match: { attr_equals: { local_account_disabled: false } }
+    description: With local_account_disabled = false the cluster keeps its static, certificate-based admin kubeconfig, which bypasses Entra ID entirely - it cannot be conditional-access gated, MFA-challenged, or centrally revoked, so a single leaked kubeconfig is non-attributable, non-expiring cluster-admin.
+    recommendation: Set local_account_disabled = true and authenticate every operator and workload through Entra ID (AKS-managed Azure AD) with scoped Kubernetes RBAC, so cluster access is per-identity, auditable, and revocable.
+    frameworks: ["CIS AKS 5.x", "NIST AC-2", "NIST IA-2", "SOC2 CC6.1"]
+
   # --- Service Bus --------------------------------------------------------
 
   - id: ATL-333

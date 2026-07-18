@@ -369,6 +369,13 @@ def ingest_mcp(path: str | Path, model: SystemModel) -> SystemModel:
 
 _REGISTRY_SCHEMA_HINT = "modelcontextprotocol"
 
+# Transports the MCP spec has retired. HTTP+SSE was deprecated (SEP-2596) in
+# favour of streamable-http; the early WebSocket transport was dropped for its
+# weak origin validation (CVE-2026-59950). A manifest still advertising either
+# strands current-spec clients and keeps the server on an unmaintained, weaker
+# channel. Compared against the lowercased registry transport type, exact token.
+_DEPRECATED_TRANSPORTS = ("sse", "websocket", "ws")
+
 
 def _is_secret_named(name: str) -> bool:
     return any(h in name.upper() for h in _SECRET_HINTS)
@@ -438,7 +445,7 @@ def registry_component_from_manifest(data, source: str) -> Component | None:
         v["name"] for v in vars_
         if not v["has_value"] and not v["is_secret"] and _is_secret_named(v["name"])
     })
-    deprecated = sorted({t for t in _registry_transports(data) if t == "sse"})
+    deprecated = sorted({t for t in _registry_transports(data) if t in _DEPRECATED_TRANSPORTS})
     # A published package pinned to a mutable version (`latest`, or no version
     # at all): whoever installs from this manifest gets whatever the registry
     # serves that day, not the reviewed artifact - a supply-chain rug-pull
