@@ -926,7 +926,8 @@
         <div class="cov-row"><div class="cov-label">GCP<span class="sub">CIS-grounded</span></div><div class="cov-track"><div class="cov-fill" data-w="59"></div></div><div class="cov-count" data-to="34">0</div></div>
         <div class="cov-row"><div class="cov-label">Kubernetes<span class="sub">Pod Security</span></div><div class="cov-track"><div class="cov-fill" data-w="65"></div></div><div class="cov-count" data-to="35">0</div></div>
       </div>
-      <p class="cov-note"><b>62 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>174 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 named control families across the six standards it cites. Depth where it counts most, parity where it just has to be solid. The newest checks cover MCP supply-chain provenance (Git/URL installs, non-default registries), disabled TLS verification and plaintext WebSocket transport, container isolation-breaking flags, and the cross-boundary flows a system model uniquely sees: untrusted input written into agent long-term memory (memory poisoning), a sampling-capable server driving tools on another with no human checkpoint, and indirect injection reaching cloud credentials.</p>
+      <p class="cov-note"><b>62 agentic and cross-boundary checks</b> that are genuinely hard to copy, over <b>174 cloud checks</b> across AWS, Azure, GCP, and Kubernetes, mapped to 21 named control families across the six standards it cites. Depth where it counts most, parity where it just has to be solid. The newest checks reach further than a config scan: the <a class="rlink" href="docs.html#ATL-217">information-flow lattice</a> that turns the lethal trifecta into a discharge-able property (above), known-CVE scanning of the agent's own <a class="rlink" href="docs.html#ATL-145">dependency manifest</a> (requirements.txt / pyproject / package.json, the surface a config review never reads), and the cross-boundary flows a system model uniquely sees: untrusted input written into agent long-term memory, a sampling-capable server driving tools on another with no human checkpoint, and indirect injection reaching cloud credentials.</p>
+      <p class="cov-note"><b>Recall you cannot self-grade.</b> The in-repo benchmark scores 116/116, but its labels come from our own fixtures, so we also measure against <a class="rlink" href="https://github.com/attestral-labs/attestral/blob/main/evaluation/external-recall.md">eight published 2025-2026 CVE advisories labelled from the advisory, not our output</a>. That number is allowed to fall below 100% and does; each miss is itemised with a concrete path to close it. It is how a tool whose product is trust should report its reach.</p>
       <p class="cov-note"><b>Proven on real Terraform, tuned against first-scan noise.</b> A pinned regression suite runs the cloud packs against Bridgecrew's deliberately-vulnerable TerraGoat corpus, so what fires today keeps firing tomorrow. The ingester also reads security-group CIDRs direction-aware: the world-open <em>egress</em> block nearly every production repo ships never reads as "open to the world", so a first scan of real infrastructure does not open with a false alarm. A benign real-Terraform design sits in the CI benchmark to keep it that way.</p>
     </div>
   </section>
@@ -998,6 +999,109 @@
       <p class="fp-note">Fleet-level findings only: the per-server findings these toggles would also raise (a shell server is <a href="docs.html#ATL-103">ATL-103</a> all by itself) are left out here to keep the composition visible. On a real scan the full attack path is also synthesized end to end, entry to pivot to impact.</p>
     </div>
   </section>
+  <section id="ifc">
+    <style>
+      #ifc .ifc-wrap{margin-top:34px;border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+      #ifc .ifc-fleet{display:flex;flex-wrap:wrap;gap:10px;padding:20px 22px;background:var(--card);border-bottom:1px solid var(--rule)}
+      #ifc .ifc-node{font-family:var(--mono);font-size:.78rem;border:1px solid var(--rule);border-radius:2px;padding:7px 11px;color:var(--ink);background:var(--paper)}
+      #ifc .ifc-node b{color:var(--seal)}
+      #ifc .ifc-toggles{display:flex;flex-wrap:wrap;gap:12px;padding:18px 22px;border-bottom:1px solid var(--rule)}
+      #ifc .ifc-toggle{display:flex;align-items:center;gap:10px;font-family:var(--body);font-size:.9rem;cursor:pointer;user-select:none;border:1px solid var(--rule);border-radius:2px;padding:10px 14px;transition:border-color .15s,background .15s}
+      #ifc .ifc-toggle:hover{border-color:var(--muted)}
+      #ifc .ifc-toggle[aria-pressed="true"]{border-color:var(--verify);background:var(--verify-tint)}
+      #ifc .ifc-box{width:16px;height:16px;border:1.5px solid var(--muted);border-radius:2px;flex:none;position:relative}
+      #ifc .ifc-toggle[aria-pressed="true"] .ifc-box{border-color:var(--verify);background:var(--verify)}
+      #ifc .ifc-toggle[aria-pressed="true"] .ifc-box::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid var(--paper);border-width:0 2px 2px 0;transform:rotate(45deg)}
+      #ifc .ifc-tk{font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+      #ifc .ifc-out{display:grid;grid-template-columns:1fr 1fr;gap:0}
+      @media(max-width:640px){#ifc .ifc-out{grid-template-columns:1fr}}
+      #ifc .ifc-finding{padding:20px 22px}
+      #ifc .ifc-finding:first-child{border-right:1px solid var(--rule)}
+      @media(max-width:640px){#ifc .ifc-finding:first-child{border-right:0;border-bottom:1px solid var(--rule)}}
+      #ifc .ifc-fh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+      #ifc .ifc-id{font-family:var(--mono);font-size:.9rem;font-weight:600;color:var(--ink)}
+      #ifc .ifc-kind{font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:2px;border:1px solid var(--rule);color:var(--muted)}
+      #ifc .ifc-status{font-family:var(--mono);font-size:.82rem;font-weight:600;margin:8px 0}
+      #ifc .fires{color:var(--seal)}
+      #ifc .clears{color:var(--verify)}
+      #ifc .ifc-dims{list-style:none;padding:0;margin:8px 0 0;font-size:.84rem}
+      #ifc .ifc-dims li{padding:5px 0 5px 20px;position:relative;color:var(--muted);line-height:1.5}
+      #ifc .ifc-dims li::before{position:absolute;left:0;top:5px;font-family:var(--mono);font-weight:700}
+      #ifc .ifc-dims li.open::before{content:"\00d7";color:var(--seal)}
+      #ifc .ifc-dims li.closed::before{content:"\2713";color:var(--verify)}
+      #ifc .ifc-dims li.closed{color:var(--ink)}
+      #ifc .ifc-why{font-size:.82rem;color:var(--muted);line-height:1.55;margin-top:6px}
+    </style>
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">The moat, made precise</p>
+      <h2>The trifecta, as a property you can discharge.</h2>
+      <p class="section-lede">The lethal trifecta above is a heuristic: private-data and egress capabilities co-occurring. A reviewer who knows information-flow theory sees "these capabilities co-occur" and discounts it. So Attestral also labels the flow. It attaches confidentiality and integrity labels to every tool surface, and <a class="rlink" href="docs.html#ATL-217">ATL-217</a> states the violation as a formal lattice property with the named label path. The payoff is what a heuristic can never do: apply the fix and the finding clears. Toggle the two mitigations below.</p>
+      <div class="ifc-wrap">
+        <div class="ifc-fleet" aria-label="A fixed three-tool agent fleet">
+          <span class="ifc-node"><b>postgres</b> reads private data</span>
+          <span class="ifc-node"><b>fetch</b> ingests web content, reaches the internet</span>
+          <span class="ifc-node"><b>runner</b> executes shell commands</span>
+        </div>
+        <div class="ifc-toggles">
+          <button class="ifc-toggle" id="ifcAllow" type="button" aria-pressed="false">
+            <span class="ifc-box" aria-hidden="true"></span>
+            <span>Constrain <span class="ifc-tk">fetch</span> to an egress allowlist</span>
+          </button>
+          <button class="ifc-toggle" id="ifcApprove" type="button" aria-pressed="false">
+            <span class="ifc-box" aria-hidden="true"></span>
+            <span>Gate <span class="ifc-tk">runner</span> behind human approval</span>
+          </button>
+        </div>
+        <div class="ifc-out">
+          <div class="ifc-finding">
+            <div class="ifc-fh"><span class="ifc-id">ATL-202</span><span class="ifc-kind">heuristic</span></div>
+            <div class="ifc-status fires" id="ifc202status">FIRES</div>
+            <p class="ifc-why" id="ifc202why">Private data (postgres) and an outbound channel (fetch) co-occur in one session. The heuristic reasons over raw capabilities, so a mitigation does not change it.</p>
+          </div>
+          <div class="ifc-finding">
+            <div class="ifc-fh"><span class="ifc-id">ATL-217</span><span class="ifc-kind">information-flow lattice</span></div>
+            <div class="ifc-status fires" id="ifc217status">FIRES</div>
+            <ul class="ifc-dims">
+              <li id="ifcConf" class="open">confidentiality: high source (postgres) reaches an open egress sink (fetch)</li>
+              <li id="ifcInteg" class="open">integrity: untrusted input (fetch) reaches a trust-critical sink (runner)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <p class="fp-note" id="ifcVerdict">The heuristic is the smoke alarm; the lattice is the instrument. ATL-202 keeps sounding on the raw capabilities. Apply each dimension's recommended fix and ATL-217, the finding you can actually close, discharges that half. When both mitigations are in place the precise finding clears while the alarm still rings.</p>
+    </div>
+    <script>
+    (function(){
+      var allow=document.getElementById('ifcAllow'), approve=document.getElementById('ifcApprove');
+      var conf=document.getElementById('ifcConf'), integ=document.getElementById('ifcInteg');
+      var st217=document.getElementById('ifc217status'), verdict=document.getElementById('ifcVerdict');
+      function set(li,open){ li.className=open?'open':'closed'; }
+      function render(){
+        var declassified=allow.getAttribute('aria-pressed')==='true';
+        var endorsed=approve.getAttribute('aria-pressed')==='true';
+        set(conf,!declassified);
+        conf.textContent = declassified
+          ? 'confidentiality: egress (fetch) is allowlist-declassified, so data cannot leave to an arbitrary host'
+          : 'confidentiality: high source (postgres) reaches an open egress sink (fetch)';
+        set(integ,!endorsed);
+        integ.textContent = endorsed
+          ? 'integrity: runner is approval-endorsed, so injected content cannot drive a command uninterrupted'
+          : 'integrity: untrusted input (fetch) reaches a trust-critical sink (runner)';
+        var open = (!declassified) || (!endorsed);
+        st217.textContent = open ? 'FIRES' : 'CLEARS';
+        st217.className = 'ifc-status ' + (open ? 'fires' : 'clears');
+        verdict.textContent = open
+          ? 'ATL-202 sounds on the raw capabilities. ATL-217 still has an open dimension: apply its recommended fix to discharge it.'
+          : 'Both dimensions discharged. ATL-217, the finding you can actually close, has cleared, while the heuristic ATL-202 still rings on the raw capability co-occurrence. That gap is what a defensible information-flow property is for.';
+      }
+      [allow,approve].forEach(function(b){ b.addEventListener('click',function(){
+        b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')==='true'?'false':'true'); render();
+      });});
+      render();
+    })();
+    </script>
+  </section>
+
 
   <section id="crossrepo">
     <div class="wrap">
