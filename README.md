@@ -271,6 +271,7 @@ flowchart LR
     end
     subgraph compile["attestral compile"]
         c1["attested model"] --> c2["default-deny policy<br/>tool manifest hashes pinned,<br/>bound to chain head"]
+        c2 --> c3["narrowing check (--against)<br/>a re-attestation must not widen<br/>the reviewed capability envelope"]
     end
     subgraph drift["attestral drift"]
         d1["policy + telemetry"] --> d2["drift findings<br/>rug-pulls (DRF-005),<br/>loop / volume budgets (DRF-006/007)"]
@@ -293,6 +294,8 @@ attestral verify review.json --public-key reviewer.pub  # checks integrity AND a
 
 # COMPILE: turn the attested design into a default-deny mcp-guard policy
 attestral compile ./my-project -o policy.yaml
+# and verify a later design still NARROWS the reviewed one (fails on an expansion)
+attestral compile ./my-project --against policy.yaml
 
 # DRIFT: diff runtime telemetry against the attested design
 attestral drift policy.yaml events.jsonl --fail-on-drift

@@ -690,7 +690,10 @@ def fix(path: str, rule_id: str | None, output: str | None) -> None:
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option("-o", "--output", default="mcp-guard-policy.yaml", help="Policy output file.")
-def compile(path: str, output: str) -> None:
+@click.option("--against", "prior", type=click.Path(exists=True), default=None,
+              help="A prior policy to verify this re-attestation narrows. Exits "
+                   "non-zero on an expansion (a widening the review must approve).")
+def compile(path: str, output: str, prior: str | None) -> None:
     """Compile PATH's attested design into an mcp-guard runtime policy."""
     from attestral.compile import compile_policy, render_policy_yaml
     from attestral.reachability import annotate_reachability
@@ -710,6 +713,24 @@ def compile(path: str, output: str) -> None:
         mark = "ALLOW" if s["allow"] else "DENY "
         why = "" if s["allow"] else f"  ({s.get('reason','')})"
         click.echo(f"  [{mark}] {name}{why}")
+
+    if prior:
+        import yaml as _yaml
+
+        from attestral.narrowing import classify
+        result = classify(_yaml.safe_load(Path(prior).read_text()) or {}, policy)
+        label = {"narrowing": "NARROWING", "equal": "UNCHANGED",
+                 "expansion": "EXPANSION"}[result.overall]
+        click.echo(f"\nre-attestation vs {prior}: {label}", err=result.is_expansion)
+        if result.is_expansion:
+            click.echo("  this design grants more ambient capability than the "
+                       "reviewed one; a human must approve it before it runs:", err=True)
+            for e in result.expansions:
+                click.echo(f"    + {e}", err=True)
+            sys.exit(1)
+        for v in result.servers:
+            if v.narrowings:
+                click.echo(f"  - {v.name}: {'; '.join(v.narrowings)}")
 
 
 @main.command()

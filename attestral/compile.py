@@ -45,6 +45,12 @@ def compile_policy(
     servers: dict[str, dict] = {}
     for c in model.by_type("mcp_server"):
         entry: dict = {"allow": True, "constraints": {}, "attested_source": c.source}
+        caps = c.attr("_capabilities") or []
+        if caps:
+            # The attested ambient capability envelope, so a re-attestation can be
+            # checked as a narrowing (attestral compile --against): a server that
+            # later gains a capability is an expansion that must be re-reviewed.
+            entry["capabilities"] = sorted(caps)
         if c.attr("_manifest_hash"):
             entry["manifest_sha256"] = c.attr("_manifest_hash")
         server_findings = by_component.get(c.id, [])

@@ -7,6 +7,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Compile as a narrowing (roadmap M7): `attestral compile --against`.** The
+  compile step already emits a default-deny policy; this makes it a confinement
+  guarantee. `--against PRIOR` compiles the current design and classifies the
+  re-attestation as a NARROWING, UNCHANGED, or EXPANSION of the prior policy's
+  capability envelope (servers, capability sets, transport/root/secret
+  constraints, manifest pins). An expansion - a new server, a tool that gained a
+  capability, a loosened constraint, a dropped or changed manifest pin - names
+  each widening and exits non-zero, so a CI gate blocks a design that grants more
+  ambient capability than the reviewed one until a human re-baselines. The policy
+  now records each server's attested capability set. Honest scope: a structural,
+  fail-closed containment check (`attestral/narrowing.py`), not an SMT proof;
+  SMT-level confinement is the future strengthening. Write-up `docs/narrowing.md`;
+  tests in `tests/test_narrowing.py`.
 - **IFC integrity endorser: a human-approval gate clears ATL-217's integrity
   half.** The declassifier gave the confidentiality dimension its mitigation; this
   is the symmetric twin for integrity. The MCP ingester derives

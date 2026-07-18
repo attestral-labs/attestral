@@ -46,6 +46,7 @@ DIAGRAM_KEYWORDS = {
     "aibom.py": "AI-BOM",
     "report_terminal.py": "Terminal",
     "compile.py": "compile",
+    "narrowing.py": "narrowing",
     "fix.py": "compile-the-fix",
     "remediate.py": "concrete source edit",
     "drift.py": "drift",
