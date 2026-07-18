@@ -41,14 +41,25 @@ mitigation that breaks the flow: a validation step, an allowlist, a human
 approval gate. When one sits between the labelled source and sink, the flow is
 no longer a violation.
 
-No ingester emits a declassifier signal today, so ATL-217 currently fires
-whenever the labelled flow exists - the same fixtures ATL-202/207 flag. The
-difference matters the moment a declassifier signal lands: ATL-217 will *clear*
-the flow (the mitigation is real), while the coarse ATL-202/207 still fire on
-the raw capability co-occurrence. The lattice is the precise instrument; the
-heuristics are the smoke alarm. Detecting declassifiers in agent config is the
-next step (roadmap), and it is why the lattice was built label-first rather than
-bolted onto the existing rules.
+The first declassifier is now detected. An **egress allowlist** on the outbound
+tool - the fix ATL-202 recommends, "gate the egress tool behind a destination
+allowlist" - is derived as `_egress_allowlisted` by the MCP ingester (matched
+conservatively: an egress-scoped allowlist token, never a bare `--allow`). When
+every egress sink is allowlist-declassified, the confidentiality flow is broken
+and **ATL-217 clears** while the coarse **ATL-202/207 still fire** on the raw
+capability co-occurrence. That is the whole point: the lattice is the precise
+instrument that respects a mitigation; the heuristics are the smoke alarm that
+does not. See `examples/ifc-declassified` (allowlisted egress, ATL-217 silent,
+ATL-202 loud) against `examples/vulnerable-agent` (unrestricted egress, both
+fire).
+
+Two honest limits. The integrity half still fires whenever the flow exists: an
+**endorser** (input validation, or human approval on the trust-critical sink) is
+not modeled yet, and an egress allowlist does not clear it - an allowlisted fetch
+tool still ingests untrusted content. And a declassifier is currently detected
+fleet-wide by capability, not proven to sit on the specific path; tightening that
+to a per-path check is the next refinement. Detecting the integrity endorser is
+the step after.
 
 ## Where it sits
 

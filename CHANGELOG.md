@@ -7,6 +7,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **IFC declassifier: an egress allowlist clears ATL-217 while ATL-202/207 still
+  fire.** The M6 lattice promised that a modeled mitigation would clear the
+  precise finding; this delivers the first one. The MCP ingester derives
+  `_egress_allowlisted` when an outbound tool constrains its reach to an
+  allowlist (the fix ATL-202 recommends), matched conservatively so a bare
+  `--allow` never over-clears. When every egress sink is allowlist-declassified
+  the confidentiality half of the information-flow violation is broken and
+  ATL-217 clears, while the coarse heuristics ATL-202/207 still flag the raw
+  capability co-occurrence - the precise-vs-heuristic difference the lattice
+  exists for. The integrity half is unaffected (an allowlisted fetch tool still
+  ingests untrusted content; an endorser signal is the next step). Fixture
+  `examples/ifc-declassified` (allowlisted, ATL-217 silent) against
+  `examples/vulnerable-agent` (unrestricted, both fire); tests in
+  `tests/test_ifc.py`.
 - **Information-flow lattice (roadmap M6): ATL-217, the trifecta as a defensible
   property.** The lethal-trifecta (ATL-202) and taint-flow (ATL-207) findings are
   heuristic - named capability groups co-occurring. `attestral/ifc.py` attaches

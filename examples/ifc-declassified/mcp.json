@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres",
+               "postgresql://app:pw@db.internal:5432/prod"]
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch", "--allowed-hosts", "api.internal.example.com"]
+    }
+  }
+}

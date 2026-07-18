@@ -26,6 +26,19 @@ _AUTO_APPROVE_FLAGS = (
     "--auto-approve", "--yes-to-all", "--no-confirm",
 )
 
+# An egress-capable server whose launch or env constrains outbound reach to an
+# allowlist of destinations is the declassifier ATL-202 recommends: data can only
+# leave to known hosts, so it breaks the confidentiality half of an information-
+# flow violation (ATL-217 clears while the coarse ATL-202/207 still fire). Matched
+# conservatively - a bare "--allow" is too generic and would over-clear, so only
+# an egress-scoped allowlist token counts.
+_EGRESS_ALLOWLIST_HINTS = (
+    "--allowed-hosts", "--allow-host", "--allowed-domains", "--allowed-origins",
+    "--allowlist-hosts", "--allowlist-domains", "--url-allowlist",
+    "allowed_hosts", "allowed_domains", "allowedhosts", "alloweddomains",
+    "allowed-origins", "url_allowlist", "allowlisted_hosts",
+)
+
 # Exact launch tokens (compared by basename) that mean the server itself is a
 # shell; substring hints would false-positive on words like "publish".
 _SHELL_TOKENS = {"bash", "sh", "zsh", "dash", "cmd", "cmd.exe", "powershell", "pwsh"}
@@ -205,6 +218,15 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             if any(h in surface for h in hints):
                 caps.add(cap)
         attrs["_capabilities"] = sorted(caps)
+        # Egress allowlist (the declassifier ATL-202 recommends): only meaningful
+        # on an egress-capable server, matched against the launch command and the
+        # env keys/values so an allowlist set either way is seen.
+        if caps & {"network", "messaging"}:
+            egress_surface = " ".join(
+                [launch] + [str(k) for k in env] + [str(v) for v in env.values()]
+            ).lower()
+            if any(h in egress_surface for h in _EGRESS_ALLOWLIST_HINTS):
+                attrs["_egress_allowlisted"] = True
         # Protocol-level capabilities the server DECLARES it supports
         # (`capabilities: {sampling: {}, elicitation: {}}` or a list). Distinct
         # from the coarse reachability classes above: `sampling` lets a server
