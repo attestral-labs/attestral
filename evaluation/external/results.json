@@ -1,0 +1,94 @@
+{
+  "total": 8,
+  "design_visible": 4,
+  "design_visible_detected": 4,
+  "design_visible_recall": 1.0,
+  "full_coverage": 0.5,
+  "out_of_scope": 4,
+  "missed": [],
+  "rows": [
+    {
+      "id": "mcp-remote-rce",
+      "advisory": "CVE-2025-6514",
+      "ref": "https://github.com/advisories/GHSA-6xpm-ggf7-wc3p",
+      "scope": "design-visible",
+      "expect": "ATL-117",
+      "threat": "OS command injection to RCE when connecting to an untrusted MCP server",
+      "outcome": "detected"
+    },
+    {
+      "id": "apify-actors-token-exfil",
+      "advisory": "CVE-2026-50143",
+      "ref": "https://github.com/advisories/GHSA-6gr2-qh89-hxwm",
+      "scope": "design-visible",
+      "expect": "ATL-117",
+      "threat": "URL-authority injection exfiltrates the Apify bearer token to an attacker host",
+      "outcome": "detected"
+    },
+    {
+      "id": "git-mcp-server-cmd-injection",
+      "advisory": "CVE-2025-53107",
+      "ref": "https://github.com/advisories/GHSA-3q26-f695-pp76",
+      "scope": "design-visible",
+      "expect": "ATL-117",
+      "threat": "command injection to RCE via unsanitized gitAdd/gitCheckout shell construction",
+      "outcome": "detected"
+    },
+    {
+      "id": "mcp-atlassian-ssrf",
+      "advisory": "CVE-2026-27826",
+      "ref": "https://github.com/advisories/GHSA-7r34-79r5-rcc9",
+      "scope": "design-visible",
+      "expect": "ATL-117",
+      "threat": "unauthenticated SSRF (credential theft + prompt injection) via unvalidated URL headers",
+      "outcome": "detected"
+    },
+    {
+      "id": "langchain-core-langgrinch",
+      "advisory": "CVE-2025-68664",
+      "ref": "https://github.com/advisories/GHSA-c67j-w6g6-q2cm",
+      "scope": "dependency",
+      "expect": null,
+      "threat": "serialization 'lc' marker confusion exfiltrates env-var secrets (CVSS 9.3)",
+      "outcome": "out-of-scope:dependency"
+    },
+    {
+      "id": "langgraph-sqlite-checkpoint-sqli",
+      "advisory": "CVE-2025-67644",
+      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2025-67644",
+      "scope": "dependency",
+      "expect": null,
+      "threat": "SQL injection in the SQLite checkpointer, chainable toward RCE",
+      "outcome": "out-of-scope:dependency"
+    },
+    {
+      "id": "langgraph-deserialization",
+      "advisory": "CVE-2026-28277",
+      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-28277",
+      "scope": "dependency",
+      "expect": null,
+      "threat": "unsafe deserialization in checkpoint restore",
+      "outcome": "out-of-scope:dependency"
+    },
+    {
+      "id": "langgraph-prompt-path-traversal",
+      "advisory": "CVE-2026-34070",
+      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-34070",
+      "scope": "dependency",
+      "expect": null,
+      "threat": "path traversal in the prompt-loading subsystem",
+      "outcome": "out-of-scope:dependency"
+    }
+  ],
+  "taxonomy": {
+    "total": 32,
+    "attempted": 28,
+    "rate": 0.875,
+    "by_status": {
+      "covered": 19,
+      "partial": 9,
+      "out-of-scope": 2,
+      "needs-ingester": 2
+    }
+  }
+}

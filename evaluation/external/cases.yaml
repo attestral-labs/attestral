@@ -1,0 +1,112 @@
+# Threat-labelled external recall set (M-EVAL v2).
+#
+# Every case is a REAL published advisory (CVE + GHSA). The config is
+# reconstructed from the advisory text and the label is the THREAT - the
+# affected package/version and the vulnerability class - NOT Attestral's current
+# output. That is the whole point: unlike evaluation/cases.yaml (a regression
+# guard whose positive labels come from each fixture's own README), recall here
+# is allowed to fall below 100% and expose true misses, because nothing about
+# the label was chosen to match a rule we already ship.
+#
+# `scope` classifies what a DESIGN-TIME review can even see:
+#   design-visible - the vulnerable pattern lives in declared config an ingester
+#                    reads today (here: an MCP server pinned to a known-vulnerable
+#                    package version). Attestral should catch it; `expect` names
+#                    the rule. A design-visible case that does not fire is a real
+#                    recall miss and a concrete rule/known-CVE-table gap.
+#   dependency     - a code vulnerability in an agent framework/library that
+#                    Attestral does not ingest (there is no package-manifest
+#                    ingester yet). Out of design-time scope today, reported as a
+#                    named needs-ingester limitation, never silently as a pass.
+#   runtime        - only manifests at run time (a crafted request or tool call);
+#                    a design-time model cannot see it by construction.
+#
+# score_external.py reads this, builds a model from each design-visible config,
+# and reports design-visible recall AND full-set coverage. Add cases as
+# advisories land (the weekly radar is a natural feeder).
+
+cases:
+  # --- design-visible: MCP server pinned to a known-vulnerable version --------
+  - id: mcp-remote-rce
+    advisory: CVE-2025-6514
+    ref: https://github.com/advisories/GHSA-6xpm-ggf7-wc3p
+    affected: "mcp-remote <= 0.1.15"
+    threat: OS command injection to RCE when connecting to an untrusted MCP server
+    scope: design-visible
+    config_format: mcp.json
+    config: '{"mcpServers": {"remote": {"command": "npx", "args": ["mcp-remote@0.1.15"]}}}'
+    expect: ATL-117
+
+  - id: apify-actors-token-exfil
+    advisory: CVE-2026-50143
+    ref: https://github.com/advisories/GHSA-6gr2-qh89-hxwm
+    affected: "@apify/actors-mcp-server <= 0.10.10"
+    threat: URL-authority injection exfiltrates the Apify bearer token to an attacker host
+    scope: design-visible
+    config_format: mcp.json
+    config: '{"mcpServers": {"apify": {"command": "npx", "args": ["@apify/actors-mcp-server@0.10.10"]}}}'
+    expect: ATL-117
+
+  - id: git-mcp-server-cmd-injection
+    advisory: CVE-2025-53107
+    ref: https://github.com/advisories/GHSA-3q26-f695-pp76
+    affected: "@cyanheads/git-mcp-server <= 2.1.4"
+    threat: command injection to RCE via unsanitized gitAdd/gitCheckout shell construction
+    scope: design-visible
+    config_format: mcp.json
+    config: '{"mcpServers": {"git": {"command": "npx", "args": ["@cyanheads/git-mcp-server@2.1.4"]}}}'
+    expect: ATL-117
+
+  - id: mcp-atlassian-ssrf
+    advisory: CVE-2026-27826
+    ref: https://github.com/advisories/GHSA-7r34-79r5-rcc9
+    affected: "mcp-atlassian < 0.17.0"
+    threat: unauthenticated SSRF (credential theft + prompt injection) via unvalidated URL headers
+    scope: design-visible
+    config_format: mcp.json
+    config: '{"mcpServers": {"atlassian": {"command": "uvx", "args": ["mcp-atlassian@0.16.0"]}}}'
+    expect: ATL-117
+
+  # --- out of design-time scope: agent-framework dependency code vulns ---------
+  # Real, high-severity, and structurally invisible to a config/architecture
+  # review: they live in the agent's Python dependency tree, which Attestral does
+  # not ingest. Each is a concrete argument for a package-manifest ingester.
+  - id: langchain-core-langgrinch
+    advisory: CVE-2025-68664
+    ref: https://github.com/advisories/GHSA-c67j-w6g6-q2cm
+    affected: "langchain-core < 0.3.81 / < 1.2.5"
+    threat: serialization 'lc' marker confusion exfiltrates env-var secrets (CVSS 9.3)
+    scope: dependency
+    config_format: requirements.txt
+    config: "langchain-core==1.2.4"
+    expect: null
+
+  - id: langgraph-sqlite-checkpoint-sqli
+    advisory: CVE-2025-67644
+    ref: https://nvd.nist.gov/vuln/detail/CVE-2025-67644
+    affected: "langgraph SQLite checkpointer (see advisory)"
+    threat: SQL injection in the SQLite checkpointer, chainable toward RCE
+    scope: dependency
+    config_format: requirements.txt
+    config: "langgraph"
+    expect: null
+
+  - id: langgraph-deserialization
+    advisory: CVE-2026-28277
+    ref: https://nvd.nist.gov/vuln/detail/CVE-2026-28277
+    affected: "langgraph (see advisory)"
+    threat: unsafe deserialization in checkpoint restore
+    scope: dependency
+    config_format: requirements.txt
+    config: "langgraph"
+    expect: null
+
+  - id: langgraph-prompt-path-traversal
+    advisory: CVE-2026-34070
+    ref: https://nvd.nist.gov/vuln/detail/CVE-2026-34070
+    affected: "langgraph prompt-loading subsystem (see advisory)"
+    threat: path traversal in the prompt-loading subsystem
+    scope: dependency
+    config_format: requirements.txt
+    config: "langgraph"
+    expect: null

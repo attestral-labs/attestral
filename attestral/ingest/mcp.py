@@ -64,6 +64,14 @@ _KNOWN_VULNS = (
     # client attaches the Apify bearer token to whatever host that resolves
     # to. Affected through 0.10.10; fixed in 0.10.11.
     ("actors-mcp-server", (0, 10, 10), "CVE-2026-50143"),
+    # CVE-2025-53107: command injection -> RCE in @cyanheads/git-mcp-server;
+    # gitAdd/gitCheckout built shell commands via child_process.exec without
+    # sanitizing input. Affected through 2.1.4; fixed in 2.1.5.
+    ("git-mcp-server", (2, 1, 4), "CVE-2025-53107"),
+    # CVE-2026-27826: unauthenticated SSRF (credential theft + prompt injection)
+    # in mcp-atlassian via unvalidated X-Atlassian-Jira-Url/Confluence-Url
+    # headers. Affected below 0.17.0; fixed in 0.17.0.
+    ("mcp-atlassian", (0, 16, 9999), "CVE-2026-27826"),
 )
 
 

@@ -48,10 +48,12 @@ pack evolves, not that the rules are complete. The honest signal about *reach*
 comes from three other places: the benign false-positive rate, the coverage number
 (every agentic rule now has a positive case - `ATL-113` via the harness's
 `world_writable` setup field, `ATL-213` via a `fleet` case that spans two repos
-the way `attestral fleet` does), and the `gap` cases. As the corpus grows toward real-world systems
-(see roadmap M2, the real-systems gallery), positive cases will be labelled from
-the *threat* rather than the current output, so recall can legitimately fall below
-100% and expose true misses.
+the way `attestral fleet` does), and the `gap` cases. That threat-labelled measurement now exists as **M-EVAL v2**:
+`python -m evaluation.score_external` scores eight published CVE-GHSA advisories
+labelled from the advisory, not from our output, and reports full-set coverage of
+4/8 (allowed to be below 100%) plus a taxonomy denominator. See
+[`external-recall.md`](./external-recall.md). This benchmark stays the regression
+guard; the external set is the honest-recall companion.
 
 ## Growing it
 

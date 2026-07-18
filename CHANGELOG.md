@@ -7,6 +7,22 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **M-EVAL v2: threat-labelled external recall (recall you cannot self-grade).**
+  The regression benchmark scores 116/116 because its labels come from each
+  fixture's own README. `evaluation/external/cases.yaml` labels from published
+  advisories instead: eight real 2025-2026 CVE-GHSA cases scored through the
+  production path by `evaluation/score_external.py`. Design-visible recall is
+  4/4 (MCP servers pinned to known-vulnerable versions all fire ATL-117), but
+  full-set coverage is 4/8 (50%) and allowed to be: the other four are
+  agent-framework dependency CVEs (LangGrinch CVE-2025-68664, three langgraph
+  advisories) a design-time model cannot see without a package-manifest
+  ingester, itemised as a named gap rather than a silent miss. Adds
+  `evaluation/taxonomy.yaml` (OWASP LLM/MCP Top 10 + ASI 2026 threats -> 28/32
+  attempted) as an independent denominator, a CI floor
+  (`tests/test_external_recall.py`) that fails if a known-CVE advisory stops
+  firing, and the write-up `evaluation/external-recall.md`. Two newly-verified
+  advisories added to the known-CVE table (git-mcp-server CVE-2025-53107,
+  mcp-atlassian CVE-2026-27826).
 - **Research radar wave, 2026-07-17 (pack 232 -> 234).** ATL-144 (AWS Bedrock
   AgentCore runtime role left attached to the `BedrockAgentCoreFullAccess`
   quickstart policy, which grants account-wide AgentCore actions including

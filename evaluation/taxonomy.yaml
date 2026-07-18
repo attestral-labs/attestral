@@ -1,0 +1,154 @@
+# Taxonomy coverage map (M-EVAL v2 denominator).
+#
+# The recall benchmarks measure "of the findings we label, how many fire". This
+# file measures the other direction against an INDEPENDENT denominator: of the
+# published threat taxonomy, how much does Attestral's design-time model even
+# attempt? The denominator is the taxonomy, not our own rule list, so it cannot
+# be gamed by adding rules.
+#
+# status:
+#   covered       - a deterministic rule or the ML/judge layer addresses this at
+#                   design time. `by` cites the mechanism.
+#   partial       - addressed for the config-visible slice only; the rest is
+#                   runtime or needs a signal we do not derive.
+#   needs-ingester - config-visible in principle, but no ingester emits the
+#                   signal yet. A concrete build item.
+#   out-of-scope  - runtime/output-quality/social by nature; a design-time
+#                   architecture review cannot see it, and should say so.
+#
+# Honest by construction: `partial`, `needs-ingester`, and `out-of-scope` are the
+# point. A perfect score here would mean the taxonomy was trimmed to fit us.
+
+owasp_llm_top_10_2025:
+  - id: LLM01
+    name: Prompt Injection
+    status: covered
+    by: ML layer (ATL-ML-001) over tool/description/prompt surfaces
+  - id: LLM02
+    name: Sensitive Information Disclosure
+    status: covered
+    by: ATL-104 (secrets in server env), cross-boundary secret-crossing rules
+  - id: LLM03
+    name: Supply Chain
+    status: covered
+    by: ATL-105 (auto-install), ATL-117 (known-CVE table), ATL-134..143 (provenance)
+  - id: LLM04
+    name: Data and Model Poisoning
+    status: partial
+    by: ATL-214 (untrusted input into agent memory); training-data poisoning out of scope
+  - id: LLM05
+    name: Improper Output Handling
+    status: covered
+    by: shell/exec + outbound-reach rules on the sink side (ATL-103/107), toxic-flow ATL-207
+  - id: LLM06
+    name: Excessive Agency
+    status: covered
+    by: ATL-103/108/141 (over-broad tool grants), the AIVSS agency score
+  - id: LLM07
+    name: System Prompt Leakage
+    status: partial
+    by: ML detects prompt-extraction phrasing; secrets-in-prompt via ATL-104
+  - id: LLM08
+    name: Vector and Embedding Weaknesses
+    status: partial
+    by: ATL-211 (shared-identity RAG retrieval); embedding-level attacks out of scope
+  - id: LLM09
+    name: Misinformation
+    status: out-of-scope
+    by: runtime output quality, not a design-time property
+  - id: LLM10
+    name: Unbounded Consumption
+    status: needs-ingester
+    by: no rate-limit / resource-cap signal is ingested from agent config yet
+
+owasp_mcp_top_10:
+  - id: MCP01
+    name: Tool Poisoning
+    status: covered
+    by: ML layer on tool descriptions, ATL-204..206 (shadowing/redefinition)
+  - id: MCP02
+    name: Supply Chain
+    status: covered
+    by: ATL-105/117/134..143
+  - id: MCP03
+    name: Command Injection / RCE
+    status: partial
+    by: ATL-103 (shell-capable), ATL-117 (known-CVE); server-code injection is out of scope
+  - id: MCP04
+    name: Unauthenticated / Weak Auth
+    status: covered
+    by: ATL-109 (unauthenticated remote), ATL-142 (weak A2A scheme)
+  - id: MCP05
+    name: Excessive Permissions
+    status: covered
+    by: ATL-108/141, capability-combo model rules
+  - id: MCP06
+    name: Secrets Exposure
+    status: covered
+    by: ATL-104, cross-boundary secret-crossing
+  - id: MCP07
+    name: Insecure Transport
+    status: covered
+    by: ATL-136/137 (TLS-verify-off, plaintext ws)
+  - id: MCP08
+    name: Rug Pull / Mutable Pinning
+    status: covered
+    by: ATL-106/143 (mutable tag), and drift catches the runtime rug-pull
+  - id: MCP09
+    name: Tool Shadowing / Name Collision
+    status: covered
+    by: ATL-204..206
+  - id: MCP10
+    name: Prompt Injection via Tool Output
+    status: partial
+    by: ML on described surfaces; live tool-output injection is a runtime event (drift)
+
+owasp_asi_threats_2026:
+  - id: ASI-memory-poisoning
+    name: Memory Poisoning
+    status: covered
+    by: ATL-214 (untrusted input into long-term memory), ATL-114
+  - id: ASI-tool-misuse
+    name: Tool Misuse
+    status: covered
+    by: ATL-103/107/108, capability-combo rules
+  - id: ASI-privilege-compromise
+    name: Privilege Compromise
+    status: covered
+    by: ATL-141 (permissive allow), ATL-144 (AgentCore full access), cloud IAM rules
+  - id: ASI-resource-overload
+    name: Resource Overload
+    status: needs-ingester
+    by: no agent rate-limit / budget signal ingested yet
+  - id: ASI-cascading-hallucination
+    name: Cascading Hallucination
+    status: out-of-scope
+    by: runtime output behavior, not design-time
+  - id: ASI-intent-breaking
+    name: Intent Breaking / Goal Manipulation
+    status: partial
+    by: ML injection detection on instruction surfaces; runtime steering out of scope
+  - id: ASI-repudiation
+    name: Repudiation / Untraceability
+    status: partial
+    by: the signed evidence chain gives attributable review records; runtime audit is separate
+  - id: ASI-identity-spoofing
+    name: Identity Spoofing / Impersonation
+    status: covered
+    by: ATL-142 (static A2A key), A2A card-signing rules, shared-identity ATL-211
+  - id: ASI-overwhelming-hitl
+    name: Overwhelming Human-in-the-Loop
+    status: covered
+    by: sampling/elicitation-without-checkpoint model rules (ATL-215)
+  - id: ASI-rce
+    name: Unexpected Code Execution
+    status: partial
+    by: ATL-103 (shell tool), ATL-117 (known-CVE); novel server-code RCE out of scope
+  - id: ASI-comms-poisoning
+    name: Agent Communication Poisoning
+    status: covered
+    by: cross-boundary and multi-agent flow rules (ATL-208/210/216)
+  - id: ASI-rogue-agents
+    name: Rogue Agents
+    status: partial
+    by: cross-repo fleet toxic-flow (ATL-213); behavioral rogue detection is runtime
