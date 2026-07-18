@@ -11,6 +11,6 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e ".[dev,terraform]"
+      - run: pip install -e ".[dev,terraform,sign]"   # sign: exercise the signing + memory-provenance crypto in CI
       - run: ruff check attestral tests
       - run: pytest -q

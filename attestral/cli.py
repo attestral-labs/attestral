@@ -744,6 +744,67 @@ def sign(report: str | None, key_path: str | None, gen_key: str | None,
     click.echo(f"signed {out}  ·  head {head[:16]}  ·  signer {signer or '(unnamed)'}")
 
 
+@main.group()
+def memory() -> None:
+    """Signed memory provenance: bind a memory entry's trust label to its content.
+
+    A trusted label an attacker can flip is no defense against memory poisoning.
+    `memory sign` makes an entry's label part of an Ed25519-signed record; `memory
+    verify` audits a store against a keyring of trusted writers, so a relabelled
+    or tampered entry is caught cryptographically, not by hoping the label held.
+    """
+
+
+@memory.command("sign")
+@click.option("--content", required=True, help="The memory entry's content.")
+@click.option("--label", "trust_label", default="trusted", show_default=True,
+              help="Trust label to bind to the content (trusted | system | untrusted).")
+@click.option("--writer", required=True, help="The writer identity (a key in the keyring).")
+@click.option("--key", "key_path", type=click.Path(exists=True), required=True,
+              help="Ed25519 private key (PEM) to sign with.")
+@click.option("--id", "entry_id", default="", help="Optional stable id for the entry.")
+@click.option("-o", "--output", type=click.Path(), default=None,
+              help="Append the signed entry (JSONL) here; default prints to stdout.")
+def memory_sign(content: str, trust_label: str, writer: str, key_path: str,
+                entry_id: str, output: str | None) -> None:
+    """Sign one memory entry, binding its trust label to its content."""
+    from attestral.memory import sign_entry
+    entry = sign_entry(content, trust_label, writer, Path(key_path).read_text(), entry_id=entry_id)
+    line = json.dumps(entry)
+    if output:
+        with open(output, "a") as fh:
+            fh.write(line + "\n")
+        click.echo(f"appended signed entry ({trust_label}, writer {writer}) to {output}")
+    else:
+        click.echo(line)
+
+
+@memory.command("verify")
+@click.argument("store", type=click.Path(exists=True))
+@click.option("--keyring", "keyring_path", type=click.Path(exists=True), required=True,
+              help="YAML of trusted writers -> public key (PEM or .pub path).")
+@click.option("--fail-on-untrusted", is_flag=True,
+              help="Exit non-zero if any entry fails its trust claim (CI/cron gate).")
+def memory_verify(store: str, keyring_path: str, fail_on_untrusted: bool) -> None:
+    """Audit a memory STORE (JSONL) against a keyring of trusted writers.
+
+    Every entry that claims a trusted label must verify against its writer's key.
+    A relabelled entry (MEM-001), an unknown writer (MEM-002), or a trust claim
+    with no signature (MEM-003) is reported; untrusted entries are the safe
+    default and pass silently.
+    """
+    from attestral.memory import audit_store, load_keyring, load_store
+    entries = load_store(store)
+    findings = audit_store(entries, load_keyring(keyring_path))
+    for f in sorted(findings, key=lambda x: -x.severity.rank):
+        click.echo(f"  [{f.severity.value.upper():8}] {f.rule_id}  {f.title}  ({f.component_id})")
+        click.echo(f"           {f.description}")
+    click.echo(f"{len(entries)} entries · {len(findings)} failed their trust claim")
+    if findings and fail_on_untrusted:
+        click.echo("MEMORY: an entry's trust label is not backed by a valid signature", err=True)
+        sys.exit(1)
+
+
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--rule", "rule_id", default=None,

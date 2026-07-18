@@ -290,6 +290,9 @@ flowchart LR
     subgraph drift["attestral drift"]
         d1["policy + telemetry"] --> d2["drift findings<br/>rug-pulls (DRF-005),<br/>loop / volume budgets (DRF-006/007)"]
     end
+    subgraph memory["attestral memory"]
+        m1["memory store + keyring"] --> m2["signed-provenance audit<br/>relabelled / tampered / unsigned<br/>trust claims (MEM-001/002/003)"]
+    end
 ```
 
 ```bash
@@ -314,6 +317,11 @@ attestral compile ./my-project --against policy.yaml
 
 # DRIFT: diff runtime telemetry against the attested design
 attestral drift policy.yaml events.jsonl --fail-on-drift
+
+# MEMORY: bind an agent-memory entry's trust label to its content with a signature,
+# so a relabelled or tampered entry is caught cryptographically (not by hoping)
+attestral memory sign --content "..." --label trusted --writer alice --key alice.key -o mem.jsonl
+attestral memory verify mem.jsonl --keyring writers.yaml --fail-on-untrusted
 
 # VALIDATE: prove whether the assembled attack paths actually hold
 # (tier 0: symbolic walk over the model's edges, no execution, no network)

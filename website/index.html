@@ -542,6 +542,19 @@
   .rt-sum .bad{color:#E5697A}
   .rt-play{font-family:var(--body);font-weight:600;font-size:.86rem;padding:8px 18px;border:1.5px solid var(--seal);background:var(--seal);color:#fff;border-radius:3px;cursor:pointer;margin-top:14px}
   .rt-play:hover{background:#7C1B25}
+  /* real-systems (in the wild) section */
+  .wild-stats{display:flex;gap:16px;flex-wrap:wrap;margin:0 0 30px}
+  .wild-stat{flex:1;min-width:150px;border:1px solid var(--rule);border-top:3px solid var(--seal);border-radius:6px;background:var(--card);padding:18px 20px}
+  .wild-stat b{display:block;font-family:var(--display);font-size:2.1rem;line-height:1;color:var(--seal)}
+  .wild-stat span{display:block;margin-top:8px;font-size:.82rem;color:var(--muted)}
+  .wild-table{border:1px solid var(--rule);border-radius:6px;overflow-x:auto;background:var(--card)}
+  .wild-table table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .wild-table th,.wild-table td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--rule)}
+  .wild-table thead th{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .wild-table tbody tr:last-child td{border-bottom:none}
+  .wild-table td.num,.wild-table th.num{text-align:right;font-family:var(--mono);white-space:nowrap}
+  .wild-table tr.hero-row td{background:color-mix(in srgb,var(--seal) 8%,transparent);border-bottom:1px solid var(--rule)}
+  .wild-table tr.hero-row td b{color:var(--seal)}
 </style>
 <script>
   // Apply a saved theme before first paint to avoid a flash. With no saved
@@ -555,6 +568,7 @@
   <a href="#top"><span>Overview</span></a>
   <a href="#model"><span>System model</span></a>
   <a href="#prove"><span>Reachability</span></a>
+  <a href="#wild"><span>In the wild</span></a>
   <a href="#measured"><span>Benchmark</span></a>
   <a href="#ml"><span>ML scoring</span></a>
   <a href="#pipeline"><span>Pipeline</span></a>
@@ -810,6 +824,40 @@
         <a class="btn primary" href="proof.html">Explore the live reachability walker</a>
         <a class="btn" href="proof.html#tiers">See the three tiers</a>
       </div>
+    </div>
+  </section>
+
+  <section id="wild">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">Real systems · aggregate, no repo named</p>
+      <h2>Scanned in the wild: 33 popular MCP servers.</h2>
+      <p class="section-lede">The rest of the evaluation is a synthetic suite with an answer key. This is different: Attestral run against 33 of the most widely used public MCP servers, at pinned commits. It reviews the <em>documented launch configuration</em>, the <code>mcpServers</code> block users copy from a README, and every hit is a <b>configuration default, not an exploited vulnerability</b>. The aggregate below carries no embargo; per-repo results stay under responsible disclosure until each maintainer has been notified.</p>
+      <div class="wild-stats">
+        <div class="wild-stat"><b>33</b><span>servers scanned</span></div>
+        <div class="wild-stat"><b>23</b><span>shipped a modelable config</span></div>
+        <div class="wild-stat"><b>3</b><span>were clean (good counter-examples)</span></div>
+      </div>
+      <p class="section-lede" style="margin-top:6px">What those 23 shipped configs contain (percentages are of the 23):</p>
+      <div class="wild-table">
+        <table>
+          <thead><tr><th>Pattern</th><th>Rule</th><th class="num">% of 23</th></tr></thead>
+          <tbody>
+            <tr class="hero-row"><td><b>Lethal trifecta</b> · private data + untrusted input + an exit, in one fleet</td><td><code>ATL-202</code></td><td class="num">22%</td></tr>
+            <tr><td>Auto-installs an unpinned package at launch (<code>npx -y</code> / <code>uvx</code>)</td><td><code>ATL-105</code></td><td class="num">52%</td></tr>
+            <tr><td>Remote MCP server with no authentication</td><td><code>ATL-109</code></td><td class="num">48%</td></tr>
+            <tr><td>Secret passed to the server via <code>env</code></td><td><code>ATL-104</code></td><td class="num">43%</td></tr>
+            <tr><td>Outbound network / browser access</td><td><code>ATL-107</code></td><td class="num">26%</td></tr>
+            <tr><td>Mutable <code>@latest</code> / <code>:latest</code> tag (rug-pull surface)</td><td><code>ATL-106</code></td><td class="num">22%</td></tr>
+            <tr><td>Shell execution + outbound network in one fleet</td><td><code>ATL-203</code></td><td class="num">9%</td></tr>
+            <tr><td>Toxic flow (untrusted input can reach a sensitive action)</td><td><code>ATL-207</code></td><td class="num">9%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="section-lede" style="margin-top:18px">The headline is the compositional one. The <b>lethal trifecta</b> and toxic-flow hits are fleet-level: they exist only once you model several servers, and in one case a committed sub-agent, together. That is the finding no config-by-config scanner produces, and it showed up in nearly a quarter of the configs that had enough to model.</p>
+      <div class="cta-row" style="margin-top:22px">
+        <a class="btn primary" href="https://github.com/attestral-labs/attestral/blob/main/evaluation/real-world.md">The full aggregate write-up</a>
+      </div>
+      <p class="demo-cap" style="margin-top:14px">A named per-repo gallery, one screenshot of a genuine trifecta in a project you recognize, publishes as a second wave, after each maintainer has been given a responsible-disclosure window. We would rather be fair to maintainers than fast to a headline.</p>
     </div>
   </section>
 
