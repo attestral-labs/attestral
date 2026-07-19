@@ -1132,8 +1132,13 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
               help="Tier 1: an LLM drafts the predicted exploit per path (needs an API key). Never executed.")
 @click.option("--execute", is_flag=True,
               help="Tier 2: replay each reachable path through Attestral's sandbox harness with a planted canary. No live target.")
+@click.option("--proof-of-exploit", "proof_of_exploit", is_flag=True,
+              help="Ship a proof-of-exploit per reachable path: a narrated scenario "
+                   "validated against the model (no hallucinated hops) plus a gated "
+                   "test asserting the path exists. With -o, writes the tests.")
 def validate(path: str, output: str | None, fail_on_proof: bool, remediate: bool,
-             action_space_flag: bool, generate: bool, execute: bool) -> None:
+             action_space_flag: bool, generate: bool, execute: bool,
+             proof_of_exploit: bool) -> None:
     """Check which attack paths in PATH's attested design are reachable.
 
     Symbolic tier: walks each assembled attack path over the model's own edges,
@@ -1168,6 +1173,17 @@ def validate(path: str, output: str | None, fail_on_proof: bool, remediate: bool
         click.echo("")
         click.echo("replaying paths through the sandbox harness (tier 2)…", err=True)
         click.echo(redteam.render_execution(model))
+    if proof_of_exploit:
+        from attestral.selfplay import proofs_of_exploit, render_proofs_of_exploit
+        poe = proofs_of_exploit(model, path)
+        block = render_proofs_of_exploit(model, path, proofs=poe)
+        if block:
+            click.echo("")
+            click.echo(block)
+            if output:
+                test_path = Path(f"{output}_proof.py")
+                test_path.write_text("\n\n".join(p.test_source for p in poe))
+                click.echo(f"  wrote {test_path}", err=True)
     if output:
         findings = [p.to_finding() for p in proofs]
         Path(f"{output}.md").write_text(render_markdown(model, findings, path))

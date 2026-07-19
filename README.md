@@ -274,7 +274,7 @@ flowchart LR
     D --> AT["attestral attest<br/><b>signed conformance attestation</b>"]
     AT -->|"verify offline"| B
     D -->|"design changed?<br/>re-attest"| A
-    A --> V["attestral validate<br/><b>show the path is reachable</b>"]
+    A --> V["attestral validate<br/><b>show the path is reachable</b><br/>+ proof-of-exploit per path (gated)"]
     A --> DF["attestral diff<br/><b>PR security-impact delta</b>"]
     style A fill:#96222E,color:#fff
     style B fill:#1F6A4A,color:#fff

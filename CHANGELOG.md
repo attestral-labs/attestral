@@ -7,6 +7,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Adversarial self-play: proof-of-exploit per reachable path, `attestral validate
+  --proof-of-exploit` (closes #82).** The defense-aware eval publishes what Attestral
+  misses; this is the complement, demonstrating what it catches. For each reachable
+  path it ships three things: the modeled path (deterministic), an LLM-narrated
+  exploitation scenario (reused from the tier-1 `redteam.draft_exploit`, gated on a
+  key and skipped gracefully without one), and a runnable, gated test that asserts
+  the path exists. The safeguard is the point: an LLM narrating an exploit can wander
+  off the modeled path and invent a component or a hop the design does not contain,
+  so `check_faithfulness` validates the scenario STRUCTURALLY against the model and
+  rejects any that names a surface not on the path it claims to exploit. That check
+  is deterministic and needs no second model, a stronger guard than an LLM judging an
+  LLM because it is grounded in the system model itself. A demonstration aid, never
+  an auto-exploit tool: the emitted test asserts reachability, executes nothing, and
+  is gated behind `ATTESTRAL_PROOF=1` so it never runs by accident. `attestral/
+  selfplay.py`, tests in `tests/test_selfplay.py`.
 - **PR security-impact delta: `attestral diff` (closes #80).** The highest-leverage
   place to review an agent design is the pull request that changes it. This builds
   the system model on a base and a head revision and diffs them into a short,

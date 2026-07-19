@@ -35,6 +35,7 @@ DIAGRAM_KEYWORDS = {
     "blast_radius.py": "Blast-radius scoring",
     "delta.py": "security-impact delta",
     "redteam.py": "show the path is reachable",
+    "selfplay.py": "proof-of-exploit",
     "manifest.py": "manifest",
     "ifc.py": "information-flow lattice",
     "ml.py": "ML",
