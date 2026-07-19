@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "weather": {
+      "url": "https://weather.example.com/mcp",
+      "headers": { "Authorization": "Bearer REDACTED" }
+    },
+    "docs": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/docs"],
+      "env": { "DOCS_API_TOKEN": "sk-example" }
+    },
+    "legacy": {
+      "url": "http://legacy.internal/mcp",
+      "headers": { "Authorization": "Bearer REDACTED" }
+    }
+  }
+}

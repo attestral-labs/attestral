@@ -7,6 +7,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral compile --target cedar`: a second compile target.** Emits a Cedar
+  authorization policy over the same attested-design IR the mcp-guard renderer
+  uses, so the reviewed design compiles into a policy you can load into AWS
+  Verified Permissions or adapt for Amazon Bedrock AgentCore. mcp-guard stays
+  the default target, so existing users see no behavior change. Each allowed
+  server becomes a `permit` scoped to `MCPServer::"<name>"` with its constraints
+  as `when` conditions; each denied server becomes a `forbid` carrying the deny
+  reason as a comment; Cedar's native implicit deny covers everything absent.
+  Cedar is emitted as pure text with no new dependency; full validation uses the
+  external `cedar` CLI, which is intentionally not vendored. See
+  `docs/compile-cedar.md`.
 - **Agent-to-cloud reachability: ATL-218, agent runtime assumes an admin IAM
   role.** The headline cross-boundary rule no linter can copy. It joins a
   Kubernetes ServiceAccount's IRSA `eks.amazonaws.com/role-arn` annotation

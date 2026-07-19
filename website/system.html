@@ -155,7 +155,7 @@
             <tr><td class="cmd">sign</td><td>Sign the chain head (Ed25519 / DSSE) so it is authentic, not just tamper-evident.</td><td><span class="fl">--key · --gen-key · --signer · -o</span></td></tr>
             <tr><td class="cmd">remediate</td><td>The concrete source edit that clears each finding: the flag to flip, the value to replace, tied to its file.</td><td><span class="fl">--rule</span></td></tr>
             <tr><td class="cmd">fix</td><td>Compile the enforceable mcp-guard control that neutralizes each finding, bound to the chain head.</td><td><span class="fl">--rule · -o policy.yaml</span></td></tr>
-            <tr><td class="cmd">compile</td><td>Turn the attested design into a default-deny mcp-guard policy.</td><td><span class="fl">-o policy.yaml</span></td></tr>
+            <tr><td class="cmd">compile</td><td>Turn the attested design into a default-deny policy. Two targets over one IR: mcp-guard (default, drift-enforced) and Cedar (AWS Verified Permissions / Bedrock AgentCore).</td><td><span class="fl">--target · -o policy.yaml</span></td></tr>
             <tr><td class="cmd">drift</td><td>Diff runtime telemetry against the compiled policy, batch or as a continuous sidecar.</td><td><span class="fl">--stdin · --watch · --fail-on-drift</span></td></tr>
             <tr><td class="cmd">explain</td><td>Inspect any rule: title, severity, fix, framework refs.</td><td><span class="fl">ATL-103</span></td></tr>
             <tr><td class="cmd">init</td><td>Scaffold onboarding files (CI workflow, waivers, pre-commit) into a project.</td><td><span class="fl">--</span></td></tr>

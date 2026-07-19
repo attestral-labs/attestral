@@ -118,3 +118,128 @@ def render_policy_yaml(policy: dict) -> str:
         f"chain_head: {(policy['metadata']['review_chain_head'] or '-')[:16]}\n"
     )
     return header + yaml.safe_dump(policy, sort_keys=False)
+
+
+def _cedar_str(s: str) -> str:
+    """Escape a Python string for use inside a Cedar double-quoted literal.
+
+    Cedar quoted strings (entity ids and annotation values) are hand-built here,
+    so unlike ``yaml.safe_dump`` nothing escapes them for us. Backslash first,
+    then the quote, then the control characters Cedar recognises. This is the
+    string-safety invariant: a server name with a quote or backslash must never
+    break out of its literal.
+    """
+    s = str(s)
+    s = s.replace("\\", "\\\\")
+    s = s.replace('"', '\\"')
+    s = s.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    return s
+
+
+def _cedar_when(constraints: dict) -> str | None:
+    """Render a server's constraints as a single Cedar ``when { ... }`` clause.
+
+    Conditions AND together in a deterministic order (transport, root_paths,
+    forbid_env_secrets). Returns None when there is nothing to constrain, so the
+    permit is emitted with no ``when`` clause. A missing context attribute makes
+    a permit's condition fail, which denies - fail-closed, matching Attestral.
+    """
+    conds: list[str] = []
+    if constraints.get("transport") == "tls_only":
+        conds.append('context.transport == "tls"')
+    roots = constraints.get("root_paths")
+    if roots:
+        members = ", ".join(f'"{_cedar_str(r)}"' for r in roots)
+        conds.append(f"[{members}].contains(context.root_path)")
+    if constraints.get("forbid_env_secrets"):
+        conds.append("context.env_has_secrets == false")
+    if not conds:
+        return None
+    return "when { " + " && ".join(conds) + " };"
+
+
+def _cedar_annotations(entry: dict) -> list[str]:
+    """Machine-readable provenance annotations for a policy block.
+
+    Keys must be valid snake_case Cedar identifiers and unique within a policy,
+    so capabilities collapse into ONE comma-joined ``@capabilities`` annotation
+    rather than repeating ``@capability`` (a duplicate key is a Cedar error).
+    Fields that only exist on one base are read defensively with ``.get``.
+    """
+    ann: list[str] = []
+    src = entry.get("attested_source")
+    if src:
+        ann.append(f'@attested_source("{_cedar_str(src)}")')
+    manifest = entry.get("manifest_sha256")
+    if manifest:
+        ann.append(f'@manifest_sha256("{_cedar_str(manifest)}")')
+    caps = entry.get("capabilities")
+    if caps:
+        joined = ",".join(_cedar_str(c) for c in caps)
+        ann.append(f'@capabilities("{joined}")')
+    return ann
+
+
+def render_cedar(policy: dict) -> str:
+    """Render the neutral policy dict as a Cedar authorization policy.
+
+    Same intermediate representation as ``render_policy_yaml``; only the surface
+    syntax differs. Cedar's native semantics carry the load: an implicit deny for
+    any server without a ``permit``, and a ``forbid`` that overrides any permit.
+    Pure string building, no new dependency. Full validation is external
+    (the ``cedar`` CLI), which we deliberately do not vendor.
+    """
+    meta = policy["metadata"]
+    budgets = policy.get("budgets", {})
+    lines: list[str] = [
+        "// Cedar authorization policy - COMPILED FROM AN ATTESTED DESIGN REVIEW.",
+        "// Do not hand-edit: change the design, re-review, re-compile.",
+        f"// model_hash: {meta['model_hash'][:16]}  "
+        f"chain_head: {(meta.get('review_chain_head') or '-')[:16]}",
+        f"// generated_at: {meta.get('generated_at', '-')}",
+        "// Cedar default is implicit deny: any MCP server without a permit below is denied.",
+        "// Budgets are documentation only in Cedar "
+        f"(loop_repeat_threshold={budgets.get('loop_repeat_threshold', '-')}, "
+        f"max_calls_per_server={budgets.get('max_calls_per_server', '-')}).",
+        "// Cedar is a stateless per-request evaluator, so mcp-guard and attestral "
+        "drift remain their enforcer.",
+    ]
+
+    blocks: list[str] = []
+    for name, entry in sorted(policy["servers"].items()):
+        principal = f'MCPServer::"{_cedar_str(name)}"'
+        block: list[str] = []
+        if entry["allow"]:
+            block.extend(_cedar_annotations(entry))
+            block.append("permit (")
+            block.append(f"  principal == {principal},")
+            block.append('  action == Action::"invoke",')
+            when = _cedar_when(entry.get("constraints", {}) or {})
+            block.append("  resource")
+            if when:
+                block.append(")")
+                block.append(when)
+            else:
+                block.append(");")
+        else:
+            reason = str(entry.get("reason", "") or "")
+            for rline in reason.split("\n"):
+                block.append(f"// {rline}")
+            block.extend(_cedar_annotations(entry))
+            block.append("forbid (")
+            block.append(f"  principal == {principal},")
+            block.append("  action,")
+            block.append("  resource")
+            block.append(");")
+        blocks.append("\n".join(block))
+
+    return "\n".join(lines) + "\n\n" + "\n\n".join(blocks) + "\n"
+
+
+TARGETS: dict[str, tuple] = {
+    # target name -> (renderer over the neutral policy dict, default filename).
+    # One source of truth so the CLI stays a pure dispatch. mcp-guard is the
+    # default target; adding a target here is all it takes to wire it in.
+    "mcp-guard": (render_policy_yaml, "mcp-guard-policy.yaml"),
+    "cedar": (render_cedar, "attested-policy.cedar"),
+}

@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 
 from attestral import __version__
+from attestral.compile import TARGETS
 from attestral.evidence import audit_chain, render_markdown, verify_chain
 from attestral.ingest import build_model
 from attestral.rules import RuleEngine
@@ -879,13 +880,19 @@ def fix(path: str, rule_id: str | None, output: str | None) -> None:
 
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
-@click.option("-o", "--output", default="mcp-guard-policy.yaml", help="Policy output file.")
+@click.option("-o", "--output", default=None,
+              help="Policy output file (defaults to the target's own filename).")
+@click.option("--target", type=click.Choice(list(TARGETS)), default="mcp-guard",
+              help="Output format: mcp-guard (default, drift-enforced) or cedar "
+                   "(an AWS Cedar authorization policy). Cedar is lossy and one-way: "
+                   "it is not a valid --against prior and attestral drift cannot read it.")
 @click.option("--against", "prior", type=click.Path(exists=True), default=None,
               help="A prior policy to verify this re-attestation narrows. Exits "
-                   "non-zero on an expansion (a widening the review must approve).")
-def compile(path: str, output: str, prior: str | None) -> None:
-    """Compile PATH's attested design into an mcp-guard runtime policy."""
-    from attestral.compile import compile_policy, render_policy_yaml
+                   "non-zero on an expansion (a widening the review must approve). "
+                   "Requires an mcp-guard YAML prior; a .cedar file is not parseable back.")
+def compile(path: str, output: str | None, target: str, prior: str | None) -> None:
+    """Compile PATH's attested design into a runtime policy (mcp-guard or Cedar)."""
+    from attestral.compile import compile_policy
     from attestral.reachability import annotate_reachability
     model = build_model(path)
     findings = RuleEngine().evaluate(model)
@@ -895,10 +902,13 @@ def compile(path: str, output: str, prior: str | None) -> None:
     chain = audit_chain(findings)
     head = chain[-1]["hash"] if chain else ""
     policy = compile_policy(model, findings, chain_head=head)
-    Path(output).write_text(render_policy_yaml(policy))
+    renderer, default_out = TARGETS[target]
+    out = output or default_out
+    Path(out).write_text(renderer(policy))
     allowed = sum(1 for s in policy["servers"].values() if s["allow"])
     denied = len(policy["servers"]) - allowed
-    click.echo(f"wrote {output}  ·  default deny  ·  {allowed} allowed, {denied} denied")
+    click.echo(f"wrote {out}  ·  target {target}  ·  default deny  ·  "
+               f"{allowed} allowed, {denied} denied")
     for name, s in policy["servers"].items():
         mark = "ALLOW" if s["allow"] else "DENY "
         why = "" if s["allow"] else f"  ({s.get('reason','')})"
