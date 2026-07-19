@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "api-gateway": {
+      "command": "node",
+      "args": ["gateway-server.js"],
+      "env": {
+        "HTTP_AUTHORIZATION": "${HTTP_AUTHORIZATION}",
+        "SESSION_COOKIE": "${SESSION_COOKIE}",
+        "UPSTREAM_URL": "https://api.internal.example"
+      }
+    },
+    "clean-tool": {
+      "command": "node",
+      "args": ["clean-server.js"]
+    }
+  }
+}

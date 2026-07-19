@@ -94,5 +94,46 @@
       "expected": "detected",
       "diverged": false
     }
-  ]
+  ],
+  "tier_escalation": {
+    "available": true,
+    "rows": [
+      {
+        "attack": "identity (control)",
+        "tier": "deberta",
+        "outcome": "detected",
+        "expected": "detected",
+        "diverged": false
+      },
+      {
+        "attack": "paraphrase",
+        "tier": "deberta",
+        "outcome": "detected",
+        "expected": "detected",
+        "diverged": false
+      },
+      {
+        "attack": "homoglyph substitution",
+        "tier": "deberta",
+        "outcome": "detected",
+        "expected": "detected",
+        "diverged": false
+      },
+      {
+        "attack": "zero-width spacing",
+        "tier": "deberta",
+        "outcome": "detected",
+        "expected": "detected",
+        "diverged": false
+      },
+      {
+        "attack": "base64-encoded",
+        "tier": "deberta",
+        "outcome": "evaded",
+        "expected": "evaded",
+        "diverged": false
+      }
+    ],
+    "diverged": []
+  }
 }

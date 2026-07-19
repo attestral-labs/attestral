@@ -16,6 +16,7 @@
     }
   ],
   "remotes": [
-    { "type": "sse", "url": "https://bridge.acme.example/mcp" }
+    { "type": "sse", "url": "https://bridge.acme.example/mcp" },
+    { "type": "websocket", "url": "wss://bridge.acme.example/mcp" }
   ]
 }

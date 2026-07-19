@@ -1,6 +1,6 @@
 """Measure the ML layer's precision/recall on labeled injection data.
 
-Two measurements, mirroring the rules benchmark's two tiers:
+Three measurements, mirroring the rules benchmark's tiers:
 
 1. **Independent labeled set** (`data/deepset-prompt-injections.jsonl`,
    vendored from the Apache-2.0 `deepset/prompt-injections` dataset, 662
@@ -13,6 +13,14 @@ Two measurements, mirroring the rules benchmark's two tiers:
    false-positive read on surfaces nobody wrote to be scanned. Flagged
    surfaces are printed in full for human adjudication; a flag here is not
    automatically a false positive.
+3. **Adaptive-paraphrase slice** (`data/paraphrase-injections.jsonl`): 15
+   semantic paraphrases of real injection intents that carry none of the
+   trigger phrases the heuristic keys on, plus 12 benign task-bound requests
+   built to mirror their surface shape. It is the class the precision-first
+   heuristic is blind to by construction, so it isolates exactly what the
+   learned tier buys (recall recovered) and what it costs (benign
+   false-positives). This is the measured backing for the paraphrase row in
+   the defense-aware matrix; see evaluation/defense-aware.md.
 
 Scoring goes through the production code path (`MLConfig`, `_resolve_engine`,
 `_chunks`: a surface's score is its max chunk probability), so the numbers
@@ -37,6 +45,7 @@ from attestral.ml import MLConfig, _chunks, _resolve_engine, muted_on_surface
 
 HERE = Path(__file__).resolve().parent
 LABELED = HERE / "data" / "deepset-prompt-injections.jsonl"
+PARAPHRASE = HERE / "data" / "paraphrase-injections.jsonl"
 RESULTS = HERE / "ml-results.json"
 
 TIERS = ["heuristic", "onnx", "deberta"]
@@ -96,6 +105,35 @@ def metrics(scored: list[tuple[float, int]], threshold: float) -> dict:
     }
 
 
+def paraphrase_slice(engine, cfg: MLConfig) -> dict:
+    """Score the adaptive-paraphrase slice: recall on the injections the heuristic
+    is blind to, false-positive rate on the benign look-alikes, and a per-class
+    recall split. Goes through the same production scoring as everything else."""
+    rows = load_jsonl(PARAPHRASE)
+    scored = [{"label": r["label"], "class": r.get("class", ""),
+               "score": round(score_text(engine, r["text"], cfg), 4),
+               "text": r["text"]} for r in rows]
+    th = cfg.threshold
+    pos = [s for s in scored if s["label"] == 1]
+    neg = [s for s in scored if s["label"] == 0]
+    hit_pos = [s for s in pos if s["score"] >= th]
+    hit_neg = [s for s in neg if s["score"] >= th]
+    by_class: dict[str, list[int]] = {}
+    for s in pos:
+        c = by_class.setdefault(s["class"], [0, 0])
+        c[1] += 1
+        c[0] += int(s["score"] >= th)
+    return {
+        "n_pos": len(pos), "n_neg": len(neg),
+        "detected_pos": len(hit_pos),
+        "recall": round(len(hit_pos) / len(pos), 4) if pos else 0.0,
+        "false_positives": len(hit_neg),
+        "fp_rate": round(len(hit_neg) / len(neg), 4) if neg else 0.0,
+        "by_class": {c: f"{v[0]}/{v[1]}" for c, v in sorted(by_class.items())},
+        "rows": scored,
+    }
+
+
 def gather_repo_surfaces(repos_dir: Path) -> list[dict]:
     """Extract every scored text surface from each repo, deduplicated by text."""
     from attestral.ingest import build_model
@@ -151,12 +189,17 @@ def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None) -> dict:
         # length) can be re-analyzed without re-running the model.
         row_scores = [round(p, 4) for p, _ in scored]
 
+        para = paraphrase_slice(engine, cfg)
+
         print(f"\n== {tier} @ threshold {cfg.threshold}")
         print(f"   precision {at_default['precision']:.3f}  recall {at_default['recall']:.3f}"
               f"  f1 {at_default['f1']:.3f}  (tp {at_default['tp']} fp {at_default['fp']}"
               f" fn {at_default['fn']} tn {at_default['tn']})")
+        print(f"   adaptive paraphrase slice: recall {para['detected_pos']}/{para['n_pos']}"
+              f"  false-positives {para['false_positives']}/{para['n_neg']}")
 
-        tier_out = {"labeled": at_default, "sweep": sweep, "row_scores": row_scores}
+        tier_out = {"labeled": at_default, "sweep": sweep, "row_scores": row_scores,
+                    "paraphrase_slice": para}
         prior = out["tiers"].get(tier) or {}
         if not surfaces and "real_surfaces" in prior:
             tier_out["real_surfaces"] = prior["real_surfaces"]  # keep the FP read

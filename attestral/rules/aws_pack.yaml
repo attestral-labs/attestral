@@ -83,6 +83,15 @@ rules:
     recommendation: Set metadata_options.http_tokens = "required" to enforce IMDSv2, and lower http_put_response_hop_limit to 1.
     frameworks: ["CIS AWS 5.6", "NIST AC-6", "NIST SC-7"]
 
+  - id: ATL-069
+    title: EC2 launch template still allows IMDSv1
+    severity: high
+    target: aws_launch_template
+    match: { attr_equals: { http_tokens: "optional" } }
+    description: The launch template leaves metadata_options.http_tokens optional, so every instance it backs - Auto Scaling Group nodes and EKS managed node groups - answers IMDSv1. ATL-033 only covers standalone aws_instance; the template is the path most fleets and EKS clusters actually use. A pod-level SSRF or in-app request forgery can then read the node role's credentials with no session token, and on EKS that is a pod's route to the node role's full IAM permissions.
+    recommendation: Set metadata_options.http_tokens = "required" on the template to enforce IMDSv2, and set http_put_response_hop_limit = 1 so a container cannot reach the metadata service through an extra network hop.
+    frameworks: ["CIS AWS 5.6", "CIS EKS 3.x", "NIST AC-6", "NIST SC-7"]
+
   - id: ATL-034
     title: Account-level EBS encryption by default is disabled
     severity: medium

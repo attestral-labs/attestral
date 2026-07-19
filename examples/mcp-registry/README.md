@@ -15,7 +15,7 @@ attestral scan examples/mcp-registry
 |---|---|---|
 | `DATA_BRIDGE_API_KEY` has a literal `value` (and `isSecret: true`) | ATL-131 | A credential baked into the manifest ships to everyone who installs the server from the registry. |
 | `DATABASE_PASSWORD` is secret-named but has no `isSecret` | ATL-132 | Clients, logs, and the registry treat it as ordinary config and never redact it. |
-| `remotes[].type: sse` | ATL-133 | HTTP+SSE was deprecated (SEP-2596) for streamable-http; current-spec clients drop SSE and can no longer reach the server. |
+| `remotes[].type: sse` / `websocket` | ATL-133 | HTTP+SSE was deprecated (SEP-2596) for streamable-http, and the early WebSocket transport was dropped for weak origin validation (CVE-2026-59950); current-spec clients drop both and can no longer reach the server. |
 | `LOG_LEVEL` (has a value, not secret-named) | *(none)* | Ordinary config: the secret rules deliberately stay silent. |
 
 The manifest surface is net-new territory: no client `mcp.json` carries these

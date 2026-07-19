@@ -82,6 +82,24 @@ rules:
     recommendation: Do not smuggle shell access through an interpreter one-liner. Replace it with a narrowly scoped, allowlisted tool, and gate any process execution behind human approval.
     frameworks: ["OWASP-ASI05:2026", "OWASP-MCP MCP05:2025", "MITRE ATLAS AML.T0053", "NIST AC-6"]
 
+  - id: ATL-147
+    title: MCP server binds to all network interfaces (0.0.0.0)
+    severity: high
+    target: mcp_server
+    match: { attr_any_contains: { args: ["0.0.0.0"] } }
+    description: The launch binds the server to 0.0.0.0, so its tool endpoint is reachable from every network the host sits on, not just localhost. A local MCP server meant for one agent becomes an unauthenticated tool endpoint for the LAN, and a malicious web page can reach it through DNS rebinding to drive its tools (CVE-2026-59950, CVE-2026-63118, CVE-2025-66416, CVE-2026-23744).
+    recommendation: Bind the server to 127.0.0.1 (or a Unix socket) for local use. If it genuinely must be remote, put it behind an authenticated gateway that validates the Origin/Host header against an allowlist, and never expose the raw server on 0.0.0.0.
+    frameworks: ["OWASP-MCP MCP07:2025", "OWASP-ASI05:2026", "MITRE ATLAS AML.T0049", "NIST SC-7"]
+
+  - id: ATL-148
+    title: MCP server forwards the caller's session token or auth header downstream
+    severity: high
+    target: mcp_server
+    match: { attr_any_contains: { env_keys: ["SESSION_COOKIE", "PASSTHROUGH", "PASS_THROUGH", "FORWARD_AUTH", "FORWARDED_AUTH", "FORWARD_BEARER", "FORWARDED_BEARER", "FORWARD_TOKEN", "FORWARDED_TOKEN", "HTTP_AUTHORIZATION"] } }
+    description: An env var named for a forwarded auth header or session cookie (HTTP_AUTHORIZATION, SESSION_COOKIE, a *PASSTHROUGH*/FORWARD* token) shows the server is wired to reuse the caller's inbound credential on its downstream calls. Token passthrough breaks the audience binding of that token, defeats per-request authorization at the downstream API, and lets a compromised or confused server replay the caller's identity - the MCP authorization spec explicitly prohibits it.
+    recommendation: Never forward the client's token downstream. Validate that every inbound token's audience is this server, then obtain a separate, audience-scoped credential on the server's own behalf (OAuth token exchange or a service identity) for the downstream call.
+    frameworks: ["OWASP-MCP MCP01:2025", "OWASP-ASI03:2026", "MITRE ATLAS AML.T0098", "MCP Security Best Practices 2025-11-25", "NIST IA-5"]
+
   - id: ATL-104
     title: Secrets passed to MCP server via environment
     severity: medium
@@ -1024,12 +1042,12 @@ rules:
     frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP01:2025", "NIST IA-5"]
 
   - id: ATL-133
-    title: MCP registry manifest declares a deprecated SSE transport
+    title: MCP registry manifest declares a deprecated transport (SSE or WebSocket)
     severity: low
     target: mcp_registry_manifest
-    match: { attr_list_contains: { _deprecated_transports: "sse" } }
-    description: The manifest advertises the HTTP+SSE transport, which the MCP spec deprecated (SEP-2596) in favour of streamable-http; clients on the current spec drop SSE support, so the server becomes unreachable to them and stays on an unmaintained transport.
-    recommendation: Publish the server over streamable-http (or stdio for local use) and remove the sse transport entry before clients on the current spec stop connecting.
+    match: { attr_list_any_of: { _deprecated_transports: ["sse", "websocket", "ws"] } }
+    description: The manifest advertises a transport the MCP spec has retired - HTTP+SSE (deprecated by SEP-2596 for streamable-http) or the early WebSocket transport (dropped for weak origin validation, CVE-2026-59950). Clients on the current spec drop these, so the server becomes unreachable to them and stays on an unmaintained, weaker channel.
+    recommendation: Publish the server over streamable-http (or stdio for local use) and remove the sse/websocket transport entry before clients on the current spec stop connecting.
     frameworks: ["OWASP-MCP MCP04:2025", "MCP Security Best Practices 2025-11-25"]
 
   - id: ATL-212
