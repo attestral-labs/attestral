@@ -686,6 +686,44 @@ def blast_radius_cmd(path: str, limit: int) -> None:
 
 
 @main.command()
+@click.argument("base", type=click.Path(exists=True))
+@click.argument("head", type=click.Path(exists=True))
+@click.option("-o", "--output", default=None, metavar="FILE",
+              help="Write the markdown delta to FILE (for a PR comment).")
+@click.option("--fail-on", type=click.Choice(["critical", "high", "medium", "low"]),
+              default=None,
+              help="Exit non-zero if the change introduces a NEW finding at or "
+                   "above this severity (CI gate).")
+def diff(base: str, head: str, output: str | None, fail_on: str | None) -> None:
+    """Post the security-impact delta between two revisions of a design.
+
+    Builds the system model on BASE and HEAD, diffs them, and renders a short,
+    severity-ranked markdown comment: capabilities gained, findings and attack
+    paths opened or closed, and the shift in worst-case blast radius. This is
+    the engine behind the PR-review bot (examples/github-actions/security-delta.yml).
+    """
+    from attestral.delta import diff_models, render_delta_markdown
+    from attestral.model import Severity
+
+    delta = diff_models(build_model(base), build_model(head))
+    markdown = render_delta_markdown(delta)
+    if output:
+        Path(output).write_text(markdown + "\n")
+        click.echo(f"wrote {output}")
+    else:
+        click.echo(markdown)
+
+    if fail_on:
+        worst = delta.worst_new_severity()
+        floor = Severity(fail_on).rank
+        if worst is not None and worst.rank >= floor:
+            click.echo(
+                f"\nGate: this change introduces a new {worst.value} finding "
+                f"(>= {fail_on}).", err=True)
+            sys.exit(1)
+
+
+@main.command()
 @click.argument("report", type=click.Path(exists=True))
 @click.option("--public-key", type=click.Path(exists=True), default=None,
               help="Ed25519 public key (PEM) to check the report's signature against.")
