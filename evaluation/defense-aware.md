@@ -23,7 +23,7 @@ optional DeBERTa tier (measured separately below).
 | language (ML tier) | zero-width spacing between characters | held (decoded) |
 | language (ML tier) | base64-encoded instruction | held (decoded) |
 | structural (rules) | shell-out inside `node -e` interpreter code | held (closed: ATL-146) |
-| structural (rules) | opaque wrapper (`uvx toolrunner`) that shells out | **evades** |
+| structural (design review) | opaque wrapper (`uvx toolrunner`) that shells out | static: **evades** · runtime: **caught (DRF-008)** |
 | structural (rules) | `env`-prefixed `bash -c` | held (bash token in argv) |
 | structural (rules) | lethal trifecta split across two config files | held (fleet model) |
 
@@ -117,11 +117,17 @@ can see, and each has a real mitigation that is not the heuristic's job.
   (arXiv 2504.11168), which is where the runtime loop, not another classifier, is
   the answer.
 - **Structural: opaque wrapper.** An innocuously named `uvx toolrunner` that shells
-  out internally never declares a shell token, and seeing that it shells out needs
-  the package body, which is SAST/runtime territory, not design review. The
-  mitigation is the compile -> drift loop: the default-deny policy constrains the
-  wrapper at runtime, and drift flags the process it spawns that the review never
-  authorized.
+  out internally never declares a shell token. Static review still cannot see it,
+  and we say so: seeing the shell-out needs the package body, which is SAST/runtime
+  territory, not design review. The runtime loop catches it, and this is now
+  demonstrated rather than asserted: `attestral compile` records toolrunner's
+  attested capability envelope (empty - no shell), and when the wrapper spawns a
+  child process at runtime, the drift check **DRF-008** fires CRITICAL because the
+  running server exercised a capability outside its attested set. Proven
+  end-to-end and gated: `evaluation/adversarial.py` records static=evades /
+  runtime=caught(DRF-008) and `--check` fails on any regression, with
+  `tests/test_adversarial.py::test_opaque_wrapper_runtime_caught` and
+  `tests/test_drift_capability.py` asserting the fire and the fail-closed non-fires.
 
 ## Why this is the argument for the runtime loop
 
@@ -130,9 +136,11 @@ behavior. That gap is exactly what `attestral compile` -> `attestral drift`
 closes: the compiled default-deny policy constrains what a disguised launcher is
 allowed to do at runtime, and drift compares the tool actually served (its real
 command, description, and now input schema; see M8) against what was attested. A
-shell hidden inside `node -e` still trips the policy when it spawns a process the
-review never authorized. Static review is necessary, not sufficient, and we say
-so; the loop is where "sufficient" lives.
+shell hidden inside `node -e` still trips the policy: when it spawns a process the
+review never authorized, DRF-008 compares the exercised capability against the
+attested envelope and fires. Static review is necessary, not sufficient, and we
+say so; the loop is where "sufficient" lives - and for the opaque wrapper that
+sufficiency is now proven and gated, not asserted.
 
 ## How to reproduce and extend
 
@@ -142,3 +150,11 @@ the recorded matrix, so a robustness regression fails CI, and a gap that later
 gets fixed also fails, forcing this write-up to be updated rather than silently
 overstating. Add a case by extending `INJECTION_TRANSFORMS` or `STRUCTURAL_CASES`
 and recording its outcome in `EXPECTED`.
+
+The matrix also carries a runtime dimension for the opaque wrapper: `run_runtime_loop()`
+compiles `examples/opaque-wrapper` to a policy, replays a shell-spawn event through
+`detect_drift`, and asserts DRF-008 fires (and that the benign stream stays clean),
+recorded in `EXPECTED_RUNTIME`. So the same `--check` gate now protects both the
+static evasion and the runtime catch: reproduce it with `attestral compile
+examples/opaque-wrapper`, then replay
+`examples/opaque-wrapper/runtime-events-malicious.jsonl` through `attestral drift`.

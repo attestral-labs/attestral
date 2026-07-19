@@ -45,12 +45,17 @@ def compile_policy(
     servers: dict[str, dict] = {}
     for c in model.by_type("mcp_server"):
         entry: dict = {"allow": True, "constraints": {}, "attested_source": c.source}
-        caps = c.attr("_capabilities") or []
-        if caps:
-            # The attested ambient capability envelope, so a re-attestation can be
-            # checked as a narrowing (attestral compile --against): a server that
-            # later gains a capability is an expansion that must be re-reviewed.
-            entry["capabilities"] = sorted(caps)
+        # The attested ambient capability envelope, emitted for every mcp_server
+        # (present even when empty). Two uses: a re-attestation is checked as a
+        # narrowing (attestral compile --against) - a server that later gains a
+        # capability is an expansion that must be re-reviewed; and drift compares
+        # a runtime-observed capability against this set (DRF-008). Emitting it
+        # unconditionally is load-bearing for DRF-008: a "key present, list empty"
+        # envelope (a bare `uvx toolrunner` with no modeled capability) is a KNOWN
+        # empty envelope that fires on any out-of-set capability, and is thereby
+        # distinguishable from an absent key (a legacy/hand-written policy), which
+        # is an UNKNOWN envelope drift must never fire on.
+        entry["capabilities"] = sorted(c.attr("_capabilities") or [])
         if c.attr("_manifest_hash"):
             entry["manifest_sha256"] = c.attr("_manifest_hash")
         server_findings = by_component.get(c.id, [])

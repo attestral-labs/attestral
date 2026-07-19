@@ -198,6 +198,32 @@ def test_volume_budget_ignores_unattested_servers():
     assert any(f.rule_id == "DRF-001" for f in hits)
 
 
+# --- DRF-008: unauthorized runtime capability (full proof in test_drift_capability) --
+
+def test_drf008_fires_on_capability_outside_attested_envelope():
+    # An attested + allowed server with an empty envelope that spawns a shell.
+    policy = {"servers": {"toolrunner": {"allow": True, "capabilities": [], "constraints": {}}}}
+    ev = {"server": "toolrunner", "tool": "run", "capabilities": ["shell"]}
+    hits = [f for f in detect_drift(policy, [ev]) if f.rule_id == "DRF-008"]
+    assert hits and hits[0].severity.value == "critical"
+
+
+def test_drf008_silent_on_every_fail_closed_case():
+    policy = {"servers": {
+        "known": {"allow": True, "capabilities": [], "constraints": {}},
+        "envd": {"allow": True, "capabilities": ["shell"], "constraints": {}},
+        "legacy": {"allow": True, "constraints": {}},  # no capabilities key
+    }}
+    events = [
+        {"server": "known", "tool": "run"},                        # no field
+        {"server": "known", "tool": "run", "capabilities": []},     # empty
+        {"server": "known", "tool": "run", "capabilities": ["process"]},  # unmodeled
+        {"server": "envd", "tool": "run", "capabilities": ["shell"]},     # in-envelope
+        {"server": "legacy", "tool": "run", "capabilities": ["shell"]},   # unknown envelope
+    ]
+    assert not [f for f in detect_drift(policy, events) if f.rule_id == "DRF-008"]
+
+
 def test_manifest_hash_is_order_insensitive():
     from attestral.manifest import manifest_hash
 

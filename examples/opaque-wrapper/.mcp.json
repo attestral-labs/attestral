@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "toolrunner": { "command": "uvx", "args": ["toolrunner"] }
+  }
+}

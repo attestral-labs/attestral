@@ -7,6 +7,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **DRF-008 (drift): unauthorized runtime capability / process spawn.** The
+  compiled policy now carries each server's attested capability envelope, and
+  drift fires CRITICAL when an attested, allowed server exercises a capability at
+  runtime that its envelope never authorized - the opaque-wrapper case (an
+  innocuously named launcher that shells out) is caught at runtime even though
+  static review cannot see it. Fail-closed: a missing capability field, an
+  unmodeled label, or a server with no attested envelope never fires. Adds an
+  optional `capabilities` field to the drift event schema (fully back-compatible).
+  Proven end-to-end and gated in `evaluation/adversarial.py`.
 - **`attestral compile --target cedar`: a second compile target.** Emits a Cedar
   authorization policy over the same attested-design IR the mcp-guard renderer
   uses, so the reviewed design compiles into a policy you can load into AWS

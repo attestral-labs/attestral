@@ -14,6 +14,19 @@ from typing import Any
 # agent defined directly in framework code.
 TOOL_GRANTING_TYPES = ("mcp_server", "subagent", "code_agent")
 
+# The coarse capability classes a tool-granting component can be tagged with in
+# `_capabilities`. This is the single source of truth for the capability
+# vocabulary: the mcp ingester emits exactly these tokens (a shell launch ->
+# "shell", the substring hints -> the rest), and drift compares an observed
+# runtime capability against a server's attested envelope over the same set.
+# A child-process/exec spawn is "shell" (never "process"); a socket is "network".
+# Kept in the model, not the ingester, so drift can share it without importing
+# the heavy ingest module. A guard test asserts the ingester cannot emit a token
+# outside this set, so the two never silently desync.
+CAPABILITY_CLASSES = frozenset({
+    "shell", "filesystem", "network", "messaging", "database", "saas_data", "memory",
+})
+
 
 class Severity(str, Enum):
     CRITICAL = "critical"

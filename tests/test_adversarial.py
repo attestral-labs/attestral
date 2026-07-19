@@ -69,7 +69,21 @@ def test_paraphrase_still_evades_the_heuristic_tier():
 
 def test_opaque_wrapper_still_evades():
     # Seeing that `uvx toolrunner` shells out needs the package body (runtime loop).
+    # Static review still cannot see it - DRF-008 does not make a static rule fire.
     assert _outcome(run()["rows"], "opaque wrapper") == "evaded"
+
+
+# --- the runtime dimension: static evades, the compile -> drift loop catches --
+
+def test_opaque_wrapper_runtime_caught():
+    # The other half of the honest claim: the loop catches at runtime what static
+    # review cannot see. The wrapper compiles to an empty envelope; a shell spawn
+    # fires DRF-008, and the benign stream stays clean. Both are gated.
+    loop = run()["runtime_loop"]
+    assert loop["diverged"] == []
+    outcomes = {r["attack"]: r["outcome"] for r in loop["rows"]}
+    assert outcomes["opaque wrapper: shell spawn at runtime"] == "caught: DRF-008"
+    assert outcomes["opaque wrapper: benign (attested caps only)"] == "clean"
 
 
 def test_evasion_rate_dropped_after_mitigations():

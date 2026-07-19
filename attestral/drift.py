@@ -2,8 +2,8 @@
 
 Reads a JSONL stream of tool-call events (mcp-guard telemetry format:
 one object per line with at least `server`, `tool`, and optionally
-`args`, `url`, `ts`) and diffs each event against the compiled policy
-derived from the attested design.
+`args`, `url`, `ts`, `capabilities`) and diffs each event against the
+compiled policy derived from the attested design.
 
 Fail-closed philosophy carries through: an event that references a server
 absent from the attested model is CRITICAL drift - the deployed system has
@@ -15,7 +15,14 @@ import json
 from pathlib import Path
 
 from attestral.manifest import manifest_hash, normalize_tools
-from attestral.model import Finding, Severity
+from attestral.model import CAPABILITY_CLASSES, Finding, Severity
+
+# The capability vocabulary DRF-008 reasons over, sourced from the model so it
+# never drifts from what the ingester can emit. Imported from model (not
+# ingest/mcp.py) to keep drift free of the heavy ingest import; a guard test
+# asserts the two stay identical so a future vocab change fails closed rather
+# than silently disabling the check.
+MODELED_CAPABILITIES = CAPABILITY_CLASSES
 
 DRIFT_RULES = {
     "DRF-001": ("Unattested server observed at runtime", Severity.CRITICAL),
@@ -25,6 +32,7 @@ DRIFT_RULES = {
     "DRF-005": ("Tool manifest changed since attestation (rug-pull)", Severity.CRITICAL),
     "DRF-006": ("Runaway tool-call loop (resource drain)", Severity.HIGH),
     "DRF-007": ("Server call volume exceeds attested budget", Severity.MEDIUM),
+    "DRF-008": ("Unauthorized runtime capability / process spawn", Severity.CRITICAL),
 }
 
 
@@ -66,8 +74,8 @@ def _observed_manifest(ev: dict) -> str:
 
 
 def _per_event(servers: dict, ev: dict, event_no: int) -> list[Finding]:
-    """The stateless per-event drift checks (DRF-001..005) for one event. Shared
-    by the batch detector and the streaming monitor."""
+    """The stateless per-event drift checks (DRF-001..005, DRF-008) for one event.
+    Shared by the batch detector and the streaming monitor."""
     name = str(ev.get("server", ""))
     entry = servers.get(name)
     if entry is None:
@@ -95,6 +103,38 @@ def _per_event(servers: dict, ev: dict, event_no: int) -> list[Finding]:
                 "- the tool surface changed after review",
                 event_no,
             ))
+
+    # DRF-008 - an attested, allowed server exercised a capability at runtime
+    # that its attested envelope never authorized (the opaque-wrapper case: a
+    # launcher that declares no shell capability but spawns a child process). We
+    # are past the DRF-001/002 early returns, so this only ever runs for an
+    # attested + allowed server. Fail-closed and precise:
+    #   * `is not None`, NOT truthiness: an empty attested list [] is a KNOWN
+    #     envelope (fires on any out-of-set capability - the bare `uvx toolrunner`
+    #     case); an ABSENT `capabilities` key is an UNKNOWN envelope (legacy or
+    #     hand-written policy) that must never fire.
+    #   * only a MODELED, positively-observed token counts; an unknown label
+    #     ("process", a typo) or missing telemetry never fires.
+    # One finding per distinct out-of-envelope token. Orthogonal to DRF-003,
+    # which scopes an already-granted filesystem capability to roots; DRF-008
+    # catches a capability CLASS the envelope never contained at all.
+    attested_caps = entry.get("capabilities")
+    if attested_caps is not None:
+        attested_set = set(attested_caps)
+        observed_caps = ev.get("capabilities") or []
+        if isinstance(observed_caps, str):
+            observed_caps = [observed_caps]
+        # Deduplicate deterministically so a token observed twice in one event is
+        # one finding per distinct out-of-envelope capability, not one per mention.
+        for cap in sorted(set(observed_caps)):
+            if cap in MODELED_CAPABILITIES and cap not in attested_set:
+                out.append(_mk(
+                    "DRF-008", name,
+                    f"exercised capability '{cap}' outside its attested envelope "
+                    f"{sorted(attested_set)} - the running server did something the "
+                    "reviewed design never authorized",
+                    event_no,
+                ))
     return out
 
 

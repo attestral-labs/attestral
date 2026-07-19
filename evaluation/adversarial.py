@@ -43,6 +43,8 @@ import json
 import tempfile
 from pathlib import Path
 
+from attestral.compile import compile_policy
+from attestral.drift import detect_drift
 from attestral.ingest import build_model
 from attestral.ml import MLConfig, RULE_ID as ML_RULE
 from attestral.ml import scan as ml_scan
@@ -204,6 +206,55 @@ EXPECTED = {
 }
 
 
+# The runtime dimension of the opaque-wrapper row. Static review evades it (the
+# STRUCTURAL_CASES entry above, expected "evaded"), but the compile -> drift loop
+# catches it: the wrapper compiles to a KNOWN empty capability envelope, and when
+# it spawns a shell at runtime DRF-008 fires. This is the demonstrated-not-asserted
+# half of the claim in evaluation/defense-aware.md. detected = the loop caught it.
+_RUNTIME_RULE = "DRF-008"
+EXPECTED_RUNTIME = {
+    "opaque wrapper: shell spawn at runtime": "caught: DRF-008",
+    "opaque wrapper: benign (attested caps only)": "clean",
+}
+
+
+def _drift_catches(design_path: str, capabilities: list[str]) -> bool:
+    """Compile the design, replay one runtime event exercising `capabilities`
+    against the compiled policy, and report whether DRF-008 fires. This is the
+    real compile -> drift loop, not a stub."""
+    model = build_model(design_path)
+    policy = compile_policy(model, RuleEngine().evaluate(model))
+    server = next(iter(policy["servers"]))
+    ev = {"server": server, "tool": "run"}
+    if capabilities:
+        ev["capabilities"] = capabilities
+    return any(f.rule_id == _RUNTIME_RULE for f in detect_drift(policy, [ev]))
+
+
+def run_runtime_loop() -> dict:
+    """Score the opaque-wrapper design through the compile -> drift loop. The
+    static rules evade it (recorded "evaded" above); this records that the runtime
+    loop catches it, so the matrix carries BOTH dimensions and `--check` fails if
+    either the static evasion or the runtime catch ever regresses."""
+    design = "examples/opaque-wrapper"
+    rows = []
+    shell_caught = _drift_catches(design, ["shell"])
+    benign_caught = _drift_catches(design, [])
+    rows.append({
+        "attack": "opaque wrapper: shell spawn at runtime",
+        "outcome": "caught: DRF-008" if shell_caught else "evaded",
+        "expected": EXPECTED_RUNTIME["opaque wrapper: shell spawn at runtime"],
+    })
+    rows.append({
+        "attack": "opaque wrapper: benign (attested caps only)",
+        "outcome": "clean" if not benign_caught else "false-positive",
+        "expected": EXPECTED_RUNTIME["opaque wrapper: benign (attested caps only)"],
+    })
+    for r in rows:
+        r["diverged"] = r["outcome"] != r["expected"]
+    return {"rows": rows, "diverged": [r["attack"] for r in rows if r["diverged"]]}
+
+
 def run(escalate: bool = False) -> dict:
     """Run the always-on matrix. With `escalate=True`, also score the language
     surface through the DeBERTa tier (loads the model when installed); off by
@@ -234,6 +285,7 @@ def run(escalate: bool = False) -> dict:
         "rows": rows,
         "tier_escalation": run_tier_escalation() if escalate
         else {"available": False, "rows": [], "diverged": []},
+        "runtime_loop": run_runtime_loop(),
     }
 
 
@@ -267,7 +319,18 @@ def format_scorecard(r: dict) -> str:
             lines.append(f"| {row['attack']} | {heur.get(row['attack'], '?')} | "
                          f"**{row['outcome']}**{mark} |")
 
-    diverged = list(r["diverged"]) + [f"deberta: {a}" for a in esc.get("diverged", [])]
+    loop = r.get("runtime_loop", {})
+    if loop.get("rows"):
+        lines += ["", "## Opaque wrapper, escalated to the compile -> drift loop",
+                  "", "Static review evades the opaque wrapper (above); the runtime "
+                  "loop catches it. Both dimensions are gated.",
+                  "", "| Runtime case | Outcome |", "|---|---|"]
+        for row in loop["rows"]:
+            mark = "  <-- diverged" if row["diverged"] else ""
+            lines.append(f"| {row['attack']} | **{row['outcome']}**{mark} |")
+
+    diverged = (list(r["diverged"]) + [f"deberta: {a}" for a in esc.get("diverged", [])]
+                + [f"runtime: {a}" for a in loop.get("diverged", [])])
     if diverged:
         lines += ["", f"DIVERGED from the recorded matrix: {', '.join(diverged)}. "
                   "Update EXPECTED and the write-up (a regression, or a new strength)."]
@@ -282,7 +345,8 @@ def main() -> int:
     r = run(escalate=True)
     RESULTS.write_text(json.dumps(r, indent=2) + "\n")
     print(format_scorecard(r))
-    if args.check and (r["diverged"] or r["tier_escalation"]["diverged"]):
+    if args.check and (r["diverged"] or r["tier_escalation"]["diverged"]
+                       or r["runtime_loop"]["diverged"]):
         return 1
     return 0
 
