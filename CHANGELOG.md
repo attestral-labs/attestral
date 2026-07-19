@@ -7,6 +7,22 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **PR security-impact delta: `attestral diff` (closes #80).** The highest-leverage
+  place to review an agent design is the pull request that changes it. This builds
+  the system model on a base and a head revision and diffs them into a short,
+  severity-ranked markdown comment: the capabilities each surface gained, the
+  findings and attack paths that opened or closed, and the shift in worst-case
+  blast radius. The model diff IS the review - only an assembled system model can
+  say "this change gives a secrets-reading server an outbound channel" or "this
+  change opens a reachable path from untrusted input to code execution". Short is
+  deliberate, because a noisy bot gets muted: a change with no new risk says so in
+  one line, and improvements (paths closed, findings resolved) are reported after
+  the regressions, never ahead of them. `--fail-on <severity>` turns it into a CI
+  gate on newly-introduced risk. Ships with a ready PR-review workflow
+  (`examples/github-actions/security-delta.yml`) that posts and updates one
+  comment per PR. Deterministic, zero-dependency; `attestral/delta.py`, proof
+  fixtures `examples/delta-base` + `examples/delta-head`, tests in
+  `tests/test_delta.py`.
 - **Blast-radius scoring: `attestral blast-radius` (closes #76).** The rules and
   the attack-path walk answer whether a bad path exists; this answers how bad each
   surface is. For every tool-granting surface it computes the weighted set of

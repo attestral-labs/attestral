@@ -275,6 +275,7 @@ flowchart LR
     AT -->|"verify offline"| B
     D -->|"design changed?<br/>re-attest"| A
     A --> V["attestral validate<br/><b>show the path is reachable</b>"]
+    A --> DF["attestral diff<br/><b>PR security-impact delta</b>"]
     style A fill:#96222E,color:#fff
     style B fill:#1F6A4A,color:#fff
     style F fill:#96222E11,stroke:#96222E
@@ -353,6 +354,11 @@ attestral validate ./my-project -o proof --fail-on-reachable   # write proof.md 
 # BLAST-RADIUS: rank every agent surface by its if-compromised reach, so
 # hardening prioritises itself (the lethal-trifecta host rises to the top)
 attestral blast-radius ./my-project
+
+# DIFF: post the security-impact delta between two design revisions - the
+# engine behind the PR-review bot (examples/github-actions/security-delta.yml)
+attestral diff ./base ./head
+attestral diff ./base ./head --fail-on high   # gate CI on newly-introduced risk
 
 # FLEET: model several repos as ONE agent fleet and find flows that span them
 attestral fleet ./repo-a ./repo-b ./repo-c                 # ATL-213: cross-repo toxic flow

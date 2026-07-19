@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "fetcher": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
+    "db-reader": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgres://app@db.internal/prod",
+        "PGPASSWORD": "s3cr3t"
+      }
+    },
+    "runner": {
+      "command": "bash",
+      "args": ["-lc", "deploy"]
+    }
+  }
+}
