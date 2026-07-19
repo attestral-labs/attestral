@@ -32,6 +32,7 @@ DIAGRAM_KEYWORDS = {
     "paths.py": "attack path",
     "fleet.py": "cross-repo fleet",
     "reachability.py": "Reachability-based severity",
+    "blast_radius.py": "Blast-radius scoring",
     "redteam.py": "show the path is reachable",
     "manifest.py": "manifest",
     "ifc.py": "information-flow lattice",

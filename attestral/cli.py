@@ -663,6 +663,28 @@ def explain(rule_id: str) -> None:
     click.echo(f"Applies to: {target}" + (f"   (matcher: {matcher})" if matcher else ""))
 
 
+@main.command(name="blast-radius")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--limit", type=int, default=15,
+              help="Show at most this many surfaces (default: 15).")
+def blast_radius_cmd(path: str, limit: int) -> None:
+    """Rank every agent surface by its if-compromised reach (blast radius).
+
+    For each tool-granting surface, compute the weighted set of sensitive
+    capabilities and the cloud crossing reachable from it over the modeled
+    design, and print the surfaces worst-first - the lethal-trifecta host and
+    the credential-holding server rise to the top on their own. Reach is over
+    declared capability: a prioritisation signal, not proof of exploitability.
+    """
+    from attestral.blast_radius import render_blast_radius
+    model = build_model(path)
+    block = render_blast_radius(model, limit=limit)
+    if not block:
+        click.echo("No tool-granting surface found - nothing that can carry an injection.")
+        return
+    click.echo(block)
+
+
 @main.command()
 @click.argument("report", type=click.Path(exists=True))
 @click.option("--public-key", type=click.Path(exists=True), default=None,
