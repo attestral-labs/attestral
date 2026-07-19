@@ -30,6 +30,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from attestral.blast_radius import FACTOR_THRESHOLD
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from attestral.model import Finding, SystemModel
 
@@ -102,6 +104,16 @@ def _factors(model: "SystemModel", f: "Finding") -> list[str]:
         out.append("Agentic supply chain")
     if any(k in fw for k in ("ASI07", "ASI08", "A2A")):
         out.append("Multi-agent / cascading")
+    # If-compromised reach (blast_radius.annotate_blast_radius). Only present once
+    # that pass has run, so a plain scan leaves `_blast_radius` unset and this
+    # factor never changes a default score - it lights up when reach is scored.
+    if f.component_id == "model":
+        blast = max((s.attr("_blast_radius") or 0.0 for s in model.tool_surfaces()),
+                    default=0.0)
+    else:
+        blast = (c.attr("_blast_radius") or 0.0) if c else 0.0
+    if blast >= FACTOR_THRESHOLD:
+        out.append("Extensive blast radius")
     return out
 
 

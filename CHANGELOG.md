@@ -7,6 +7,39 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Blast-radius scoring: `attestral blast-radius` (closes #76).** The rules and
+  the attack-path walk answer whether a bad path exists; this answers how bad each
+  surface is. For every tool-granting surface it computes the weighted set of
+  sensitive capabilities and the cloud crossing reachable from it over the modeled
+  design, and ranks the surfaces worst-first, so the lethal-trifecta host and the
+  credential-holding server rise to the top on their own and hardening prioritises
+  itself. The reach graph makes one honest, stated assumption: co-resident tool
+  surfaces are mutually reachable, because once any one is compromised the shared
+  agent can be induced to call its siblings (the same action-space premise the
+  trifecta detection makes). Each sink class carries a sensitivity weight (code
+  execution and a cloud crossing weigh most, persistent memory least) and is
+  discounted by hop distance, so a capability a surface holds directly outweighs
+  one it can only reach by pivoting. The score feeds OWASP AIVSS as an "Extensive
+  blast radius" amplification factor, gated behind the pass so a plain scan's AARS
+  is unchanged. Deterministic, zero-dependency; reach is over declared capability,
+  a prioritisation signal, not proof of exploitability. `attestral/blast_radius.py`,
+  proof fixture `examples/blast-radius-demo/`, tests in `tests/test_blast_radius.py`.
+- **ATL-ML-002 (ML tier): fleet-level cross-tool reassembly scoring.** After the
+  unchanged per-surface pass, the ML layer now reassembles each MCP server's tool
+  descriptions in declared manifest order and scores the union through the same
+  tier, threshold, and chunking, catching a Shamir/ShareLock-style tool-poisoning
+  payload split across several individually-benign descriptions that per-description
+  scoring misses by construction. It is a distinct `origin="ml"` finding with the
+  byte-identical schema of ATL-ML-001, gated on the union-vs-max gap: it fires only
+  when a server has at least two tool descriptions, no single one clears the
+  threshold (so a genuinely-poisoned single tool stays ATL-ML-001 and the two never
+  double-count), the reassembled union does clear it, and `union - best_single >=
+  fleet_gap` (default 0.25), so a benign long tool set never fires. New knobs
+  `MLConfig.fleet_scan`/`fleet_gap`/`fleet_min_tools`; proof fixtures in
+  `examples/split-tool-poisoning` (a real split) and `examples/benign-long-toolset`
+  (the false-positive control); methodology in `evaluation/ml-precision-recall.md`.
+  Reassembly order is attacker-controllable, so v1 commits to declared manifest
+  order with a newline join and is honest about that limit.
 - **Closed-loop drift remediation: `attestral drift --remediate`.** The self-healing
   half of the runtime loop. `attestral drift` detected runtime divergence from the
   reviewed design; a human then hand-wrote the policy fix. This synthesizes it: given

@@ -138,7 +138,9 @@ flowchart TB
         L1 --> L2 --> L3
     end
     REV --> RS["Reachability-based severity<br/>finding on a walked attack chain:<br/>chain attached · raised one band"]
+    REV --> BR["Blast-radius scoring<br/>rank every surface by if-compromised reach<br/>feeds the OWASP AIVSS score"]
     RS --> W["Waivers + inline suppression<br/>documented exceptions · one-line // attestral:ignore"]
+    BR --> W
     W --> BL["Baseline<br/>diff-aware: report only net-new findings"]
     BL --> EV["3 · Evidence<br/>SHA-256 hash chain · verify offline<br/>+ optional Ed25519/DSSE signed head"]
     EV --> OUT["Output: Terminal (default, writes nothing) · Markdown · JSON · <b>SARIF</b> (Code Scanning) · <b>AI-BOM</b> (CycloneDX 1.6)"]
@@ -347,6 +349,10 @@ attestral memory verify mem.jsonl --keyring writers.yaml --fail-on-untrusted
 # (tier 0: symbolic walk over the model's edges, no execution, no network)
 attestral validate ./my-project
 attestral validate ./my-project -o proof --fail-on-reachable   # write proof.md + chain, gate CI
+
+# BLAST-RADIUS: rank every agent surface by its if-compromised reach, so
+# hardening prioritises itself (the lethal-trifecta host rises to the top)
+attestral blast-radius ./my-project
 
 # FLEET: model several repos as ONE agent fleet and find flows that span them
 attestral fleet ./repo-a ./repo-b ./repo-c                 # ATL-213: cross-repo toxic flow
