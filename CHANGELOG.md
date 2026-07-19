@@ -7,6 +7,25 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Agent-to-cloud reachability: ATL-218, agent runtime assumes an admin IAM
+  role.** The headline cross-boundary rule no linter can copy. It joins a
+  Kubernetes ServiceAccount's IRSA `eks.amazonaws.com/role-arn` annotation
+  (cluster boundary) to an AWS IAM role that grants `AdministratorAccess` or a
+  wildcard policy (Effect Allow, Action `*`, Resource `*`) on the cloud
+  boundary, by ARN-name identity resolution - so any prompt injection or tool
+  compromise inside that runtime inherits full control of the account. Two
+  ingester edges unlock the join: `terraform.py` gains a cross-resource
+  `_resolve_iam_admin` post-pass deriving `_admin_wildcard`/`_role_name`/
+  `_role_arn` on IAM roles (resolving inline policies, managed-ARN attachments,
+  and standalone policy docs, with fail-closed handling of both literal and
+  terraform-address references), and `kubernetes.py` now ingests the
+  `ServiceAccount` kind and stamps `_irsa_role_arn` onto each workload. The new
+  fail-closed model matcher `model_agent_reaches_admin_iam` fires one finding
+  per (agent runtime, admin role) pair, attributed to the workload, and stays
+  silent on an admin role no ServiceAccount assumes (a CI/CD or break-glass
+  role) and on a scoped, non-wildcard role. Fixtures `examples/agent-admin-iam`
+  (positive + built-in break-glass FP guard) and `examples/agent-admin-iam-benign`
+  (scoped role, no fire). Pack now 242 (with the radar wave and ATL-218).
 - **DeBERTa-tier defense-aware evaluation and the adaptive-paraphrase slice.** The
   defense-aware harness now escalates every language attack to the optional DeBERTa
   tier, measured through the production scan path: the semantic paraphrase the
@@ -24,6 +43,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   character-injection evasion result (arXiv 2504.11168) as the reason the layer
   keeps the heuristic in front of the model. Write-ups: `evaluation/defense-aware.md`,
   `evaluation/ml-precision-recall.md`. No rule-pack change (stays 237).
+- **Research radar 2026-07-18 wave (pack 237 -> 241).** Four new rules plus a
+  transport broadening from the weekly radar sweep. **ATL-147**: an MCP server
+  whose launch args bind `0.0.0.0` is an unauthenticated LAN endpoint a web page
+  can drive via DNS rebinding (CVE-2026-59950 / CVE-2026-63118 / CVE-2025-66416 /
+  CVE-2026-23744; MITRE ATLAS, OWASP-MCP MCP07, NIST SC-7). **ATL-148**: an MCP
+  server that forwards the caller's inbound credential downstream (token
+  passthrough), an identity crossing distinct from a generic secret-in-env
+  (OWASP-MCP MCP01, OWASP-ASI03, NIST IA-5). **ATL-069**: an `aws_launch_template`
+  backing an ASG or EKS node group that does not enforce IMDSv2, the pod-to-node-
+  role theft rung that `aws_instance`-only IMDS checks miss (CIS AWS 5.6, CIS EKS,
+  NIST AC-6/SC-7). **ATL-338**: an AKS cluster that leaves local accounts enabled,
+  a static admin kubeconfig that bypasses Entra ID (CIS AKS, NIST AC-2/IA-2).
+  **ATL-133** now also flags the deprecated WebSocket transport, not just SSE
+  (MCP SEP-2596, CVE-2026-59950).
 - **Closed two of the M10 evasions (ATL-146 + confusables normalization).** The
   defense-aware eval found four adaptive attacks that evaded detection; two are
   now closed and the harness proves it (evasion rate 50% -> 25%, gated by

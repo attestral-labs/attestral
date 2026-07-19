@@ -1222,3 +1222,12 @@ rules:
     description: The same flow ATL-202/207 flag heuristically, stated as a formal information-flow property. With confidentiality and integrity labels on each tool surface, a high-confidentiality source reaches a low-confidentiality egress sink (data can leave the boundary), or a low-integrity source reaches a trust-critical sink (untrusted input can drive an action), with no declassifier or endorser on the path. The named label path makes the finding defensible and citable (FIDES / CaMeL) rather than a severity with an opinion.
     recommendation: Interpose a declassifier (validation, allowlist, or human approval) between the labelled source and sink so the flow is broken, or split the source and sink capabilities into separate agent sessions so no single context spans the lattice violation.
     frameworks: ["OWASP-ASI02:2026", "OWASP-ASI03:2026", "OWASP LLM01 Prompt Injection", "NIST AC-4", "NIST SC-7"]
+
+  - id: ATL-218
+    title: Agent runtime assumes an IAM role with administrator or wildcard access
+    severity: critical
+    target: model
+    match: { model_agent_reaches_admin_iam: true }
+    description: A Kubernetes agent/tool workload binds, through its ServiceAccount's IRSA role-arn annotation, to an AWS IAM role that grants AdministratorAccess or a wildcard policy (Effect Allow, Action "*", Resource "*"). Any prompt injection or tool compromise inside that runtime inherits full control of the cloud account, so the blast radius of one agentic incident becomes the entire account. Neither the ServiceAccount nor the IAM role is the finding alone - only the assembled model joins the cluster identity to the cloud grant by ARN-name resolution, and the workload and its admin role are named in the finding.
+    recommendation: Scope the role the workload assumes to the specific actions and resources the agent needs. Remove the AdministratorAccess attachment and replace the wildcard statement with an explicit allow-list, and give each agent runtime its own narrowly-scoped role rather than sharing one admin role across workloads.
+    frameworks: ["NIST AC-6", "OWASP-ASI02:2026", "OWASP LLM06 Excessive Agency"]

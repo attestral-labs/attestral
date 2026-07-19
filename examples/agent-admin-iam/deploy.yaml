@@ -1,0 +1,37 @@
+# The agent runtime. It runs under the "agent-sa" ServiceAccount, which is
+# IRSA-annotated onto the over-privileged agent_task_role above - the join
+# ATL-218 flags.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-runtime
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-runtime
+  template:
+    metadata:
+      labels:
+        app: agent-runtime
+    spec:
+      serviceAccountName: agent-sa
+      containers:
+        - name: agent
+          image: acme/agent:1.4.2
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-sa
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/agent_task_role

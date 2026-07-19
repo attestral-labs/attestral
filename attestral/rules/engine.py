@@ -528,6 +528,57 @@ class RuleEngine:
                 "those credentials."
             )
             return [self._finding(rule, "model:injection_to_cloud", "system model", detail=detail)]
+        elif "model_agent_reaches_admin_iam" in match:
+            # The true agent->cloud identity join no linter can copy: a
+            # Kubernetes agent/tool workload binds, through its ServiceAccount's
+            # IRSA role-arn annotation (cluster boundary), to an AWS IAM role
+            # that grants AdministratorAccess or a wildcard policy (cloud
+            # boundary). Any prompt injection or tool compromise inside that
+            # runtime inherits full control of the account, so one agentic
+            # incident's blast radius becomes the entire cloud account. Neither
+            # side is the finding alone; only the assembled model performs the
+            # ARN-name join. One finding per (agent runtime, admin role) pair,
+            # attributed to the workload. An admin role no SA resolves to (a
+            # CI/CD or break-glass role) never fires - the join is required.
+            if match["model_agent_reaches_admin_iam"] is not True:
+                return []  # only `true` is defined: fail closed
+            admin_roles: dict[str, Component] = {}
+            for c in model.by_type("aws_iam_role"):
+                # by_type prefix-matches aws_iam_role_policy(_attachment) too;
+                # only the role itself carries the derived admin signal.
+                if c.type != "aws_iam_role" or not c.attr("_admin_wildcard"):
+                    continue
+                for key in (c.name, c.attr("_role_name"), c.attr("_role_arn")):
+                    if isinstance(key, str) and key:
+                        admin_roles[key] = c
+            if not admin_roles:
+                return []
+            findings = []
+            for wl in model.by_type("k8s_workload"):
+                if wl.type != "k8s_workload":
+                    continue
+                arn = wl.attr("_irsa_role_arn")
+                if not (isinstance(arn, str) and arn):
+                    continue
+                role_name = arn.split(":role/", 1)[1] if ":role/" in arn else ""
+                role = admin_roles.get(arn) or (
+                    admin_roles.get(role_name) if role_name else None
+                )
+                if role is None:
+                    continue  # unresolved join: fail closed
+                sa = wl.attr("service_account_name") or "default"
+                findings.append(self._finding(
+                    rule, wl.id, wl.source,
+                    detail=(
+                        f"Agent runtime workload '{wl.name}' (ServiceAccount "
+                        f"'{sa}') assumes IAM role '{role.name}', which grants "
+                        "AdministratorAccess or a wildcard (Action '*' on "
+                        "Resource '*') policy, so any injection or tool "
+                        "compromise in the runtime inherits full control of "
+                        "the cloud account."
+                    ),
+                ))
+            return findings
         return []
 
     @staticmethod

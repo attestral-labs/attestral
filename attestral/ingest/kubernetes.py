@@ -329,6 +329,60 @@ def _network_policy_component(doc: dict, source: str) -> Component:
     )
 
 
+# EKS IRSA binds a ServiceAccount to an AWS IAM role via this annotation.
+_IRSA_ANNOTATION = "eks.amazonaws.com/role-arn"
+
+
+def _service_account_component(doc: dict, source: str) -> Component:
+    """Flatten a ServiceAccount, surfacing its IRSA role-arn annotation.
+
+    Feeds the agent-to-cloud reachability chain: a workload that runs under
+    this SA assumes the annotated AWS IAM role, so a cross-boundary rule can
+    join the cluster identity to the cloud grant. Absent annotation => the
+    `_irsa_role_arn` attribute is simply omitted (attr_missing, fail closed)."""
+    meta = doc.get("metadata") or {}
+    name = str(meta.get("name", "serviceaccount"))
+    namespace = str(meta.get("namespace") or "default")
+    annotations = meta.get("annotations")
+    annotations = annotations if isinstance(annotations, dict) else {}
+    role_arn = annotations.get(_IRSA_ANNOTATION)
+    attrs: dict[str, Any] = {"namespace": namespace}
+    if isinstance(role_arn, str) and role_arn:
+        attrs["_irsa_role_arn"] = role_arn
+    return Component(
+        id=f"k8s_service_account.{namespace}.{name}",
+        type="k8s_service_account",
+        name=name,
+        source=source,
+        attributes=attrs,
+        trust_boundary="cluster",
+    )
+
+
+def _resolve_irsa(model: SystemModel) -> None:
+    """Stamp each workload with the IRSA role-arn of its ServiceAccount.
+
+    A ServiceAccount and the Deployment that references it commonly live in
+    separate docs/files, so this is a post-pass over the fully assembled model,
+    not an inline per-doc step. No matching SA / no annotation => the workload
+    carries no `_irsa_role_arn` (attr_missing, fail closed)."""
+    by_key: dict[tuple[str, str], str] = {}
+    for sa in model.by_type("k8s_service_account"):
+        arn = sa.attr("_irsa_role_arn")
+        if isinstance(arn, str) and arn:
+            by_key[(str(sa.attr("namespace") or "default"), sa.name)] = arn
+    if not by_key:
+        return
+    for wl in model.by_type("k8s_workload"):
+        key = (
+            str(wl.attr("namespace") or "default"),
+            str(wl.attr("service_account_name") or "default"),
+        )
+        arn = by_key.get(key)
+        if arn:
+            wl.attributes["_irsa_role_arn"] = arn
+
+
 def _ingest_pod_doc(doc: dict, kind: str, source: str, model: SystemModel) -> None:
     pod = _dig(doc, _POD_KINDS[kind])
     if pod is None:
@@ -371,6 +425,8 @@ def _ingest_doc(doc: dict, source: str, model: SystemModel) -> None:
         model.add(_rbac_binding_component(doc, source))
     elif kind == "NetworkPolicy":
         model.add(_network_policy_component(doc, source))
+    elif kind == "ServiceAccount":
+        model.add(_service_account_component(doc, source))
 
 
 def ingest_kubernetes(path: str | Path, model: SystemModel) -> SystemModel:
@@ -392,4 +448,6 @@ def ingest_kubernetes(path: str | Path, model: SystemModel) -> SystemModel:
             continue
         for doc in docs:
             _ingest_doc(doc, str(f), model)
+    # SA<->workload IRSA binding, resolved once every doc is ingested.
+    _resolve_irsa(model)
     return model

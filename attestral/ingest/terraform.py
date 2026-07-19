@@ -25,6 +25,7 @@ findings provably implied by the code - it never guesses one.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -326,6 +327,140 @@ def _parse_tfvars(f: Path) -> dict:
     return out
 
 
+# --- IAM admin cross-resource resolution -------------------------------------
+#
+# An agent runtime's blast radius is decided by the IAM role it can assume, and
+# that grant is spread across separate resources (the role, an inline
+# aws_iam_role_policy, an aws_iam_role_policy_attachment, a standalone
+# aws_iam_policy). None of them is the finding alone, so this is a model-level
+# post-pass that joins them: it stamps `_admin_wildcard` on the role once any
+# path grants administrator/wildcard access, so a cross-boundary rule can later
+# tie that role to the Kubernetes ServiceAccount an agent actually assumes.
+# Everything here is typed string handling - no eval - and fails closed: an
+# unresolved reference or an unparseable policy contributes nothing.
+
+_ADMIN_POLICY_ARN = "arn:aws:iam::aws:policy/AdministratorAccess"
+# A terraform resource address: `aws_iam_role.agent.name`, tolerating a `${..}`
+# interpolation wrapper. Requires at least type.name.attr (two dots).
+_TF_ADDR_RE = re.compile(r'([a-z][\w]*)\.([\w-]+)(?:\.[\w-]+)+')
+
+
+def _addr_ref(value) -> tuple[str, str] | None:
+    """('aws_iam_role', 'agent') for a terraform resource address, else None."""
+    if not isinstance(value, str):
+        return None
+    t = value.strip()
+    if t.startswith("${") and t.endswith("}"):
+        t = t[2:-1].strip()
+    m = _TF_ADDR_RE.fullmatch(t)
+    return (m.group(1), m.group(2)) if m else None
+
+
+def _has_action_star(v) -> bool:
+    if v == "*":
+        return True
+    if isinstance(v, list):
+        return any(x == "*" for x in v)
+    return False
+
+
+def _policy_is_admin_wildcard(policy_value) -> bool:
+    """True when an IAM policy document (escaped-JSON string form) has an
+    Effect=Allow statement granting Action "*" on Resource "*". Only the
+    reliably-available literal JSON string is parsed; a jsonencode()/heredoc
+    body or anything unparseable yields False - never guess an admin grant."""
+    if not isinstance(policy_value, str):
+        return False
+    try:
+        doc = json.loads(policy_value)
+    except (ValueError, TypeError):
+        return False
+    if not isinstance(doc, dict):
+        return False
+    stmts = doc.get("Statement")
+    if isinstance(stmts, dict):
+        stmts = [stmts]
+    if not isinstance(stmts, list):
+        return False
+    for st in stmts:
+        if not isinstance(st, dict):
+            continue
+        if str(st.get("Effect", "")).lower() != "allow":
+            continue
+        if _has_action_star(st.get("Action")) and _has_action_star(st.get("Resource")):
+            return True
+    return False
+
+
+def _role_ref_matches(value, role_names: set[str]) -> bool:
+    """Does a `role = ...` reference (literal name or `aws_iam_role.<n>.<a>`
+    address) name a role in `role_names`? Unresolved => no match (fail closed)."""
+    if not isinstance(value, str):
+        return False
+    ref = _addr_ref(value)
+    if ref is not None:
+        return ref[0] == "aws_iam_role" and ref[1] in role_names
+    return value.strip() in role_names
+
+
+def _arn_is_admin(value, admin_policy_names: set[str]) -> bool:
+    """A policy_arn that grants admin: the AWS-managed AdministratorAccess ARN,
+    or an `aws_iam_policy.<name>.arn` address whose policy doc is wildcard."""
+    if not isinstance(value, str):
+        return False
+    v = value.strip()
+    if v == _ADMIN_POLICY_ARN:
+        return True
+    ref = _addr_ref(v)
+    if ref is not None and ref[0] == "aws_iam_policy":
+        return ref[1] in admin_policy_names
+    return False
+
+
+def _resolve_iam_admin(model: SystemModel) -> None:
+    """Join IAM resources into an `_admin_wildcard` signal on each role.
+
+    `type ==` (not by_type's prefix) is used deliberately: aws_iam_role,
+    aws_iam_role_policy, and aws_iam_role_policy_attachment all share the
+    `aws_iam_role` prefix and must be told apart."""
+    policies = [c for c in model.components if c.type == "aws_iam_policy"]
+    role_policies = [c for c in model.components if c.type == "aws_iam_role_policy"]
+    attachments = [
+        c for c in model.components if c.type == "aws_iam_role_policy_attachment"
+    ]
+    roles = [c for c in model.components if c.type == "aws_iam_role"]
+
+    # Stamp the wildcard signal on every policy-document-bearing component, for
+    # the role join below and for audit transparency on the policy itself.
+    for c in policies + role_policies:
+        c.attributes["_admin_wildcard"] = _policy_is_admin_wildcard(c.attr("policy"))
+    admin_policy_names = {
+        c.name for c in policies if c.attributes.get("_admin_wildcard")
+    }
+
+    for role in roles:
+        names = {role.name}
+        nm = role.attr("name")
+        if isinstance(nm, str) and nm:
+            names.add(nm)
+        admin = False
+        for rp in role_policies:
+            if rp.attributes.get("_admin_wildcard") and _role_ref_matches(
+                rp.attr("role"), names
+            ):
+                admin = True
+        for att in attachments:
+            if _role_ref_matches(att.attr("role"), names) and _arn_is_admin(
+                att.attr("policy_arn"), admin_policy_names
+            ):
+                admin = True
+        role.attributes["_admin_wildcard"] = admin
+        role.attributes["_role_name"] = nm if isinstance(nm, str) and nm else role.name
+        arn = role.attr("arn")
+        if isinstance(arn, str) and arn.startswith("arn:"):
+            role.attributes["_role_arn"] = arn
+
+
 # --- emission ------------------------------------------------------------------
 
 def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
@@ -358,6 +493,8 @@ def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
         if not p.is_file():
             var_env.update(_load_tfvars(d))
         _emit(dm, model, dirs, prefix="", var_env=var_env, stack=(d,))
+    # Cross-resource IAM join, run once every component in this ingest exists.
+    _resolve_iam_admin(model)
     return model
 
 
