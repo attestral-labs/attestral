@@ -7,27 +7,23 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
-- **Research radar 2026-07-18: four new rules plus a transport broadening (pack
-  237 -> 241).** Agentic depth first. **ATL-147** flags an MCP server bound to
-  `0.0.0.0` (all interfaces) - the off-host / DNS-rebinding exposure behind
-  CVE-2026-59950, CVE-2026-63118, CVE-2025-66416, and CVE-2026-23744 - firing
-  only on the explicit bind token in the launch args. **ATL-148** flags an MCP
-  server wired to forward the caller's session cookie or `Authorization` header
-  downstream (token passthrough, which the MCP authorization spec prohibits),
-  matched on forwarded-credential env key names (`HTTP_AUTHORIZATION`,
-  `SESSION_COOKIE`, `*PASSTHROUGH*`, `FORWARD*`) that carry no generic secret
-  hint, so it stays distinct from ATL-104. Cloud parity: **ATL-069** extends
-  IMDSv1 detection from standalone `aws_instance` (ATL-033) to the
-  `aws_launch_template` that backs Auto Scaling Groups and EKS managed node
-  groups - the pod -> node-role credential path; **ATL-338** flags an AKS
-  cluster that keeps its static local-account kubeconfig enabled
-  (`local_account_disabled = false`), which bypasses Entra ID. **ATL-133** now
-  also matches the deprecated WebSocket transport (CVE-2026-59950), not just
-  HTTP+SSE. Fixtures: `examples/mcp-bind-all`, `examples/mcp-token-passthrough`,
-  `examples/aws-launch-template`, `examples/aks-local-accounts`. Frameworks:
-  OWASP MCP Top 10 (MCP01/MCP04/MCP07), OWASP Top 10 for Agentic Applications
-  2026 (ASI03/ASI05), MITRE ATLAS (AML.T0049, AML.T0098), CIS AWS 5.6, CIS EKS,
-  CIS AKS, NIST 800-53.
+- **DeBERTa-tier defense-aware evaluation and the adaptive-paraphrase slice.** The
+  defense-aware harness now escalates every language attack to the optional DeBERTa
+  tier, measured through the production scan path: the semantic paraphrase the
+  precision-first heuristic scores 0.0 the model scores 1.0 (the gap closes on
+  escalation), while a base64-smuggled instruction the heuristic decodes and catches
+  the model misses (the tiers are complementary, not ranked). Backed by a new
+  vendored slice `evaluation/data/paraphrase-injections.jsonl` (15 semantic
+  paraphrases of real injection intents plus 12 benign look-alikes): the heuristic
+  recovers 0/15, DeBERTa 13/15 at one benign false-positive on twelve, now reported
+  by `python -m evaluation.ml_eval` and gated for heuristic precision by
+  `tests/test_ml_eval.py`. The DeBERTa escalation matrix is gated by
+  `tests/test_adversarial.py` when `attestral[ml]` is installed and skipped cleanly
+  otherwise. The DeBERTa page (`website/ml-deberta.html`) gains a live in-browser
+  heuristic scorer that shows the tier complementarity interactively and cites the
+  character-injection evasion result (arXiv 2504.11168) as the reason the layer
+  keeps the heuristic in front of the model. Write-ups: `evaluation/defense-aware.md`,
+  `evaluation/ml-precision-recall.md`. No rule-pack change (stays 237).
 - **Closed two of the M10 evasions (ATL-146 + confusables normalization).** The
   defense-aware eval found four adaptive attacks that evaded detection; two are
   now closed and the harness proves it (evasion rate 50% -> 25%, gated by
