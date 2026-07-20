@@ -105,8 +105,16 @@ positive:
     cite: "Agent runtime and cloud share no declared boundary controls"
   - id: mcp-supply-chain
     path: examples/mcp-supply-chain
-    expect: [ATL-109, ATL-134, ATL-135, ATL-136, ATL-137, ATL-138, ATL-140]
-    cite: "MCP launch-surface hardening: OWASP ASI04/05; MCP04/05/07; LLM05 (2026); ATL-109 per MCP spec 2025-06-18 (authenticate remote servers)"
+    expect: [ATL-109, ATL-134, ATL-135, ATL-136, ATL-137, ATL-138, ATL-140, ATL-154]
+    cite: "MCP launch-surface hardening: OWASP ASI04/05; MCP04/05/07; LLM05 (2026); ATL-109 per MCP spec 2025-06-18 (authenticate remote servers); ATL-154 debug-server --inspect port"
+  - id: unstable-supply-chain
+    path: examples/unstable-supply-chain
+    expect: [ATL-153, ATL-154]
+    cite: "Pre-release/unstable channel (rug-pull sibling of @latest) + a remote-debugging inspector port; OWASP-ASI04/05, CWE-489/494"
+  - id: remote-install-instruction
+    path: examples/remote-install-instruction
+    expect: [ATL-155]
+    cite: "Fetch-and-execute one-liner (curl|sh) baked into a standing instruction file; OWASP-ASI05 untrusted external instructions; CWE-494"
   - id: agent-fleet-flows
     path: examples/agent-fleet-flows
     expect: [ATL-104, ATL-107, ATL-108, ATL-112, ATL-114, ATL-125, ATL-202, ATL-214, ATL-215, ATL-216, ATL-217]
