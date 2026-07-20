@@ -771,6 +771,24 @@ rules:
     recommendation: Do not co-locate delegated credentials with a remote endpoint. Exchange the caller's own identity for a narrowly scoped, short-lived downstream token per request (per the MCP auth spec), and never forward a static credential onward.
     frameworks: ["MCP Security Best Practices 2025-11-25", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025", "NSA CSI MCP 05/2026", "NIST AC-4", "NIST IA-5", "Agentic-SoK 2026 R5"]
 
+  - id: ATL-153
+    title: MCP server pinned to a pre-release or unstable channel
+    severity: medium
+    target: mcp_server
+    match: { attr_any_contains: { args: ["@beta", "@alpha", "@rc", "@next", "@canary", "@nightly", "@edge", "@dev", ":beta", ":rc", ":dev"] } }
+    description: The tool server tracks a pre-release or rolling channel (`@beta`, `@rc`, `@next`, `@canary`, `@nightly`, ...) rather than an immutable version, so the code that runs is whatever that channel serves today - the same rug-pull / re-attestation gap as a mutable `@latest` tag (ATL-106), and pre-release code carries less review and more churn. A reviewed pre-release is not the pre-release that runs tomorrow.
+    recommendation: Pin the tool server to an immutable released version or digest; if you must track a pre-release, re-review and re-attest on every bump, and never run an unstable channel unattended.
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP09:2025", "NIST SA-12", "NIST CM-7", "CWE-494"]
+
+  - id: ATL-154
+    title: MCP server launched with a remote-debugging or inspector port
+    severity: high
+    target: mcp_server
+    match: { attr_any_contains: { args: ["--inspect", "--inspect-brk", "--inspect=", "--remote-debugging-port", "--debugger", "-agentlib:jdwp", "runjdwp"] } }
+    description: The tool server is launched with a debugger / inspector port open (Node `--inspect`, Chrome `--remote-debugging-port`, JVM JDWP). Anything that can reach that port gets an arbitrary-code-execution foothold in the agent's tool process - a debug backdoor left in a committed launch config, and a way to sidestep every capability constraint the reviewed design placed on the tool.
+    recommendation: Remove the inspector / remote-debugging flag from the committed launch command; enable a debugger only interactively, bound to loopback, and never in a config that ships or auto-starts.
+    frameworks: ["OWASP-ASI05:2026", "OWASP-MCP MCP06:2025", "NIST CM-7", "NIST SI-2", "CWE-489"]
+
   - id: ATL-152
     title: Committed settings file auto-trusts a plugin marketplace
     severity: high
@@ -779,6 +797,15 @@ rules:
     description: A repo-committed agent settings file (`.claude/settings.json`) declares an extra plugin marketplace (`extraKnownMarketplaces`) or auto-enables plugins (`enabledPlugins`). A Claude Code plugin silently bundles hooks, MCP servers, and subagents, so anyone who opens or clones the repo inherits trust in that marketplace and every plugin it serves - a supply-chain grant delivered through repo-controlled config, the same trust-boundary class as the hooks config-injection (CVE-2025-59536) but for the whole plugin bundle. A marketplace sourced from a raw remote URL is the worst case, fetching its plugin manifest from an arbitrary endpoint at load time.
     recommendation: Do not inherit plugin-marketplace trust from a repo. Keep `extraKnownMarketplaces` and `enabledPlugins` in user-scoped settings you control, pin marketplaces to a reviewed org allowlist, and never auto-enable a plugin from a marketplace fetched over a raw URL.
     frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP09:2025", "NIST SA-12", "NIST CM-7", "CWE-829"]
+
+  - id: ATL-155
+    title: Remote-install one-liner in an agent-instruction file
+    severity: high
+    target: agent_instruction
+    match: { attr_equals: { _remote_install_oneliner: true } }
+    description: An agent-instruction file (CLAUDE.md, `.cursorrules`, AGENTS.md, a skill) contains a fetch-remote-and-execute one-liner (`curl ... | sh`, `wget ... | bash`, `iex(iwr ...)`). Standing instruction and skill files are read into the model's context and drive its actions every run, so a curl-pipe-shell here is remote code the agent may run on demand, pulled from a URL that can change under you after review - the untrusted-external-instructions class, delivered as an executable one-liner rather than as prose.
+    recommendation: Never put a fetch-and-execute one-liner in a standing instruction or skill file. If a setup step is genuinely needed, pin it to a reviewed script vendored in the repo (with a content hash), require explicit human approval before it runs, and prefer a package manager with integrity checking over piping a URL into a shell.
+    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI06:2026", "OWASP LLM06 Excessive Agency", "NIST SI-7", "CWE-494"]
 
   - id: ATL-151
     title: Secret hard-coded in an agent-instruction file

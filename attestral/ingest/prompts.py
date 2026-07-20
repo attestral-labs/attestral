@@ -45,6 +45,21 @@ _PLACEHOLDER = re.compile(
     r"insert|todo|fake|sample|test[_-]?key|xoxb-your")
 
 
+# A fetch-remote-and-execute one-liner (curl | sh, wget | bash, iex(iwr ...)):
+# remote code pulled and run in one step. Baked into a standing instruction or
+# skill file, it is code the agent may run every session, from a URL that can
+# change under you. High precision - the pipe-into-a-shell shape is specific.
+_REMOTE_EXEC = re.compile(
+    r"(?is)(?:curl|wget|iwr|invoke-webrequest|fetch)\b[^\n|]{0,200}\|\s*"
+    r"(?:sudo\s+)?(?:sh|bash|zsh|python[0-9.]*|node|iex|pwsh|powershell)\b"
+    r"|(?:sudo\s+)?(?:sh|bash|zsh)\s+<\(\s*(?:curl|wget)\b"
+    r"|iex\s*\(\s*(?:iwr|new-object\s+net\.webclient)")
+
+
+def _remote_exec_oneliner(content: str) -> bool:
+    return bool(_REMOTE_EXEC.search(content))
+
+
 def _embedded_secret(content: str) -> list[str]:
     """Credential-shaped values hard-coded in prompt text. Prompts are logged,
     shared, and version-controlled, so a real secret in one leaks (OWASP LLM07
@@ -176,6 +191,8 @@ def ingest_prompts(path: str | Path, model: SystemModel) -> SystemModel:
         if secret_kinds:
             attrs["_embedded_secret"] = True
             attrs["_embedded_secret_kinds"] = secret_kinds
+        if _remote_exec_oneliner(content):
+            attrs["_remote_install_oneliner"] = True
         if instruction:
             # Deterministic ASI06 signal: a standing-instruction file the whole
             # host can rewrite is a persistent poisoning vector (ATL-113). The

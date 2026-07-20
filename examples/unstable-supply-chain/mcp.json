@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "beta-tools": { "command": "npx", "args": ["@example/tools-mcp@beta"] },
+    "debug-fs": { "command": "node", "args": ["--inspect=0.0.0.0:9229", "server.js"] }
+  }
+}

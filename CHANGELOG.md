@@ -7,6 +7,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Supply-chain / standing-instruction rule wave (ATL-153, ATL-154, ATL-155).** Three creative,
+  low-false-positive agentic checks. **ATL-153** (medium): an MCP server pinned to a pre-release or
+  rolling channel (`@beta`, `@rc`, `@next`, `@canary`, `@nightly`, ...) rather than an immutable
+  version - the rug-pull / re-attestation gap of a mutable `@latest` (ATL-106), with less-reviewed
+  code. **ATL-154** (high): a server launched with a remote-debugging / inspector port (Node
+  `--inspect`, Chrome `--remote-debugging-port`, JVM JDWP) - a debug backdoor in a committed launch
+  command that hands arbitrary code execution to anything that reaches the port (validated on the
+  existing `mcp-supply-chain` fixture's real `--inspect` server). **ATL-155** (high): a
+  fetch-and-execute one-liner (`curl ... | sh`, `wget ... | bash`, `iex(iwr ...)`) baked into a
+  standing agent-instruction or skill file - remote code the agent may run every session, pulled
+  from a URL that can change under you (a new `_remote_install_oneliner` signal in `ingest/prompts.py`,
+  precise about the pipe-into-a-shell shape so a documented `curl ... returns JSON` never fires).
+  Pack 247 -> 250. Fixtures `examples/unstable-supply-chain` and `examples/remote-install-instruction`,
+  benchmark cases, tests. Surfaced/prioritized during the research radar; cite OWASP-ASI04/05/06,
+  CWE-489/494.
 - **Known-CVE advisory DB: the LangGraph checkpointer flaw chain and the MCP TypeScript SDK ReDoS.**
   The dependency-manifest advisory DB (`ingest/dependencies.py`, read by ATL-145) gains three
   advisories surfaced by the research radar, all disclosed mid-2026: `langgraph < 1.0.10`
