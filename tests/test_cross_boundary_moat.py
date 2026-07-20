@@ -8,31 +8,27 @@ from attestral.ingest import build_model
 from attestral.ingest.kubernetes import ingest_kubernetes
 from attestral.ingest.terraform import ingest_terraform
 from attestral.model import SystemModel
-from attestral.rules import RuleEngine
+from _helpers import findings_for, ids_for
 
 POSITIVE = "examples/agent-admin-iam"
 BENIGN = "examples/agent-admin-iam-benign"
 
 
-def _findings(fixture):
-    return RuleEngine().evaluate(build_model(fixture))
 
 
-def _ids(fixture):
-    return {f.rule_id for f in _findings(fixture)}
 
 
 def test_atl218_fires_on_agent_admin_join():
-    assert "ATL-218" in _ids(POSITIVE)
+    assert "ATL-218" in ids_for(POSITIVE)
 
 
 def test_atl218_fires_exactly_once():
-    hits = [f for f in _findings(POSITIVE) if f.rule_id == "ATL-218"]
+    hits = [f for f in findings_for(POSITIVE) if f.rule_id == "ATL-218"]
     assert len(hits) == 1
 
 
 def test_atl218_detail_names_workload_sa_and_admin_role():
-    (hit,) = [f for f in _findings(POSITIVE) if f.rule_id == "ATL-218"]
+    (hit,) = [f for f in findings_for(POSITIVE) if f.rule_id == "ATL-218"]
     detail = hit.description
     assert "agent-runtime" in detail
     assert "agent-sa" in detail
@@ -40,7 +36,7 @@ def test_atl218_detail_names_workload_sa_and_admin_role():
 
 
 def test_atl218_is_critical_and_attributed_to_the_workload():
-    (hit,) = [f for f in _findings(POSITIVE) if f.rule_id == "ATL-218"]
+    (hit,) = [f for f in findings_for(POSITIVE) if f.rule_id == "ATL-218"]
     assert hit.severity.value == "critical"
     assert hit.component_id == "k8s_workload.agent-runtime"
 
@@ -49,7 +45,7 @@ def test_atl218_ignores_unreferenced_admin_role():
     """The break-glass admin role that no ServiceAccount references is
     over-privileged in isolation, but ATL-218 fires only on the agent->cloud
     join, so its name must never appear in any ATL-218 finding."""
-    for f in _findings(POSITIVE):
+    for f in findings_for(POSITIVE):
         if f.rule_id == "ATL-218":
             assert "breakglass_admin" not in f.description
 
@@ -58,7 +54,7 @@ def test_atl218_silent_when_agent_role_is_scoped():
     """Benign fixture: the same IRSA wiring, but the assumed role holds only a
     scoped, non-wildcard policy, so the agent-to-cloud reachability exists
     without the admin blast radius. ATL-218 must not fire."""
-    assert "ATL-218" not in _ids(BENIGN)
+    assert "ATL-218" not in ids_for(BENIGN)
 
 
 # --- ingester-edge coverage: the join keys this wave introduces --------------

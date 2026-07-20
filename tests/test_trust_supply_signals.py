@@ -3,17 +3,15 @@ and registry manifests: ATL-141 (unrestricted allow), ATL-142 (static API-key
 auth), ATL-143 (mutable registry pin)."""
 from attestral.ingest import build_model
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 FIXTURE = "examples/agent-supply-trust"
 
 
-def _ids(path=FIXTURE):
-    model = build_model(path)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 def test_fixture_fires_exactly_the_three_new_rules():
-    assert _ids() == {"ATL-141", "ATL-142", "ATL-143"}
+    assert ids_for(FIXTURE) == {"ATL-141", "ATL-142", "ATL-143"}
 
 
 # --- ATL-141: unrestricted allow -------------------------------------------

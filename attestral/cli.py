@@ -138,6 +138,26 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
         if not quiet:
             click.echo(f"  {note}", err=True)
 
+    # Injection-reachability fusion: an ML-flagged injectable surface is only a
+    # real primitive when it can reach an actionable sink. Escalate the ones that
+    # reach an egress channel, a cloud crossing, code execution, or private data
+    # (attaching the reachable chain); leave injectable dead-ends at their ML
+    # severity. Runs after reachability so a finding already on a walked chain
+    # keeps that stronger annotation.
+    from attestral.injection_reach import annotate_injection_reach
+    for note in annotate_injection_reach(model, findings):
+        if not quiet:
+            click.echo(f"  {note}", err=True)
+
+    # Trust-asymmetry: a tool-name collision between a trusted server and a
+    # lower-trust one (mutable @latest pin, remote-unauthed, known-CVE) is the
+    # shadowing attack, not a config typo. Raise the collision one band and name
+    # the lower-trust shadower.
+    from attestral.trust_asymmetry import annotate_trust_asymmetry
+    for note in annotate_trust_asymmetry(model, findings):
+        if not quiet:
+            click.echo(f"  {note}", err=True)
+
     # False-positive budget: drop findings below the confidence floor. Applied
     # after reachability (which can raise severity) but before waivers and the
     # gate, so a filtered finding neither prints nor trips --fail-on.
@@ -951,7 +971,15 @@ def fix(path: str, rule_id: str | None, output: str | None) -> None:
               help="A prior policy to verify this re-attestation narrows. Exits "
                    "non-zero on an expansion (a widening the review must approve). "
                    "Requires an mcp-guard YAML prior; a .cedar file is not parseable back.")
-def compile(path: str, output: str | None, target: str, prior: str | None) -> None:
+@click.option("--verify", "verify", is_flag=True,
+              help="Prove security properties over the compiled policy (no secret "
+                   "exfiltration, no code-exec egress, default-deny, TLS-only), with "
+                   "a counterexample for any that fail.")
+@click.option("--fail-on-violation", "fail_on_violation", is_flag=True,
+              help="Implies --verify: exit non-zero if any security property is "
+                   "violated (CI gate).")
+def compile(path: str, output: str | None, target: str, prior: str | None,
+            verify: bool, fail_on_violation: bool) -> None:
     """Compile PATH's attested design into a runtime policy (mcp-guard or Cedar)."""
     from attestral.compile import compile_policy
     from attestral.reachability import annotate_reachability
@@ -992,6 +1020,16 @@ def compile(path: str, output: str | None, target: str, prior: str | None) -> No
         for v in result.servers:
             if v.narrowings:
                 click.echo(f"  - {v.name}: {'; '.join(v.narrowings)}")
+
+    if verify or fail_on_violation:
+        from attestral.policy_verify import render_verification, verify_policy
+        results = verify_policy(policy)
+        click.echo("")
+        click.echo(render_verification(results))
+        if fail_on_violation and any(not r.holds for r in results):
+            violated = ", ".join(r.name for r in results if not r.holds)
+            click.echo(f"\nGate: security propert(ies) violated: {violated}", err=True)
+            sys.exit(1)
 
 
 @main.command()

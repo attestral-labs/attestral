@@ -16,7 +16,7 @@ import pytest
 
 import attestral.ingest.terraform as tf
 from attestral.model import SystemModel
-from attestral.rules import RuleEngine
+from _helpers import rule_ids
 
 
 def _model(path, force_fallback):
@@ -33,8 +33,6 @@ def _model(path, force_fallback):
     return model
 
 
-def _ids(model):
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 TIERS = [False, True]
@@ -64,7 +62,7 @@ def test_open_egress_block_is_not_an_ingress_finding(tmp_path, fallback):
     assert sg.attr("_ingress_cidr_blocks") == ["10.0.0.0/8"]
     assert sg.attr("_egress_cidr_blocks") == ["0.0.0.0/0"]
     assert sorted(sg.attr("_cidr_blocks")) == ["0.0.0.0/0", "10.0.0.0/8"]
-    assert "ATL-002" not in _ids(model)
+    assert "ATL-002" not in rule_ids(model)
 
 
 @pytest.mark.parametrize("fallback", TIERS)
@@ -82,7 +80,7 @@ def test_open_ingress_block_still_fires(tmp_path, fallback):
     model = _model(tmp_path, fallback)
     (sg,) = model.by_type("aws_security_group")
     assert sg.attr("_ingress_cidr_blocks") == ["0.0.0.0/0"]
-    assert "ATL-002" in _ids(model)
+    assert "ATL-002" in rule_ids(model)
 
 
 @pytest.mark.parametrize("fallback", TIERS)
@@ -103,7 +101,7 @@ def test_egress_rule_resource_is_not_an_ingress_finding(tmp_path, fallback):
     assert r.attr("_egress_cidr_blocks") == ["0.0.0.0/0"]
     assert r.attr("_ingress_cidr_blocks") is None
     assert r.attr("_cidr_blocks") == ["0.0.0.0/0"]  # union keeps the fact on record
-    assert "ATL-002" not in _ids(model)
+    assert "ATL-002" not in rule_ids(model)
 
 
 @pytest.mark.parametrize("fallback", TIERS)
@@ -121,7 +119,7 @@ def test_ingress_rule_resource_fires(tmp_path, fallback):
     model = _model(tmp_path, fallback)
     (r,) = model.by_type("aws_security_group_rule")
     assert r.attr("_ingress_cidr_blocks") == ["0.0.0.0/0"]
-    assert "ATL-002" in _ids(model)
+    assert "ATL-002" in rule_ids(model)
 
 
 @pytest.mark.parametrize("fallback", TIERS)
@@ -139,7 +137,7 @@ def test_undecidable_direction_fails_closed(tmp_path, fallback):
     assert r.attr("_cidr_blocks") == ["0.0.0.0/0"]
     assert r.attr("_ingress_cidr_blocks") is None
     assert r.attr("_egress_cidr_blocks") is None
-    assert "ATL-002" not in _ids(model)
+    assert "ATL-002" not in rule_ids(model)
 
 
 @pytest.mark.parametrize("fallback", TIERS)
@@ -157,6 +155,6 @@ def test_default_sg_stays_direction_blind_for_atl_032(tmp_path, fallback):
         "}\n"
     )
     model = _model(tmp_path, fallback)
-    ids = _ids(model)
+    ids = rule_ids(model)
     assert "ATL-032" in ids
     assert "ATL-002" not in ids

@@ -46,3 +46,34 @@ That is the difference between "compile to a default-deny policy" and "compile t
 a policy you can prove faithful to the review across every change" - and it is the
 part of the attest-compile-drift loop a linter or a pure-LLM tool has no way to
 offer.
+
+## Absolute properties: `compile --verify`
+
+The narrowing check is *relative* - it proves one policy does not widen another.
+`compile --verify` is the *absolute* companion: it proves security properties of
+a single compiled policy, the questions a reviewer asks of any allow-list.
+
+```bash
+attestral compile ./project -o policy.yaml --verify
+```
+
+Four properties are checked over the allowed set, each reported PROVED or
+VIOLATED with the exact servers that form the counterexample:
+
+- **no-secret-exfiltration** - no allowed server holding a secret can reach an
+  outbound channel (no credential exfiltration).
+- **no-code-exec-egress** - no allowed server with code execution can reach an
+  outbound channel (no command-and-control).
+- **default-deny** - anything not attested is denied.
+- **remote-allows-are-tls** - every allowed server is TLS-constrained, never
+  plain http.
+
+Because a property is proved over the *allowed* set, denying the offending
+server is always a way to make a violated property hold - so a shell server
+denied by review turns "no command-and-control" from a hope into a proved
+property. `--fail-on-violation` gates CI. The evaluation is structural and
+zero-dependency today (`attestral/policy_verify.py`); the Cedar target
+(`compile --target cedar`) has an SMT-backed analyzer that can prove the same
+properties formally, and `cedar_analyzer_available()` reports when it is
+installed. The shipped method is always labelled, so a structural check is never
+mistaken for a formal proof - the same honesty the narrowing check keeps.

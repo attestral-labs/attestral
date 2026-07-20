@@ -43,6 +43,19 @@ def test_version_ranges_are_branch_precise():
     assert _dep_cve("langchain-core", "1.2.22") is None       # both fixed
 
 
+def test_langgraph_chain_and_mcp_sdk_cves():
+    # msgpack RCE in langgraph (chains with the SQLite-checkpointer SQLi).
+    assert _dep_cve("langgraph", "1.0.5") == "CVE-2026-28277"
+    assert _dep_cve("langgraph", "1.0.10") is None                  # patched
+    # RediSearch injection in the Redis checkpointer (scoped npm name).
+    assert _dep_cve("@langchain/langgraph-checkpoint-redis", "1.0.0") == "CVE-2026-27022"
+    assert _dep_cve("@langchain/langgraph-checkpoint-redis", "1.0.1") is None
+    # ReDoS in the MCP TypeScript SDK's UriTemplate parser, floored at 1.3.0.
+    assert _dep_cve("@modelcontextprotocol/sdk", "1.20.0") == "CVE-2026-0621"
+    assert _dep_cve("@modelcontextprotocol/sdk", "1.25.2") is None  # patched
+    assert _dep_cve("@modelcontextprotocol/sdk", "1.2.0") is None   # below the affected floor
+
+
 def test_name_normalization():
     # PEP 503: langchain_core / LangChain-Core normalize to the same package.
     assert _dep_cve("LangChain_Core", "1.2.4") == "CVE-2025-68664"

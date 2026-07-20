@@ -3,14 +3,12 @@ from attestral.ingest import build_model
 from attestral.ingest.mcp import ingest_mcp
 from attestral.model import SystemModel
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 SUPPLY = "examples/mcp-supply-chain"
 FLOWS = "examples/agent-fleet-flows"
 
 
-def _ids(fixture):
-    model = build_model(fixture)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 def _ids_from_config(tmp_path, body):
@@ -23,7 +21,7 @@ def _ids_from_config(tmp_path, body):
 # --- Supply-chain / transport / execution hardening (per-component) ----------
 
 def test_supply_chain_hardening_rules_fire():
-    assert {"ATL-134", "ATL-135", "ATL-136", "ATL-137", "ATL-138", "ATL-140"} <= _ids(SUPPLY)
+    assert {"ATL-134", "ATL-135", "ATL-136", "ATL-137", "ATL-138", "ATL-140"} <= ids_for(SUPPLY)
 
 
 def test_git_install_not_flagged_for_registry_package(tmp_path):
@@ -83,7 +81,7 @@ def test_ws_rule_does_not_fire_on_wss(tmp_path):
 
 def test_code_agent_shell_fires_atl139():
     # examples/code-agent/agent.py wires a subprocess-backed run_command tool.
-    assert "ATL-139" in _ids("examples/code-agent")
+    assert "ATL-139" in ids_for("examples/code-agent")
 
 
 def test_readonly_code_agent_not_flagged(tmp_path):
@@ -104,7 +102,7 @@ def test_readonly_code_agent_not_flagged(tmp_path):
 # --- Fleet flows (model-level) -----------------------------------------------
 
 def test_fleet_flow_rules_fire():
-    assert {"ATL-214", "ATL-215", "ATL-216"} <= _ids(FLOWS)
+    assert {"ATL-214", "ATL-215", "ATL-216"} <= ids_for(FLOWS)
 
 
 def test_memory_poisoning_needs_an_external_source(tmp_path):
@@ -118,7 +116,7 @@ def test_memory_poisoning_needs_an_external_source(tmp_path):
 
 def test_sampling_without_autonomy_not_flagged():
     # examples/mcp-capabilities declares sampling but has no auto-approve/shell.
-    assert "ATL-215" not in _ids("examples/mcp-capabilities")
+    assert "ATL-215" not in ids_for("examples/mcp-capabilities")
 
 
 def test_injection_to_cloud_needs_an_untrusted_source(tmp_path):

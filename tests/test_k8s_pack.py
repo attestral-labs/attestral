@@ -4,10 +4,10 @@ CIS Kubernetes Benchmark 5.x + Pod Security Standards checks layered on top of
 the core K8s rules ATL-501..510. Also unit-tests the new derived attributes the
 kubernetes ingester was extended to emit so these rules have signal to match.
 """
-from attestral.ingest import build_model
 from attestral.ingest.kubernetes import ingest_kubernetes
 from attestral.model import SystemModel
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 FIXTURE = "examples/k8s-pack"
 
@@ -15,13 +15,10 @@ FIXTURE = "examples/k8s-pack"
 NEW_IDS = {f"ATL-{n}" for n in range(511, 526)}
 
 
-def _ids():
-    model = build_model(FIXTURE)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 def test_all_k8s_pack_rules_fire():
-    fired = _ids()
+    fired = ids_for(FIXTURE)
     missing = NEW_IDS - fired
     assert not missing, f"pack rules never fired: {sorted(missing)}"
 

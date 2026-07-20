@@ -447,6 +447,22 @@ def test_fleet_reassembly_fires_on_split_payload_heuristic():
     assert "declared manifest order" in f.description
 
 
+def test_fleet_reassembly_catches_a_name_sorted_permutation():
+    # The split reconstitutes only when the tools are name-sorted, not in the
+    # declared manifest order (the attacker-controlled-order gap). The pass scores
+    # both permutations, so it still fires and names which one reconstituted it.
+    from pathlib import Path
+
+    from attestral.ingest import build_model
+    examples = Path(__file__).resolve().parents[1] / "examples"
+    findings, _ = scan(build_model(str(examples / "split-tool-reorder")),
+                       MLConfig(engine="heuristic"))
+    ml002 = [f for f in findings if f.rule_id == "ATL-ML-002"]
+    assert len(ml002) == 1
+    assert "name-sorted order" in ml002[0].description
+    assert "alpha_read" in ml002[0].description and "zeta_sync" in ml002[0].description
+
+
 def test_fleet_reassembly_fires_on_split_payload_model_tier():
     findings, _ = scan(_split_model(), MLConfig(), classifier=_reassembly_classifier)
     ml001 = [f for f in findings if f.rule_id == "ATL-ML-001"]

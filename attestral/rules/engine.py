@@ -5,6 +5,7 @@ No eval(), no string execution - every matcher is a named, typed check.
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,34 @@ def _identifier_like(name: str) -> bool:
     if "_" in name or "-" in name:
         return True
     return any(a.islower() and b.isupper() for a, b in zip(name, name[1:]))
+
+
+# A bounded homoglyph fold: the non-Latin code points that render as common
+# Latin identifier characters. Deliberately NOT the full Unicode confusables
+# table - just the letters an attacker reaches for to clone an ASCII tool name,
+# so the fold stays high-precision. NFKC already folds full-width and
+# compatibility variants; this adds the cross-script look-alikes NFKC keeps.
+_CONFUSABLES = {
+    # Cyrillic small letters -> their Latin look-alike
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c",
+    "у": "y", "х": "x", "ѕ": "s", "і": "i", "ј": "j",
+    "н": "h", "к": "k", "м": "m", "т": "t", "в": "b",
+    # Greek small letters -> their Latin look-alike
+    "ο": "o", "α": "a", "ι": "i", "ρ": "p", "υ": "u",
+    "κ": "k", "ν": "v", "χ": "x", "ε": "e",
+}
+
+
+def _normalize_tool_name(name: str) -> str:
+    """Fold a tool name to the identity a human reads in the tool list: NFKC
+    (full-width / compatibility variants), casefold, homoglyph letters mapped to
+    their Latin look-alike, zero-width and other format/control characters
+    removed, whitespace stripped. Two names with the same fold but different raw
+    text are confusable - one can impersonate the other."""
+    folded = unicodedata.normalize("NFKC", name).casefold()
+    folded = "".join(_CONFUSABLES.get(ch, ch) for ch in folded)
+    visible = "".join(ch for ch in folded if unicodedata.category(ch) not in ("Cf", "Cc"))
+    return "".join(visible.split())
 
 
 def _references(surface: str, name: str) -> bool:
@@ -373,6 +402,35 @@ class RuleEngine:
                 findings.append(self._finding(
                     rule, f"model:tool:{tool}", sources,
                     detail=f"Tool '{tool}' is exposed by {len(servers)} servers: {names}.",
+                ))
+            return findings
+        elif "model_tool_name_confusable_collision" in match:
+            # Names that are DISTINCT as raw text but collide once folded to the
+            # identity a human reads (case, full-width, zero-width, homoglyph).
+            # ATL-204 owns the raw-equal case; this fires ONLY when >=2 different
+            # raw spellings from >=2 servers share a fold, so the two never
+            # double-count. One finding per confusable fold.
+            if match["model_tool_name_confusable_collision"] is not True:
+                return []  # malformed spec: fail closed
+            folds: dict[str, dict[str, list[Component]]] = {}
+            for c in _distinct_servers(model):
+                for t in dict.fromkeys(str(x) for x in (c.attr("_tool_names") or [])):
+                    folds.setdefault(_normalize_tool_name(t), {}).setdefault(t, []).append(c)
+            findings = []
+            for fold, raws in sorted(folds.items()):
+                if len(raws) < 2:
+                    continue  # a single raw spelling: unique, or ATL-204's exact clash
+                servers = {s.name for owners in raws.values() for s in owners}
+                if len(servers) < 2:
+                    continue  # all variants on one server: not cross-server shadowing
+                variants = ", ".join(repr(r) for r in sorted(raws))
+                names = ", ".join(sorted(servers))
+                sources = "; ".join(sorted(
+                    {s.source for owners in raws.values() for s in owners}))
+                findings.append(self._finding(
+                    rule, f"model:tool-confusable:{fold}", sources,
+                    detail=f"Tool names {variants} fold to the same identifier but are "
+                           f"declared by different servers: {names}.",
                 ))
             return findings
         elif "model_cross_server_tool_reference" in match:

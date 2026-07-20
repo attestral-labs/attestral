@@ -4,8 +4,8 @@ Mirrors tests/test_aws_pack.py: build a model from the fixture and assert every
 new Azure id fires, that the fixture trips no unexpected core rule, and that no
 rule id is duplicated across the whole loaded ruleset (core + every *_pack).
 """
-from attestral.ingest import build_model
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 FIXTURE = "examples/azure-pack"
 
@@ -13,13 +13,10 @@ FIXTURE = "examples/azure-pack"
 PACK_IDS = {f"ATL-{n:03d}" for n in range(317, 338)}
 
 
-def _ids():
-    model = build_model(FIXTURE)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 def test_all_azure_pack_rules_fire():
-    fired = _ids()
+    fired = ids_for(FIXTURE)
     missing = sorted(PACK_IDS - fired)
     assert not missing, f"pack rules that did not fire: {missing}"
 
@@ -28,7 +25,7 @@ def test_azure_pack_fixture_triggers_no_unexpected_rules():
     # The fixture is authored so only pack ids fire; if a core Azure rule starts
     # firing here it means a fixture resource drifted into overlapping a core
     # check (e.g. ATL-301..316), which we want to know about.
-    fired = _ids()
+    fired = ids_for(FIXTURE)
     unexpected = sorted(fired - PACK_IDS)
     assert not unexpected, f"fixture unexpectedly fired non-pack rules: {unexpected}"
 

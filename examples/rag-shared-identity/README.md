@@ -12,7 +12,7 @@ attestral scan examples/rag-shared-identity
 ```
 
 ```
-3 components · 7 findings · 1 critical · 3 high · 3 medium
+3 components · 8 findings · 1 critical · 3 high · 4 medium
 ```
 
 ## What fires, and why

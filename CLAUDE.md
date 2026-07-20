@@ -32,8 +32,8 @@ One-liner: *"The security scanner built for the agentic era, and it covers your 
 ## Commands
 
 ```bash
-.venv/bin/pytest -q            # 247 pass / 2 skip. testpaths is pinned to tests/ in pyproject.
-.venv/bin/ruff check attestral/
+.venv/bin/pytest -q            # the full suite (testpaths is pinned to tests/ in pyproject; ~100s)
+.venv/bin/ruff check attestral/ tests/     # CI and the commit-gate both lint tests/ too
 .venv/bin/attestral scan <path>            # core scan (terminal only)
 .venv/bin/attestral scan <path> --ml --judge --fail-on high   # full pipeline + CI gate
 .venv/bin/attestral scan --local           # audit MCP configs installed on this machine
@@ -75,7 +75,7 @@ Rules are pure data in `rules/core_rules.yaml`. No code change needed for a stan
 - **ML tiers emit byte-identical findings.** heuristic (zero-dep) → onnx (`attestral[onnx]`, no torch) → deberta (`attestral[ml]`). `--ml` always works with no install via the heuristic tier and degrades gracefully. Heavy deps (`transformers`, `torch`, `anthropic`) are **imported lazily inside functions**, never at module top level - a missing extra is never an error.
 - **Evidence chain is tamper-evident.** Don't reorder/mutate findings after `audit_chain`. `verify_chain` must stay able to detect any alteration. Waived ≠ deleted.
 - **Terminal-first.** Don't make the scanner write files unless the user asked (`-o`/`--format`).
-- **Docs stay in sync - enforced, not promised.** `tests/test_docs_sync.py` gates: every pipeline module must appear in a README mermaid diagram (via its `DIAGRAM_KEYWORDS` map), every CLI command must have an `attestral <cmd>` usage example in the README, and the current `__version__` must have a `CHANGELOG.md` entry. When you add a module/command/release: draw it, document it, log it - the suite fails until you do.
+- **Docs and the site stay in sync - enforced, not promised.** Three suites gate it. `tests/test_docs_sync.py`: every pipeline module must appear in a README mermaid diagram (via its `DIAGRAM_KEYWORDS` map), every CLI command must have an `attestral <cmd>` usage example, the README rule count must match the live pack, and the current `__version__` must have a `CHANGELOG.md` entry. `tests/test_site_data_sync.py`: the three `scripts/render_*.py` (`render_codegraph`, `render_docs_data`, `render_index_data`) must have been re-run so `website/{architecture,docs,index,system}.html` match the code graph and rule packs - a new rule or new module fails this until you regenerate. `tests/test_fixture_readme_sync.py`: every `examples/*/README.md` summary line must match a live scan. When you add a module/command/rule/release: draw it, document it, regenerate the site data, re-scan the fixtures, log it - the suites fail until you do.
 - Full suite must stay green + `ruff` clean before any commit.
 
 ## Parallel-agent discipline (avoid race/merge conflicts)
@@ -89,4 +89,4 @@ Rules are pure data in `rules/core_rules.yaml`. No code change needed for a stan
 
 ## Repo map
 
-`attestral/` package · `tests/` suite · `examples/` rule fixtures + demos · `research/` vendored MCP repos for the ecosystem scan (NOT part of the suite, untracked) · `scripts/` (incl. `export_onnx.py`) · `website/` marketing site · `training/` ML fine-tune assets.
+`attestral/` package · `tests/` suite · `examples/` rule fixtures + demos · `evaluation/` the agentic-detection benchmark (`cases.yaml` + `python -m evaluation.score`; add a positive case per new rule) · `research/` vendored MCP repos + the local status board (NOT part of the suite, untracked) · `scripts/` (`export_onnx.py`, and `render_codegraph`/`render_docs_data`/`render_index_data` which regenerate the site data - run after any rule or module change) · `website/` marketing site · `training/` ML fine-tune assets.

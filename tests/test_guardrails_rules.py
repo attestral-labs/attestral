@@ -12,12 +12,11 @@ from attestral.ingest import build_model
 from attestral.ingest.agent_config import ingest_agent_config
 from attestral.model import Component, SystemModel
 from attestral.rules import RuleEngine
+from _helpers import evaluate
 
 FIXTURE = "examples/guardrails-gap"
 
 
-def _findings(model):
-    return RuleEngine().evaluate(model)
 
 
 def _rails_component() -> Component:
@@ -53,14 +52,14 @@ def _shell_component(ctype: str = "mcp_server", auto_approve: bool = True) -> Co
 
 def test_output_unrailed_fires_atl124():
     model = build_model(FIXTURE)
-    hits = [f for f in _findings(model) if f.rule_id == "ATL-124"]
+    hits = [f for f in evaluate(model) if f.rule_id == "ATL-124"]
     assert len(hits) == 1
     assert hits[0].component_id == "guardrails_config.guardrails"
 
 
 def test_railed_dialog_unrailed_execution_fires_atl212():
     model = build_model(FIXTURE)
-    hits = [f for f in _findings(model) if f.rule_id == "ATL-212"]
+    hits = [f for f in evaluate(model) if f.rule_id == "ATL-212"]
     assert len(hits) == 1
     f = hits[0]
     # Attributed to the execution tool, with the detail naming BOTH sides.
@@ -72,7 +71,7 @@ def test_railed_dialog_unrailed_execution_fires_atl212():
 def test_fixture_fires_exactly_the_intended_findings():
     # The README owner pins this: guardrails-gap goes 2 -> 4 findings.
     model = build_model(FIXTURE)
-    ids = sorted(f.rule_id for f in _findings(model))
+    ids = sorted(f.rule_id for f in evaluate(model))
     assert ids == ["ATL-103", "ATL-108", "ATL-124", "ATL-212"]
 
 
@@ -80,7 +79,7 @@ def test_rails_without_auto_approved_shell_do_not_fire_atl212():
     # Unit-built single-sided model: rails alone are not a contradiction.
     model = SystemModel()
     model.add(_rails_component())
-    ids = {f.rule_id for f in _findings(model)}
+    ids = {f.rule_id for f in evaluate(model)}
     assert "ATL-212" not in ids
     assert "ATL-124" in ids  # the input-only config itself still flags
 
@@ -90,7 +89,7 @@ def test_auto_approved_shell_without_rails_does_not_fire_atl212():
     # ATL-103/108's job, not a rails contradiction.
     model = SystemModel()
     model.add(_shell_component())
-    assert "ATL-212" not in {f.rule_id for f in _findings(model)}
+    assert "ATL-212" not in {f.rule_id for f in evaluate(model)}
 
 
 def test_vulnerable_agent_fixture_has_no_rails_so_no_atl212():
@@ -99,7 +98,7 @@ def test_vulnerable_agent_fixture_has_no_rails_so_no_atl212():
     # guardrails_config in the model ATL-212 must stay silent.
     model = build_model("examples/vulnerable-agent")
     assert model.by_type("guardrails_config") == []
-    ids = {f.rule_id for f in _findings(model)}
+    ids = {f.rule_id for f in evaluate(model)}
     assert "ATL-108" in ids
     assert "ATL-212" not in ids
 
@@ -110,7 +109,7 @@ def test_rails_with_unapproved_shell_do_not_fire_atl212():
     model = SystemModel()
     model.add(_rails_component())
     model.add(_shell_component(auto_approve=False))
-    assert "ATL-212" not in {f.rule_id for f in _findings(model)}
+    assert "ATL-212" not in {f.rule_id for f in evaluate(model)}
 
 
 def test_shell_capable_subagent_counts_as_execution_side():
@@ -119,7 +118,7 @@ def test_shell_capable_subagent_counts_as_execution_side():
     model = SystemModel()
     model.add(_rails_component())
     model.add(_shell_component(ctype="subagent"))
-    hits = [f for f in _findings(model) if f.rule_id == "ATL-212"]
+    hits = [f for f in evaluate(model) if f.rule_id == "ATL-212"]
     assert len(hits) == 1
     assert hits[0].component_id == "subagent.ops"
     assert "[assistant]" in hits[0].description
@@ -133,7 +132,7 @@ def test_one_finding_per_offending_execution_component():
     b.id, b.name = "mcp_server.deploy", "deploy"
     model.add(a)
     model.add(b)
-    hits = [f for f in _findings(model) if f.rule_id == "ATL-212"]
+    hits = [f for f in evaluate(model) if f.rule_id == "ATL-212"]
     assert sorted(f.component_id for f in hits) == [
         "mcp_server.deploy", "mcp_server.ops",
     ]
@@ -154,7 +153,7 @@ def test_fully_railed_config_does_not_fire_atl124(tmp_path):
     )
     model = ingest_agent_config(tmp_path, SystemModel())
     assert len(model.by_type("guardrails_config")) == 1
-    assert "ATL-124" not in {f.rule_id for f in _findings(model)}
+    assert "ATL-124" not in {f.rule_id for f in evaluate(model)}
 
 
 @pytest.mark.parametrize("spec", ['"true"', "{ enabled: true }", "[true]"])

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "knowledge-base": {
+      "command": "npx",
+      "args": ["-y", "@chroma-core/chroma-mcp@0.3.1"],
+      "env": {
+        "CHROMA_API_KEY": "ck-live-8f2a1c9e4b7d",
+        "CHROMA_TENANT": "default"
+      }
+    }
+  }
+}

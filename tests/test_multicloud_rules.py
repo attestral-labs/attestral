@@ -3,20 +3,18 @@ from attestral.ingest import build_model
 from attestral.ingest.kubernetes import ingest_kubernetes
 from attestral.model import SystemModel
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 FIXTURE = "examples/multicloud-k8s"
 
 
-def _ids():
-    model = build_model(FIXTURE)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 def test_new_aws_rules_fire():
     assert {
         "ATL-019", "ATL-020", "ATL-021", "ATL-022",
         "ATL-023", "ATL-024", "ATL-025", "ATL-026",
-    } <= _ids()
+    } <= ids_for(FIXTURE)
 
 
 def test_azure_rules_fire():
@@ -24,7 +22,7 @@ def test_azure_rules_fire():
         "ATL-301", "ATL-302", "ATL-303", "ATL-304", "ATL-305", "ATL-306",
         "ATL-307", "ATL-308", "ATL-309", "ATL-310", "ATL-311", "ATL-312",
         "ATL-313", "ATL-314", "ATL-315", "ATL-316",
-    } <= _ids()
+    } <= ids_for(FIXTURE)
 
 
 def test_gcp_rules_fire():
@@ -32,11 +30,11 @@ def test_gcp_rules_fire():
         "ATL-401", "ATL-402", "ATL-403", "ATL-404", "ATL-405",
         "ATL-406", "ATL-407", "ATL-408", "ATL-409", "ATL-410",
         "ATL-411", "ATL-412", "ATL-413",
-    } <= _ids()
+    } <= ids_for(FIXTURE)
 
 
 def test_kubernetes_rules_fire():
-    ids = _ids()
+    ids = ids_for(FIXTURE)
     assert {
         "ATL-501", "ATL-502", "ATL-503", "ATL-504", "ATL-505",
         "ATL-506", "ATL-507", "ATL-508", "ATL-509", "ATL-510",

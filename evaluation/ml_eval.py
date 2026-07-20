@@ -46,6 +46,9 @@ from attestral.ml import MLConfig, _chunks, _resolve_engine, muted_on_surface
 HERE = Path(__file__).resolve().parent
 LABELED = HERE / "data" / "deepset-prompt-injections.jsonl"
 PARAPHRASE = HERE / "data" / "paraphrase-injections.jsonl"
+OBFUSCATED = HERE / "data" / "obfuscated-injections.jsonl"
+OVER_DEFENSE = HERE / "data" / "over-defense.jsonl"
+MULTILINGUAL = HERE / "data" / "multilingual-injections.jsonl"
 RESULTS = HERE / "ml-results.json"
 
 TIERS = ["heuristic", "onnx", "deberta"]
@@ -105,11 +108,11 @@ def metrics(scored: list[tuple[float, int]], threshold: float) -> dict:
     }
 
 
-def paraphrase_slice(engine, cfg: MLConfig) -> dict:
-    """Score the adaptive-paraphrase slice: recall on the injections the heuristic
-    is blind to, false-positive rate on the benign look-alikes, and a per-class
-    recall split. Goes through the same production scoring as everything else."""
-    rows = load_jsonl(PARAPHRASE)
+def _labeled_slice(engine, cfg: MLConfig, path: Path) -> dict:
+    """Score a labeled {text,label,class} slice: recall on the positives, the
+    false-positive rate on the benign look-alikes, and a per-class recall split.
+    Goes through the same production scoring as everything else."""
+    rows = load_jsonl(path)
     scored = [{"label": r["label"], "class": r.get("class", ""),
                "score": round(score_text(engine, r["text"], cfg), 4),
                "text": r["text"]} for r in rows]
@@ -131,6 +134,57 @@ def paraphrase_slice(engine, cfg: MLConfig) -> dict:
         "fp_rate": round(len(hit_neg) / len(neg), 4) if neg else 0.0,
         "by_class": {c: f"{v[0]}/{v[1]}" for c, v in sorted(by_class.items())},
         "rows": scored,
+    }
+
+
+def paraphrase_slice(engine, cfg: MLConfig) -> dict:
+    """The adaptive-paraphrase slice: the injections the heuristic is blind to,
+    where the learned tier earns its place."""
+    return _labeled_slice(engine, cfg, PARAPHRASE)
+
+
+def multilingual_slice(engine, cfg: MLConfig) -> dict:
+    """The multilingual slice: the instruction-override family in Spanish,
+    French, Portuguese, Italian, German, Russian, Chinese, and Japanese, plus
+    benign non-English tool descriptions. The English-first pattern bank is blind
+    to these until the multilingual override family is added."""
+    return _labeled_slice(engine, cfg, MULTILINGUAL)
+
+
+def obfuscation_slice(engine, cfg: MLConfig) -> dict:
+    """The adversarial-evasion slice: injections obfuscated with leetspeak,
+    separator-spread, and hex/decimal/URL/rot13 encoding, plus benign look-alikes
+    (leetspeak-shaped names, encoded IDs, security tools that describe attacks).
+    The zero-dep heuristic's de-obfuscation pre-pass is what this measures."""
+    return _labeled_slice(engine, cfg, OBFUSCATED)
+
+
+def over_defense_slice(engine, cfg: MLConfig) -> dict:
+    """Over-defense measurement (NotInject methodology): benign-only hard
+    negatives that carry injection trigger words - `ignore`, `system`, `execute`,
+    `override`, `jailbreak`, `bypass` - in unambiguously benign contexts (feature
+    names, security tools describing attacks, benign agent instructions). The
+    number that matters is the false-positive rate: how often the detector fires
+    on benign text just because a trigger word is present. Scored through the
+    production surface path, so the instruction-surface muting is applied."""
+    rows = load_jsonl(OVER_DEFENSE)
+    fps = []
+    by_class: dict[str, list[int]] = {}
+    for r in rows:
+        score, cats = score_surface(engine, r["text"], cfg)
+        surface = r.get("surface", "mcp_server")
+        fired = score >= cfg.threshold and not muted_on_surface(surface, cats)
+        c = by_class.setdefault(r.get("class", ""), [0, 0])
+        c[1] += 1
+        c[0] += int(fired)
+        if fired:
+            fps.append({"text": r["text"], "class": r.get("class", ""), "score": round(score, 4)})
+    return {
+        "n": len(rows),
+        "false_positives": len(fps),
+        "fp_rate": round(len(fps) / len(rows), 4) if rows else 0.0,
+        "by_class": {c: f"{v[0]}/{v[1]}" for c, v in sorted(by_class.items())},
+        "fp_rows": fps,
     }
 
 

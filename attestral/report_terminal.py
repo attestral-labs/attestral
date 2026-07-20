@@ -215,6 +215,56 @@ def render_proofs(proofs: list, *, color: bool | None = None) -> str:
     return "\n".join(lines)
 
 
+def _flow_signature(f: "Finding") -> tuple | None:
+    """A coalescing key for findings that describe the same reachability flow: the
+    set of sinks an injection-reachability escalation reaches, independent of the
+    surface it sits on. Findings that share it are one exfiltration flow told
+    across several surfaces. Returns None for findings that should render on their
+    own. Display only - it never changes the finding set or the evidence chain."""
+    if f.reachability_role != "injection-source" or "->" not in f.reachability:
+        return None
+    tail = f.reachability.split("->", 1)[1]
+    sinks = tuple(sorted(
+        seg.split("(")[0].strip() for seg in tail.split(",") if seg.strip()))
+    return ("injection-reach", sinks) if sinks else None
+
+
+def _finding_lines(f: "Finding", sev: str, color: bool) -> list[str]:
+    """The individual render block for one finding."""
+    out = [f"  {_paint(f.rule_id, _SEV_COLOR[sev], color)}  {_bold(f.title, color)}  "
+           f"({_dim(f.component_id, color)}){_tag(f)}"]
+    if f.reachability:
+        note = f.reachability
+        if f.reachability_role:
+            note += f" · this component: {f.reachability_role}"
+        out.append(f"    {_dim('path:', color)} {_one_line(note)}")
+    hint = _one_line(f.recommendation)
+    if hint:
+        out.append(f"    {_dim('fix:', color)} {hint}")
+    out.append(f"    {_dim('run:', color)} attestral explain {f.rule_id}")
+    return out
+
+
+def _cluster_lines(members: list["Finding"], sev: str, color: bool) -> list[str]:
+    """One render block for a set of findings that share a reachability flow, so N
+    restatements of one flow read as a single ranked issue. Each member still
+    exists in the evidence chain; this collapses only the display."""
+    rule_ids = sorted({f.rule_id for f in members})
+    sinks = ", ".join(_flow_signature(members[0])[1])
+    surfaces = list(dict.fromkeys(f.component_id for f in members))
+    out = [f"  {_paint('+'.join(rule_ids), _SEV_COLOR[sev], color)}  "
+           f"{_bold('Prompt-injection flow reaching ' + sinks, color)}  "
+           f"({_dim(', '.join(surfaces), color)})"]
+    out.append(f"    {_dim('flow:', color)} {len(members)} injection findings across "
+               f"{_plural(len(surfaces), 'surface')} reach the same sinks - one exfiltration "
+               f"flow, not {len(members)} separate problems")
+    hint = _one_line(members[0].recommendation)
+    if hint:
+        out.append(f"    {_dim('fix:', color)} {hint}")
+    out.append(f"    {_dim('run:', color)} attestral explain {rule_ids[0]}")
+    return out
+
+
 def render_scan(
     model: "SystemModel",
     findings: list["Finding"],
@@ -271,24 +321,35 @@ def render_scan(
         group = by_sev.get(sev) or []
         if not group:
             continue
-        lines.append("")
-        header = _paint(f"{sev.upper()} ({len(group)})", _SEV_COLOR[sev], color)
-        lines.append(header)
+        # Coalesce findings that describe one reachability flow into a single
+        # block, so the top of the report reads as N distinct problems rather
+        # than one flow restated once per surface. Every finding stays in the
+        # list and the evidence chain; only the display is collapsed, and the
+        # header shows both the distinct-issue and the raw-finding count.
+        clusters: dict[tuple, list] = {}
         for f in group:
-            badge = _paint(f.rule_id, _SEV_COLOR[sev], color)
-            title = _bold(f.title, color)
-            where = _dim(f.component_id, color)
-            tag = _tag(f)
-            lines.append(f"  {badge}  {title}  ({where}){tag}")
-            if f.reachability:
-                note = f.reachability
-                if f.reachability_role:
-                    note += f" · this component: {f.reachability_role}"
-                lines.append(f"    {_dim('path:', color)} {_one_line(note)}")
-            hint = _one_line(f.recommendation)
-            if hint:
-                lines.append(f"    {_dim('fix:', color)} {hint}")
-            lines.append(f"    {_dim('run:', color)} attestral explain {f.rule_id}")
+            k = _flow_signature(f)
+            if k is not None:
+                clusters.setdefault(k, []).append(f)
+        coalesced = {k: v for k, v in clusters.items() if len(v) >= 2}
+        merged = sum(len(v) for v in coalesced.values())
+        distinct = (len(group) - merged) + len(coalesced)
+
+        lines.append("")
+        head = (f"{sev.upper()} ({distinct} issues · {len(group)} findings)"
+                if distinct != len(group) else f"{sev.upper()} ({len(group)})")
+        lines.append(_paint(head, _SEV_COLOR[sev], color))
+
+        rendered_keys: set[tuple] = set()
+        for f in group:
+            k = _flow_signature(f)
+            if k in coalesced:
+                if k in rendered_keys:
+                    continue
+                rendered_keys.add(k)
+                lines.extend(_cluster_lines(coalesced[k], sev, color))
+            else:
+                lines.extend(_finding_lines(f, sev, color))
 
     if waived:
         lines.append("")

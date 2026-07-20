@@ -3,8 +3,8 @@
 Mirrors tests/test_aws_pack.py: build a model from the fixture and assert every
 new GCP id fires, then guard id uniqueness across the whole loaded ruleset.
 """
-from attestral.ingest import build_model
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 FIXTURE = "examples/gcp-pack"
 
@@ -18,13 +18,10 @@ PACK_IDS = {f"ATL-{n:03d}" for n in range(414, 435)}
 ALLOWED_CORE_CO_FIRES = {"ATL-413"}
 
 
-def _ids():
-    model = build_model(FIXTURE)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 def test_all_gcp_pack_rules_fire():
-    fired = _ids()
+    fired = ids_for(FIXTURE)
     missing = sorted(PACK_IDS - fired)
     assert not missing, f"pack rules that did not fire: {missing}"
 
@@ -33,7 +30,7 @@ def test_gcp_pack_fixture_triggers_no_unexpected_rules():
     # The fixture is authored so only pack ids fire (plus the documented ATL-413
     # prefix co-fire). Any other id firing means a fixture resource drifted into
     # overlapping a core check, which we want to know about.
-    fired = _ids()
+    fired = ids_for(FIXTURE)
     unexpected = fired - PACK_IDS - ALLOWED_CORE_CO_FIRES
     assert not unexpected, f"unexpected rules fired: {sorted(unexpected)}"
 

@@ -174,6 +174,39 @@ def _tool_descriptions(tools) -> list[dict]:
     return out
 
 
+# Keys a tool may carry its JSON input schema under (mirrors manifest._SCHEMA_KEYS).
+_TOOL_SCHEMA_KEYS = ("inputSchema", "input_schema", "parameters")
+_REMOTE_REF_PREFIXES = ("http://", "https://", "ftp://", "file://", "//")
+
+
+def _external_schema_refs(tools) -> list[str]:
+    """Every external `$ref` target in any tool's input schema. Full JSON Schema
+    2020-12 in tool parameters (MCP spec RC 2026-07-28, SEP-2106) lets a schema
+    `$ref` point to a remote URL; a client that auto-dereferences it fetches
+    attacker-controlled schema (poisoning) or is steered to an internal URL
+    (SSRF). A local `#/...` fragment ref is normal and never flagged."""
+    refs: list[str] = []
+
+    def _walk(node) -> None:
+        if isinstance(node, dict):
+            r = node.get("$ref")
+            if isinstance(r, str) and r.strip().lower().startswith(_REMOTE_REF_PREFIXES):
+                refs.append(r.strip())
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                _walk(v)
+
+    items = tools if isinstance(tools, list) else (
+        list(tools.values()) if isinstance(tools, dict) else [])
+    for t in items:
+        if isinstance(t, dict):
+            for k in _TOOL_SCHEMA_KEYS:
+                _walk(t.get(k))
+    return refs
+
+
 def _tool_names(tools) -> list[str]:
     """Every declared tool name, description or not - the fleet's tool
     namespace. Unlike _tool_descriptions (an ML scoring surface), a name
@@ -304,6 +337,14 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         # _confused_deputy above.
         if attrs["_env_has_secrets"] and caps & {"database", "memory", "saas_data"}:
             attrs["_shared_static_credential"] = True
+        # Vector / memory store reached through one static credential: every
+        # user's embedded data lands in one store behind one key, so a query
+        # can retrieve any tenant's vectors (OWASP LLM08 cross-tenant leakage).
+        # Narrower than _shared_static_credential (memory only) and, unlike the
+        # model-level shared-identity rule, it needs no public endpoint - the
+        # isolation gap exists for a purely internal multi-user agent too.
+        if attrs["_env_has_secrets"] and "memory" in caps:
+            attrs["_shared_memory_credential"] = True
         # Known-CVE supply-chain check (ATL-117): does the launch pin a package
         # version with a published advisory?
         cve = _known_cve(launch.split())
@@ -319,6 +360,10 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         tool_names = _tool_names(cfg.get("tools"))
         if tool_names:
             attrs["_tool_names"] = tool_names
+        ext_refs = _external_schema_refs(cfg.get("tools"))
+        if ext_refs:
+            attrs["_tool_schema_external_ref"] = True
+            attrs["_external_schema_ref_urls"] = ext_refs
         # Rug-pull pin: canonical hash of the launch identity + tool surface.
         # compile carries it into the policy; drift re-hashes at runtime.
         attrs["_manifest_hash"] = manifest_hash(

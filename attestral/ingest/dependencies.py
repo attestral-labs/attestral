@@ -37,6 +37,15 @@ _KNOWN_DEP_VULNS = (
     # CVE-2025-67644: SQL injection in the langgraph SQLite checkpointer (CVSS
     # 7.3), chainable toward RCE. Patched in langgraph-checkpoint-sqlite 3.0.1.
     ("langgraph-checkpoint-sqlite", (((0, 0, 0), (3, 0, 0)),), "CVE-2025-67644"),
+    # CVE-2026-28277: unsafe msgpack deserialization -> RCE when langgraph loads a
+    # forged checkpoint (CVSS 6.8), chains with CVE-2025-67644. Patched in 1.0.10.
+    ("langgraph", (((0, 0, 0), (1, 0, 9)),), "CVE-2026-28277"),
+    # CVE-2026-27022: RediSearch query injection -> access-control bypass in the
+    # langgraph Redis checkpointer (CVSS 6.5). Patched in 1.0.1. (npm, scoped.)
+    ("@langchain/langgraph-checkpoint-redis", (((0, 0, 0), (1, 0, 0)),), "CVE-2026-27022"),
+    # CVE-2026-0621: ReDoS in the MCP TypeScript SDK's UriTemplate parser (CVSS
+    # 8.7). Affected >=1.3.0 <1.25.2; patched in 1.25.2. (npm, scoped.)
+    ("@modelcontextprotocol/sdk", (((1, 3, 0), (1, 25, 1)),), "CVE-2026-0621"),
 )
 
 _MANIFESTS = ("requirements.txt", "pyproject.toml", "package.json")

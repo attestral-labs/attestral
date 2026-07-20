@@ -5,23 +5,22 @@ from attestral.fleet import build_fleet_model
 from attestral.ingest import build_model
 from attestral.reachability import annotate_reachability
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 SUPPORT = "examples/reference-fleet/support-agent"
 OPS = "examples/reference-fleet/ops-agent"
 
 
-def _ids(path):
-    return {f.rule_id for f in RuleEngine().evaluate(build_model(path))}
 
 
 def test_support_agent_findings_are_real():
-    ids = _ids(SUPPORT)
+    ids = ids_for(SUPPORT)
     assert "ATL-202" in ids   # lethal trifecta across its tools
     assert "ATL-104" in ids   # env secrets
 
 
 def test_ops_agent_findings_are_real():
-    ids = _ids(OPS)
+    ids = ids_for(OPS)
     assert "ATL-001" in ids   # public S3 bucket
     assert "ATL-003" in ids   # wildcard IAM
     assert "ATL-103" in ids   # shell runbook server

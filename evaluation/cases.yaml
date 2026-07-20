@@ -31,14 +31,38 @@ positive:
     path: examples/tool-shadowing
     expect: [ATL-106, ATL-204, ATL-205, ATL-206]
     cite: "MCP tool poisoning / shadowing (Invariant Labs 2025); SAFE-MCP"
+  - id: tool-shadowing-confusable
+    path: examples/tool-shadowing-confusable
+    expect: [ATL-219]
+    cite: "Confusable / homoglyph tool-name shadowing (SAFE-MCP SAF-T1301); IDN homograph impersonation applied to the MCP tool namespace"
   - id: multi-agent
     path: examples/multi-agent
     expect: [ATL-119, ATL-120, ATL-121, ATL-122, ATL-130, ATL-202, ATL-203, ATL-207, ATL-208, ATL-210, ATL-217]
     cite: "OWASP ASI07 inter-agent comms; A2A Spec 1.0"
   - id: rag-shared-identity
     path: examples/rag-shared-identity
-    expect: [ATL-104, ATL-105, ATL-114, ATL-121, ATL-130, ATL-208, ATL-211]
+    expect: [ATL-104, ATL-105, ATL-114, ATL-121, ATL-130, ATL-149, ATL-208, ATL-211]
     cite: "RAG confused-deputy; OWASP ASI03; A2A Spec 1.0 s8.4"
+  - id: vector-store-tenancy
+    path: examples/vector-store-tenancy
+    expect: [ATL-149]
+    cite: "OWASP LLM08 Vector and Embedding Weaknesses (cross-tenant embedding leakage); OWASP ASI06"
+  - id: tool-schema-ref
+    path: examples/tool-schema-ref
+    expect: [ATL-150]
+    cite: "External $ref in tool inputSchema (schema poisoning / SSRF); MCP spec RC 2026-07-28 SEP-2106; SAFE-MCP SAF-T1501"
+  - id: prompt-embedded-secret
+    path: examples/prompt-embedded-secret
+    expect: [ATL-151]
+    cite: "Secret hard-coded in an agent-instruction file; OWASP LLM07 System Prompt Leakage / LLM02"
+  - id: plugin-marketplace-trust
+    path: examples/plugin-marketplace-trust
+    expect: [ATL-152]
+    cite: "Committed settings auto-trusts a plugin marketplace (extraKnownMarketplaces/enabledPlugins); PromptArmor 2026; OWASP-ASI04 supply chain"
+  - id: langgraph-cve-chain
+    path: examples/langgraph-cve-chain
+    expect: [ATL-145]
+    cite: "Agent dependency manifest pins known-CVE versions (LangGraph checkpointer chain CVE-2026-28277/CVE-2026-27022, MCP SDK ReDoS CVE-2026-0621)"
   - id: a2a-hardening
     path: examples/a2a-hardening
     expect: [ATL-123, ATL-129, ATL-130]

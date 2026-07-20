@@ -97,7 +97,7 @@ attestral explain ATL-103    # title, severity, description, fix, and framework 
 
 Every finding in the terminal output carries a `run: attestral explain <RULE_ID>` pointer, so the reasoning and the fix are one command away. Rule ids are matched case-insensitively.
 
-## What it catches (242-rule pack)
+## What it catches (247-rule pack)
 
 | Area | Examples |
 |---|---|
@@ -132,15 +132,19 @@ flowchart TB
     end
     M --> L1
     subgraph REV["2 · Review (layered, each finding tagged by origin)"]
-        L1["<b>L1 Deterministic rules</b><br/>242 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
+        L1["<b>L1 Deterministic rules</b><br/>247 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
         L2["<b>L2 ML classifier</b> (optional)<br/>DeBERTa prompt-injection on agentic surfaces<br/>origin: ml"]
         L3["<b>L3 LLM</b> (optional)<br/>elicitation + LLM-as-judge verifier<br/>origin: llm"]
         L1 --> L2 --> L3
     end
     REV --> RS["Reachability-based severity<br/>finding on a walked attack chain:<br/>chain attached · raised one band"]
     REV --> BR["Blast-radius scoring<br/>rank every surface by if-compromised reach<br/>feeds the OWASP AIVSS score"]
+    REV --> IR["Injection-reachability fusion<br/>escalate an injectable surface only when it<br/>can reach a secret, egress, or code execution"]
+    REV --> TA["Trust-asymmetry<br/>raise a tool-name collision when a lower-trust<br/>server can shadow a trusted tool"]
     RS --> W["Waivers + inline suppression<br/>documented exceptions · one-line // attestral:ignore"]
     BR --> W
+    IR --> W
+    TA --> W
     W --> BL["Baseline<br/>diff-aware: report only net-new findings"]
     BL --> EV["3 · Evidence<br/>SHA-256 hash chain · verify offline<br/>+ optional Ed25519/DSSE signed head"]
     EV --> OUT["Output: Terminal (default, writes nothing) · Markdown · JSON · <b>SARIF</b> (Code Scanning) · <b>AI-BOM</b> (CycloneDX 1.6)"]
@@ -150,7 +154,7 @@ flowchart TB
 
 | Layer | What it does | Reproducible? | Cost |
 |---|---|---|---|
-| **L1 Deterministic** | 242 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
+| **L1 Deterministic** | 247 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
 | **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
 | **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
 
@@ -269,7 +273,7 @@ flowchart LR
     A["attestral scan<br/><b>attest</b>"] --> B["attestral verify<br/><b>prove</b>"]
     A --> R["attestral remediate<br/><b>concrete source edit</b>"]
     A --> F["attestral fix<br/><b>compile-the-fix</b>"]
-    A --> C["attestral compile<br/><b>enforce</b>"]
+    A --> C["attestral compile<br/><b>enforce</b><br/>+ --verify: prove policy properties"]
     C --> D["attestral drift<br/><b>detect</b>"]
     D --> AT["attestral attest<br/><b>signed conformance attestation</b>"]
     AT -->|"verify offline"| B
@@ -379,7 +383,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on
 
 ## Real-world benchmark
 
-Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **242 rules** today; this table shows the historical progression, not the current pack size):
+Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **247 rules** today; this table shows the historical progression, not the current pack size):
 
 | | TerraGoat AWS | TerraGoat Azure | TerraGoat GCP | Distinct rules |
 |---|---|---|---|---|

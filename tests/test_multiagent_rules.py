@@ -4,34 +4,29 @@ The fixture's MCP fleet is a single scoped filesystem server - safe on its
 own. Every fleet-level finding exists only because subagent tool grants
 compose with it across the delegation hop.
 """
-from attestral.ingest import build_model
 from attestral.ingest.agent_config import ingest_agent_config
 from attestral.model import SystemModel
-from attestral.rules import RuleEngine
+from _helpers import findings_for, ids_for
 
 FIXTURE = "examples/multi-agent"
 
 
-def _findings(path=FIXTURE):
-    return RuleEngine().evaluate(build_model(path))
 
 
-def _ids(path=FIXTURE):
-    return {f.rule_id for f in _findings(path)}
 
 
 def test_multiagent_wave_fires():
-    assert {"ATL-119", "ATL-120", "ATL-121", "ATL-122"} <= _ids()
+    assert {"ATL-119", "ATL-120", "ATL-121", "ATL-122"} <= ids_for(FIXTURE)
 
 
 def test_fleet_rules_fire_through_delegation():
     # notes (filesystem) + deploy-bot (shell, network): both trifectas and the
     # taint path complete only across the delegation hop.
-    assert {"ATL-202", "ATL-203", "ATL-207"} <= _ids()
+    assert {"ATL-202", "ATL-203", "ATL-207"} <= ids_for(FIXTURE)
 
 
 def test_combo_finding_names_the_delegation_chain():
-    (f,) = [f for f in _findings() if f.rule_id == "ATL-202"]
+    (f,) = [f for f in findings_for(FIXTURE) if f.rule_id == "ATL-202"]
     assert "notes" in f.description and "deploy-bot" in f.description
 
 
@@ -57,7 +52,7 @@ def test_wildcard_subagent_contributes_no_capabilities(tmp_path):
     agents = tmp_path / ".claude" / "agents"
     agents.mkdir(parents=True)
     (agents / "helper.md").write_text("---\nname: helper\n---\nbody\n")
-    ids = _ids(tmp_path)
+    ids = ids_for(tmp_path)
     assert "ATL-120" in ids
     assert "ATL-202" not in ids and "ATL-203" not in ids
 
@@ -68,7 +63,7 @@ def test_read_only_subagent_is_clean(tmp_path):
     (agents / "scout.md").write_text(
         "---\nname: scout\ntools: Read, Grep, Glob\n---\nbody\n"
     )
-    ids = _ids(tmp_path)
+    ids = ids_for(tmp_path)
     assert "ATL-119" not in ids and "ATL-120" not in ids and "ATL-203" not in ids
 
 
@@ -92,5 +87,5 @@ def test_authenticated_https_agent_card_is_clean(tmp_path):
         ' "securitySchemes": {"bearer": {"type": "http", "scheme": "bearer"}},'
         ' "security": [{"bearer": []}]}'
     )
-    ids = _ids(tmp_path)
+    ids = ids_for(tmp_path)
     assert "ATL-121" not in ids and "ATL-122" not in ids

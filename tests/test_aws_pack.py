@@ -4,7 +4,8 @@ Mirrors tests/test_multicloud_rules.py: build a model from the fixture and
 assert every new AWS id fires, then guard id uniqueness across the whole
 loaded ruleset.
 """
-from attestral.ingest import build_model
+from _helpers import ids_for
+
 from attestral.rules import RuleEngine
 
 FIXTURE = "examples/aws-pack"
@@ -16,13 +17,8 @@ PACK_IDS = {f"ATL-{n:03d}" for n in range(27, 55)}
 CORE_AWS_IDS = {f"ATL-{n:03d}" for n in range(1, 27)}
 
 
-def _ids():
-    model = build_model(FIXTURE)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
-
-
 def test_all_aws_pack_rules_fire():
-    fired = _ids()
+    fired = ids_for(FIXTURE)
     missing = sorted(PACK_IDS - fired)
     assert not missing, f"pack rules that did not fire: {missing}"
 
@@ -32,7 +28,7 @@ def test_aws_pack_fixture_triggers_no_unexpected_core_rules():
     # also fire later service-coverage rules (ATL-055+). The guard that matters:
     # it must never drift into a CORE AWS check (001-026), which would mean a
     # fixture resource overlapped a core rule.
-    fired = _ids()
+    fired = ids_for(FIXTURE)
     assert PACK_IDS <= fired, f"pack rules stopped firing: {sorted(PACK_IDS - fired)}"
     drifted = fired & CORE_AWS_IDS
     assert not drifted, f"aws-pack fixture drifted into core AWS rules: {sorted(drifted)}"

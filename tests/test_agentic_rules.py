@@ -3,17 +3,15 @@ from attestral.ingest import build_model
 from attestral.ingest.mcp import ingest_mcp
 from attestral.model import SystemModel
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 FIXTURE = "examples/agentic-risks"
 
 
-def _ids():
-    model = build_model(FIXTURE)
-    return {f.rule_id for f in RuleEngine().evaluate(model)}
 
 
 def test_new_agentic_rules_fire():
-    assert {"ATL-108", "ATL-109", "ATL-110", "ATL-111", "ATL-112"} <= _ids()
+    assert {"ATL-108", "ATL-109", "ATL-110", "ATL-111", "ATL-112"} <= ids_for(FIXTURE)
 
 
 def test_cloud_credentials_create_reachability_edge():
@@ -27,7 +25,7 @@ def test_cloud_credentials_create_reachability_edge():
 
 def test_memory_store_fires_atl114():
     # ATL-114: a persistent memory server is a memory-poisoning target (SoK V6).
-    assert "ATL-114" in _ids()
+    assert "ATL-114" in ids_for(FIXTURE)
 
 
 def test_memory_capability_classified():
@@ -38,7 +36,7 @@ def test_memory_capability_classified():
 
 def test_confused_deputy_fires_atl115():
     # crm-proxy: remote url + a downstream Salesforce token in env.
-    assert "ATL-115" in _ids()
+    assert "ATL-115" in ids_for(FIXTURE)
 
 
 def test_confused_deputy_needs_both_remote_and_cred(tmp_path):
@@ -55,7 +53,7 @@ def test_confused_deputy_needs_both_remote_and_cred(tmp_path):
 
 def test_known_cve_version_fires_atl117():
     # legacy-bridge launches mcp-remote@0.1.10 (CVE-2025-6514, <= 0.1.15).
-    assert "ATL-117" in _ids()
+    assert "ATL-117" in ids_for(FIXTURE)
 
 
 def test_known_cve_version_detail_recorded():
@@ -111,7 +109,7 @@ def test_hookless_settings_not_flagged(tmp_path):
 
 def test_skill_broad_tools_fires_atl116():
     # deploy-helper SKILL.md grants allowed-tools including Bash.
-    assert "ATL-116" in _ids()
+    assert "ATL-116" in ids_for(FIXTURE)
 
 
 def test_skill_ingested_as_agent_instruction():
@@ -186,7 +184,7 @@ def test_local_server_with_secret_is_not_confused_deputy(tmp_path):
 
 def test_taint_flow_fires_atl207():
     # web (network source) + ops (shell sink) share the fleet -> unsafe flow.
-    assert "ATL-207" in _ids()
+    assert "ATL-207" in ids_for(FIXTURE)
 
 
 def test_taint_edges_recorded_in_model():
@@ -233,7 +231,7 @@ def test_memory_counts_toward_trifecta(tmp_path):
 
 
 def test_fleet_combo_rules_fire():
-    assert {"ATL-202", "ATL-203"} <= _ids()
+    assert {"ATL-202", "ATL-203"} <= ids_for(FIXTURE)
 
 
 def test_capability_classification():

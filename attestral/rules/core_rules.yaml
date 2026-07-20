@@ -771,6 +771,42 @@ rules:
     recommendation: Do not co-locate delegated credentials with a remote endpoint. Exchange the caller's own identity for a narrowly scoped, short-lived downstream token per request (per the MCP auth spec), and never forward a static credential onward.
     frameworks: ["MCP Security Best Practices 2025-11-25", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025", "NSA CSI MCP 05/2026", "NIST AC-4", "NIST IA-5", "Agentic-SoK 2026 R5"]
 
+  - id: ATL-152
+    title: Committed settings file auto-trusts a plugin marketplace
+    severity: high
+    target: agent_config
+    match: { attr_equals: { _declares_plugin_marketplace: true } }
+    description: A repo-committed agent settings file (`.claude/settings.json`) declares an extra plugin marketplace (`extraKnownMarketplaces`) or auto-enables plugins (`enabledPlugins`). A Claude Code plugin silently bundles hooks, MCP servers, and subagents, so anyone who opens or clones the repo inherits trust in that marketplace and every plugin it serves - a supply-chain grant delivered through repo-controlled config, the same trust-boundary class as the hooks config-injection (CVE-2025-59536) but for the whole plugin bundle. A marketplace sourced from a raw remote URL is the worst case, fetching its plugin manifest from an arbitrary endpoint at load time.
+    recommendation: Do not inherit plugin-marketplace trust from a repo. Keep `extraKnownMarketplaces` and `enabledPlugins` in user-scoped settings you control, pin marketplaces to a reviewed org allowlist, and never auto-enable a plugin from a marketplace fetched over a raw URL.
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP09:2025", "NIST SA-12", "NIST CM-7", "CWE-829"]
+
+  - id: ATL-151
+    title: Secret hard-coded in an agent-instruction file
+    severity: high
+    target: agent_instruction
+    match: { attr_equals: { _embedded_secret: true } }
+    description: An agent-instruction file (CLAUDE.md, `.cursorrules`, AGENTS.md, a skill) contains a credential-shaped value - an API key, a provider token, a private-key block, or a connection string with an inline password. Instruction files are committed to version control, shared across a team, copied into logs, and read back into the model's context every run, so a secret placed in one leaks along every one of those paths and cannot be rotated out of the history. The value is detected by shape (a provider prefix, a key block, or a long high-entropy assignment that is not a placeholder), never guessed.
+    recommendation: Remove the secret from the instruction file and rotate it - assume it is already compromised once committed. Reference credentials from a secret manager or an environment variable the agent reads at run time, never inline in prompt or instruction text, and add the file's path to your secret-scanning pre-commit hook.
+    frameworks: ["OWASP LLM07 System Prompt Leakage", "OWASP LLM02 Sensitive Information Disclosure", "OWASP-ASI06:2026", "NIST IA-5", "CWE-798"]
+
+  - id: ATL-150
+    title: Tool input schema dereferences an external $ref
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _tool_schema_external_ref: true } }
+    description: A tool's input schema embeds a JSON Schema `$ref` that points to an external URL. Full JSON Schema 2020-12 in tool parameters (MCP specification release candidate 2026-07-28, SEP-2106) lets a schema reference be fetched when the tool is used; a client that auto-dereferences it pulls attacker-controlled schema into the tool definition (schema poisoning - the fetched schema can add a hidden instruction-bearing field description or a required parameter) or is steered into requesting an internal URL (SSRF, for example a cloud metadata endpoint). The tool that was reviewed is no longer the tool that runs. The spec itself warns clients not to auto-dereference external references.
+    recommendation: Keep tool input schemas self-contained. Reject or inline any external `$ref`; if a shared schema is genuinely needed, vendor it and pin it by content hash rather than fetching a remote URL at use time, and never let the client auto-dereference a remote reference.
+    frameworks: ["MCP Specification RC 2026-07-28 SEP-2106", "SAFE-MCP SAF-T1501", "OWASP-ASI04:2026", "OWASP-MCP MCP03:2025", "NIST SC-7", "NIST SI-10"]
+
+  - id: ATL-149
+    title: Vector or memory store shares one static credential across all agent users
+    severity: medium
+    target: mcp_server
+    match: { attr_equals: { _shared_memory_credential: true } }
+    description: A vector or persistent-memory server (chroma, pinecone, weaviate, qdrant, pgvector, mem0, and the like) is reached through a single static credential in its environment, so every user's embedded data lands in one store behind one key with no per-tenant boundary. If the agent serves more than one user, a query - or a prompt injection steering one - can retrieve or poison another tenant's vectors (cross-tenant embedding leakage). Unlike the public-endpoint confused-deputy case (ATL-115 / the shared-identity fleet rule), this isolation gap exists for a purely internal multi-user agent with no exposed endpoint.
+    recommendation: Partition the store per tenant (a namespace or collection per user, or per-tenant credentials), or exchange the caller's own identity for a scoped, short-lived credential per request, so a query can only reach the caller's own vectors. One shared key gives every user the union of everyone's data.
+    frameworks: ["OWASP LLM08 Vector and Embedding Weaknesses", "OWASP-ASI06:2026", "OWASP-ASI03:2026", "NIST AC-4", "NIST SC-4"]
+
   - id: ATL-116
     title: Agent skill grants shell or unrestricted tool access
     severity: high
@@ -862,6 +898,19 @@ rules:
     description: The same server name is defined more than once with different commands or endpoints, so which code answers to that identity depends on config precedence - the shape of a server-impersonation or rug-pull attack.
     recommendation: Keep one definition per server name; if an override is intentional, make the definitions identical or rename the variant so the identity is unambiguous.
     frameworks: ["SAFE-MCP SAF-T1003", "OWASP-ASI04:2026", "OWASP-MCP MCP09:2025", "MCP Security Best Practices 2025-11-25", "NSA CSI MCP 05/2026", "NIST IA-4"]
+
+  # ATL-204 catches an EXACT name clash. A look-alike spelling - a Cyrillic
+  # letter, a zero-width space, a case flip, a full-width character - reads as
+  # the same tool in the client list but is a different raw string, so the exact
+  # matcher stays silent. This is the homoglyph/typosquat form of shadowing.
+  - id: ATL-219
+    title: Confusable tool names collide across MCP servers
+    severity: high
+    target: model
+    match: { model_tool_name_confusable_collision: true }
+    description: Two servers declare tool names that differ as raw text but fold to the same identifier once case, full-width, zero-width, and homoglyph characters are normalized, so they read as one tool in the client's tool list. Where ATL-204 catches an exact name clash, this catches the impersonation that hides behind a look-alike spelling - a Cyrillic letter, a zero-width space, a case flip - letting a lower-trust server masquerade as a trusted tool with no exact collision to notice.
+    recommendation: Restrict tool names to a canonical ASCII identifier set and reject non-ASCII or zero-width characters; namespace tools per server; treat any look-alike of a trusted tool name as hostile until the declaring server is reviewed.
+    frameworks: ["SAFE-MCP SAF-T1301", "OWASP-ASI02:2026", "OWASP-MCP MCP09:2025", "MITRE ATLAS AML.T0051", "NIST IA-4"]
 
   # --- Multi-agent delegation wave: subagent definitions (.claude/agents/)
   # --- and A2A agent cards (.well-known/agent-card.json) are part of the

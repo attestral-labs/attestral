@@ -12,23 +12,22 @@ from attestral.ingest.agent_config import ingest_agent_config
 from attestral.ingest.mcp import ingest_registry, registry_component_from_manifest
 from attestral.model import SystemModel
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 A2A = "examples/a2a-hardening"
 REGISTRY = "examples/mcp-registry"
 
 
-def _ids(fixture: str) -> set[str]:
-    return {f.rule_id for f in RuleEngine().evaluate(build_model(fixture))}
 
 
 # --- ATL-129 / ATL-130: A2A card hardening --------------------------------
 
 def test_removed_oauth_flow_fires_atl129():
-    assert "ATL-129" in _ids(A2A)
+    assert "ATL-129" in ids_for(A2A)
 
 
 def test_public_unsigned_card_fires_atl130():
-    assert "ATL-130" in _ids(A2A)
+    assert "ATL-130" in ids_for(A2A)
 
 
 def test_a2a_hardening_attrs_surfaced():
@@ -62,15 +61,15 @@ def test_signed_card_with_modern_flow_is_silent(tmp_path):
 # --- ATL-131 / ATL-132 / ATL-133: registry manifest -----------------------
 
 def test_hardcoded_secret_fires_atl131():
-    assert "ATL-131" in _ids(REGISTRY)
+    assert "ATL-131" in ids_for(REGISTRY)
 
 
 def test_unmarked_secret_fires_atl132():
-    assert "ATL-132" in _ids(REGISTRY)
+    assert "ATL-132" in ids_for(REGISTRY)
 
 
 def test_deprecated_sse_transport_fires_atl133():
-    assert "ATL-133" in _ids(REGISTRY)
+    assert "ATL-133" in ids_for(REGISTRY)
 
 
 def test_registry_manifest_partitions_vars():

@@ -16,10 +16,52 @@ system prompt / agent instruction set.
 from __future__ import annotations
 
 import os
+import re
 import stat
 from pathlib import Path
 
 from attestral.model import Component, SystemModel
+
+# High-precision credential shapes for detecting a secret hard-coded in prompt
+# text. Provider-prefixed tokens and key blocks are near-zero false-positive; the
+# generic assignment requires a long high-entropy value that is not a placeholder.
+_SECRET_PATTERNS: list[tuple[str, "re.Pattern[str]"]] = [
+    ("aws-access-key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("github-token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{22,}\b")),
+    ("slack-token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
+    ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b")),
+    ("stripe-key", re.compile(r"\b[sr]k_(?:live|test)_[A-Za-z0-9]{20,}\b")),
+    ("openai-key", re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9]{20,}\b")),
+    ("private-key-block", re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----")),
+    ("jwt", re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\b")),
+    ("db-uri-with-credentials", re.compile(
+        r"\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqps?)://[^\s:/@]+:[^\s:/@]{3,}@", re.I)),
+    ("credential-assignment", re.compile(
+        r"(?i)\b(?:api[_-]?key|secret|token|password|passwd|access[_-]?key|"
+        r"client[_-]?secret|auth[_-]?token)\b\s*[:=]\s*['\"]?([A-Za-z0-9/+_\-]{20,})['\"]?")),
+]
+_PLACEHOLDER = re.compile(
+    r"(?i)your|example|placeholder|changeme|xxx+|redacted|dummy|<[^>]+>|\.\.\.|"
+    r"insert|todo|fake|sample|test[_-]?key|xoxb-your")
+
+
+def _embedded_secret(content: str) -> list[str]:
+    """Credential-shaped values hard-coded in prompt text. Prompts are logged,
+    shared, and version-controlled, so a real secret in one leaks (OWASP LLM07
+    System Prompt Leakage / LLM02). Returns the kinds found; empty for benign
+    text. The generic assignment requires a long, high-entropy, non-placeholder
+    value, so `api_key: <your-key-here>` never fires."""
+    kinds: list[str] = []
+    for kind, pat in _SECRET_PATTERNS:
+        m = pat.search(content)
+        if not m:
+            continue
+        if kind == "credential-assignment":
+            val = m.group(1)
+            if _PLACEHOLDER.search(val) or len(set(val)) < 8:
+                continue
+        kinds.append(kind)
+    return sorted(set(kinds))
 
 # Cap so a runaway file can never dominate context / a classifier window.
 _MAX_CHARS = 20_000
@@ -130,6 +172,10 @@ def ingest_prompts(path: str | Path, model: SystemModel) -> SystemModel:
         instruction = skill or _is_instruction_file(f)
         ctype = "agent_instruction" if instruction else "system_prompt"
         attrs: dict = {"content": content}
+        secret_kinds = _embedded_secret(content)
+        if secret_kinds:
+            attrs["_embedded_secret"] = True
+            attrs["_embedded_secret_kinds"] = secret_kinds
         if instruction:
             # Deterministic ASI06 signal: a standing-instruction file the whole
             # host can rewrite is a persistent poisoning vector (ATL-113). The

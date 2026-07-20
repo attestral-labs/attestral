@@ -13,23 +13,22 @@ from attestral.ingest.mcp import ingest_mcp
 from attestral.ingest.agent_config import ingest_agent_config
 from attestral.model import SystemModel
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 CAPS = "examples/mcp-capabilities"
 TRUST = "examples/coding-agent-trust"
 
 
-def _ids(fixture: str) -> set[str]:
-    return {f.rule_id for f in RuleEngine().evaluate(build_model(fixture))}
 
 
 # --- ATL-125 / ATL-126: declared MCP capabilities -------------------------
 
 def test_sampling_capability_fires_atl125():
-    assert "ATL-125" in _ids(CAPS)
+    assert "ATL-125" in ids_for(CAPS)
 
 
 def test_elicitation_capability_fires_atl126():
-    assert "ATL-126" in _ids(CAPS)
+    assert "ATL-126" in ids_for(CAPS)
 
 
 def test_declared_capabilities_surfaced_on_component():
@@ -67,11 +66,11 @@ def test_capability_declared_false_does_not_fire(tmp_path):
 # --- ATL-127 / ATL-128: coding-agent trust switches -----------------------
 
 def test_permission_bypass_fires_atl127():
-    assert "ATL-127" in _ids(TRUST)
+    assert "ATL-127" in ids_for(TRUST)
 
 
 def test_auto_enable_project_mcp_fires_atl128():
-    assert "ATL-128" in _ids(TRUST)
+    assert "ATL-128" in ids_for(TRUST)
 
 
 def test_trust_flags_surfaced_on_component():

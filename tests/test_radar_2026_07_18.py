@@ -15,10 +15,9 @@ from attestral.ingest import build_model
 from attestral.ingest.mcp import ingest_mcp, registry_component_from_manifest
 from attestral.model import SystemModel
 from attestral.rules import RuleEngine
+from _helpers import ids_for
 
 
-def _ids(path: str) -> set[str]:
-    return {f.rule_id for f in RuleEngine().evaluate(build_model(path))}
 
 
 def _ids_model(model: SystemModel) -> set[str]:
@@ -28,7 +27,7 @@ def _ids_model(model: SystemModel) -> set[str]:
 # --- ATL-147: bind to all interfaces ---------------------------------------
 
 def test_bind_all_fires_atl147():
-    ids = _ids("examples/mcp-bind-all")
+    ids = ids_for("examples/mcp-bind-all")
     assert "ATL-147" in ids
 
 
@@ -53,7 +52,7 @@ def test_localhost_and_stdio_servers_do_not_fire_atl147(tmp_path):
 # --- ATL-148: token / session passthrough ----------------------------------
 
 def test_token_passthrough_fires_atl148():
-    ids = _ids("examples/mcp-token-passthrough")
+    ids = ids_for("examples/mcp-token-passthrough")
     assert "ATL-148" in ids
 
 
@@ -80,7 +79,7 @@ def test_generic_secret_env_is_atl104_not_atl148(tmp_path):
 # --- ATL-069: launch-template IMDSv1 ---------------------------------------
 
 def test_launch_template_imdsv1_fires_atl069():
-    ids = _ids("examples/aws-launch-template")
+    ids = ids_for("examples/aws-launch-template")
     assert "ATL-069" in ids
 
 
@@ -97,13 +96,13 @@ def test_hardened_launch_template_not_flagged(tmp_path):
         '    http_tokens = "required"\n'
         "  }\n}\n"
     )
-    assert "ATL-069" not in _ids(str(tmp_path))
+    assert "ATL-069" not in ids_for(str(tmp_path))
 
 
 # --- ATL-338: AKS local accounts -------------------------------------------
 
 def test_aks_local_accounts_fires_atl338():
-    ids = _ids("examples/aks-local-accounts")
+    ids = ids_for("examples/aks-local-accounts")
     assert "ATL-338" in ids
 
 
@@ -118,7 +117,7 @@ def test_aks_local_accounts_disabled_not_flagged(tmp_path):
         'resource "azurerm_kubernetes_cluster" "ok" {\n'
         "  local_account_disabled = true\n}\n"
     )
-    assert "ATL-338" not in _ids(str(tmp_path))
+    assert "ATL-338" not in ids_for(str(tmp_path))
 
 
 # --- ATL-133: deprecated transport broadened to websocket ------------------

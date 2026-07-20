@@ -11,16 +11,13 @@ the identity-propagation gap.
 from attestral.ingest import build_model
 from attestral.model import Component, SystemModel
 from attestral.rules import RuleEngine
+from _helpers import evaluate, rule_ids
 
 FIXTURE = "examples/rag-shared-identity"
 
 
-def _findings(model):
-    return RuleEngine().evaluate(model)
 
 
-def _ids(model):
-    return {f.rule_id for f in _findings(model)}
 
 
 def _public_endpoint(name="front"):
@@ -49,7 +46,7 @@ def _model(*components):
 # --- ATL-211 on the fixture ---------------------------------------------------
 
 def test_atl_211_fires_on_rag_fixture_and_attributes_the_flagged_server():
-    hits = [f for f in _findings(build_model(FIXTURE)) if f.rule_id == "ATL-211"]
+    hits = [f for f in evaluate(build_model(FIXTURE)) if f.rule_id == "ATL-211"]
     assert len(hits) == 1, "exactly one flagged data server -> exactly one finding"
     (f,) = hits
     assert f.component_id == "mcp_server.qdrant"
@@ -59,23 +56,23 @@ def test_atl_211_fires_on_rag_fixture_and_attributes_the_flagged_server():
 
 
 def test_atl_211_does_not_flag_the_scoped_docs_server():
-    hits = [f for f in _findings(build_model(FIXTURE)) if f.rule_id == "ATL-211"]
+    hits = [f for f in evaluate(build_model(FIXTURE)) if f.rule_id == "ATL-211"]
     assert all(f.component_id != "mcp_server.docs" for f in hits)
 
 
 def test_atl_211_does_not_fire_on_vulnerable_agent():
     # No a2a_agent in that fixture: one side of the pair is absent.
-    assert "ATL-211" not in _ids(build_model("examples/vulnerable-agent"))
+    assert "ATL-211" not in rule_ids(build_model("examples/vulnerable-agent"))
 
 
 # --- single-sided models never fire --------------------------------------------
 
 def test_public_endpoint_alone_does_not_fire():
-    assert "ATL-211" not in _ids(_model(_public_endpoint()))
+    assert "ATL-211" not in rule_ids(_model(_public_endpoint()))
 
 
 def test_shared_credential_server_alone_does_not_fire():
-    assert "ATL-211" not in _ids(_model(_shared_credential_server()))
+    assert "ATL-211" not in rule_ids(_model(_shared_credential_server()))
 
 
 def test_non_public_endpoint_with_flagged_server_does_not_fire():
@@ -84,13 +81,13 @@ def test_non_public_endpoint_with_flagged_server_does_not_fire():
         attributes={"_effectively_public": False},
         trust_boundary="agent_runtime",
     )
-    assert "ATL-211" not in _ids(_model(quiet, _shared_credential_server()))
+    assert "ATL-211" not in rule_ids(_model(quiet, _shared_credential_server()))
 
 
 def test_both_sides_fire_and_subagents_count_as_the_credential_side():
-    ids = _ids(_model(_public_endpoint(), _shared_credential_server()))
+    ids = rule_ids(_model(_public_endpoint(), _shared_credential_server()))
     assert "ATL-211" in ids
-    ids = _ids(_model(
+    ids = rule_ids(_model(
         _public_endpoint(), _shared_credential_server(name="delegate", ctype="subagent"),
     ))
     assert "ATL-211" in ids
@@ -120,7 +117,7 @@ def test_shared_identity_spec_fails_closed(tmp_path):
 
 def test_atl_336_fires_on_azure_pack_fixture():
     hits = [
-        f for f in _findings(build_model("examples/azure-pack"))
+        f for f in evaluate(build_model("examples/azure-pack"))
         if f.rule_id == "ATL-336"
     ]
     assert len(hits) == 1
@@ -134,4 +131,4 @@ def test_atl_336_stays_quiet_when_public_access_is_disabled():
         attributes={"public_network_access_enabled": False},
         trust_boundary="cloud",
     )
-    assert "ATL-336" not in _ids(_model(private))
+    assert "ATL-336" not in rule_ids(_model(private))
