@@ -7,6 +7,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **ATL-152: committed settings file auto-trusts a plugin marketplace.** A repo-committed
+  `.claude/settings.json` that declares an extra plugin marketplace (`extraKnownMarketplaces`) or
+  auto-enables plugins (`enabledPlugins`) is a supply-chain grant: a Claude Code plugin silently
+  bundles hooks, MCP servers, and subagents, so anyone who opens or clones the repo inherits trust in
+  that marketplace and every plugin it serves - the same trust-boundary class as the hooks
+  config-injection (CVE-2025-59536) but for the whole plugin bundle, and worst when the marketplace is
+  sourced from a raw remote URL. New signals `_declares_plugin_marketplace` / `_remote_plugin_marketplace`
+  in `ingest/agent_config.py` (extending the existing settings.json parser), fixture
+  `examples/plugin-marketplace-trust`, benchmark case, tests. High severity, cites OWASP-ASI04,
+  OWASP-MCP MCP09, CWE-829; surfaced by the research radar (PromptArmor marketplace-plugin hijack, 2026).
 - **ML layer: multilingual injection detection in the zero-dependency heuristic tier.** The English
   pattern bank (and the English-first base classifier) is blind to a poisoned tool description written
   in another language. A new `multilingual_override` family adds the instruction-override phrase

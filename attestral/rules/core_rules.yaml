@@ -771,6 +771,15 @@ rules:
     recommendation: Do not co-locate delegated credentials with a remote endpoint. Exchange the caller's own identity for a narrowly scoped, short-lived downstream token per request (per the MCP auth spec), and never forward a static credential onward.
     frameworks: ["MCP Security Best Practices 2025-11-25", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025", "NSA CSI MCP 05/2026", "NIST AC-4", "NIST IA-5", "Agentic-SoK 2026 R5"]
 
+  - id: ATL-152
+    title: Committed settings file auto-trusts a plugin marketplace
+    severity: high
+    target: agent_config
+    match: { attr_equals: { _declares_plugin_marketplace: true } }
+    description: A repo-committed agent settings file (`.claude/settings.json`) declares an extra plugin marketplace (`extraKnownMarketplaces`) or auto-enables plugins (`enabledPlugins`). A Claude Code plugin silently bundles hooks, MCP servers, and subagents, so anyone who opens or clones the repo inherits trust in that marketplace and every plugin it serves - a supply-chain grant delivered through repo-controlled config, the same trust-boundary class as the hooks config-injection (CVE-2025-59536) but for the whole plugin bundle. A marketplace sourced from a raw remote URL is the worst case, fetching its plugin manifest from an arbitrary endpoint at load time.
+    recommendation: Do not inherit plugin-marketplace trust from a repo. Keep `extraKnownMarketplaces` and `enabledPlugins` in user-scoped settings you control, pin marketplaces to a reviewed org allowlist, and never auto-enable a plugin from a marketplace fetched over a raw URL.
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP09:2025", "NIST SA-12", "NIST CM-7", "CWE-829"]
+
   - id: ATL-151
     title: Secret hard-coded in an agent-instruction file
     severity: high

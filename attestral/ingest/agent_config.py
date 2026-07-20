@@ -352,6 +352,30 @@ def _is_agent_card(f: Path) -> bool:
     return f.name in _AGENT_CARD_NAMES and f.parent.name == ".well-known"
 
 
+def _marketplace_plugins(data: dict) -> dict:
+    """Plugin-marketplace supply-chain grants a committed settings file can carry.
+    A Claude Code plugin silently bundles hooks, MCP servers, and subagents, so
+    `extraKnownMarketplaces` (adding a marketplace) and `enabledPlugins`
+    (auto-enabling one) are trust anyone who opens the repo inherits. A
+    marketplace sourced from a raw remote URL is worst - it fetches its manifest
+    from an arbitrary endpoint at load."""
+    markets = data.get("extraKnownMarketplaces")
+    names: list[str] = []
+    remote = False
+    if isinstance(markets, dict):
+        for mname, m in markets.items():
+            names.append(str(mname))
+            src = m.get("source") if isinstance(m, dict) else None
+            stype = (src.get("source") if isinstance(src, dict) else src) or ""
+            if str(stype).lower() in ("url", "http", "https", "git"):
+                remote = True
+    elif isinstance(markets, list):
+        names = [str(m.get("name", m) if isinstance(m, dict) else m) for m in markets]
+    enabled = data.get("enabledPlugins")
+    plugins = [str(p) for p in enabled] if isinstance(enabled, (list, dict)) else []
+    return {"names": sorted(set(names)), "remote": remote, "plugins": sorted(set(plugins))}
+
+
 def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
     p = Path(path)
     if p.is_file():
@@ -393,6 +417,7 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
             str(e) for e in (allow or []) if isinstance(e, str)
             and e.strip() in ("*", "Bash", "Bash(*)", "Bash(:*)", "Bash( * )")
         }) if isinstance(allow, list) else []
+        mkt = _marketplace_plugins(data)
         # Name the component after the directory holding .claude, so two repos'
         # settings files never collide on one id.
         anchor = f.parent.parent.name or f.parent.name
@@ -409,6 +434,10 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
                     "_auto_enable_project_mcp": auto_enable_mcp,
                     "_permissive_allow": bool(permissive),
                     "_permissive_allow_entries": permissive,
+                    "_declares_plugin_marketplace": bool(mkt["names"] or mkt["plugins"]),
+                    "_remote_plugin_marketplace": mkt["remote"],
+                    "_plugin_marketplaces": mkt["names"],
+                    "_enabled_plugins": mkt["plugins"],
                 },
                 trust_boundary="agent_runtime",
             )

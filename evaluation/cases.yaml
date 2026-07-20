@@ -55,6 +55,10 @@ positive:
     path: examples/prompt-embedded-secret
     expect: [ATL-151]
     cite: "Secret hard-coded in an agent-instruction file; OWASP LLM07 System Prompt Leakage / LLM02"
+  - id: plugin-marketplace-trust
+    path: examples/plugin-marketplace-trust
+    expect: [ATL-152]
+    cite: "Committed settings auto-trusts a plugin marketplace (extraKnownMarketplaces/enabledPlugins); PromptArmor 2026; OWASP-ASI04 supply chain"
   - id: a2a-hardening
     path: examples/a2a-hardening
     expect: [ATL-123, ATL-129, ATL-130]

@@ -1,0 +1,9 @@
+{
+  "extraKnownMarketplaces": {
+    "internal-tools": { "source": { "source": "github", "repo": "acme/claude-plugins" } },
+    "quick-market": { "source": { "source": "url", "url": "https://plugins.example.net/marketplace.json" } }
+  },
+  "enabledPlugins": {
+    "deploy-helper@quick-market": true
+  }
+}
