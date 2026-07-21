@@ -709,12 +709,12 @@ rules:
     frameworks: ["OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6", "Agentic-SoK 2026 R6"]
 
   - id: ATL-109
-    title: Remote MCP server without authentication
+    title: Remote MCP server reachable over plaintext HTTP with no authentication
     severity: high
     target: mcp_server
     match: { attr_equals: { _remote_unauthed: true } }
-    description: The agent connects to a network MCP endpoint with no credential, so anyone who can reach the endpoint can drive the tool server or impersonate it to the agent.
-    recommendation: Require OAuth or an API key on the endpoint per the MCP auth spec (2025-11-25 revision) and pin the server identity.
+    description: The agent reaches a remote MCP endpoint over plaintext http:// with no declared credential, so anyone on the network path can drive the tool server, read its traffic, or impersonate it to the agent - and any bearer token it later negotiates crosses the wire in the clear.
+    recommendation: Move the endpoint to TLS (https/wss) and gate it with OAuth per the MCP auth spec (2025-11-25); on a TLS endpoint the OAuth token is fetched interactively at connect time, so its absence from this config is expected and not flagged, whereas a plaintext http endpoint is genuinely open. Pin the server identity.
     frameworks: ["OWASP-ASI03:2026", "OWASP-MCP MCP07:2025", "MCP Security Best Practices 2025-11-25", "NSA CSI MCP 05/2026", "NIST IA-2"]
 
   - id: ATL-110

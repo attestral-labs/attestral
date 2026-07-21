@@ -9,7 +9,7 @@
       "args": ["--registry", "https://npm.internal.acme.dev", "@acme/tools-mcp"]
     },
     "insecure-remote": {
-      "url": "https://tools.acme.dev/mcp",
+      "url": "http://tools.acme.dev/mcp",
       "env": {
         "NODE_TLS_REJECT_UNAUTHORIZED": "0"
       }

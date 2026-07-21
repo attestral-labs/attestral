@@ -250,11 +250,22 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         attrs["_auto_approve"] = bool(auto_list) or any(
             flag in launch for flag in _AUTO_APPROVE_FLAGS
         )
-        # Remote transport (a `url`) with no declared authentication:
-        # anyone who can reach the endpoint can drive the tool server, or
-        # impersonate it to the agent. A secret env var or an auth header
-        # counts as "authenticated"; only set on remote servers so the
-        # rule (attr_equals _remote_unauthed=true) never matches stdio.
+        # Remote transport (a `url`) that is genuinely exposed: a non-loopback,
+        # PLAINTEXT http endpoint with no declared authentication. A secret env
+        # var or an auth header counts as "authenticated"; only set on remote
+        # servers so the rule (attr_equals _remote_unauthed=true) never matches
+        # stdio.
+        #
+        # OAuth-per-spec awareness (MCP Security Best Practices, spec revisions
+        # 2025-06-18 and 2025-11-25): the HTTP transports mandate OAuth 2.1, and
+        # the client obtains that token through an interactive flow at connect
+        # time - so a spec-compliant https:// (or wss://) endpoint carries NO
+        # static credential in this config, and that absence is expected, not a
+        # finding. Flagging it would false-positive on every OAuth-gated hosted
+        # server (github, supabase, sentry, ...). We flag ONLY a plaintext,
+        # non-loopback http endpoint: it is reachable by anyone on the path and,
+        # even if it did negotiate OAuth, the bearer token would cross the wire
+        # in cleartext. A loopback dev endpoint is not exposed, so it is exempt.
         if attrs["url"]:
             headers = cfg.get("headers")
             header_keys = (
@@ -270,7 +281,14 @@ def component_from_server(name: str, cfg, source: str) -> Component:
                     for k in header_keys
                 )
             )
-            attrs["_remote_unauthed"] = not has_auth
+            url_l = attrs["url"].strip().lower()
+            is_plaintext = url_l.startswith("http://")
+            is_loopback = any(
+                h in url_l for h in ("localhost", "127.0.0.1", "[::1]", "0.0.0.0")
+            )
+            attrs["_remote_unauthed"] = (
+                not has_auth and is_plaintext and not is_loopback
+            )
             # Confused-deputy / token passthrough (MCP Security Best Practices
             # 2025-06-18): a network-reachable server that ALSO holds a
             # downstream credential can be induced to spend that delegated
