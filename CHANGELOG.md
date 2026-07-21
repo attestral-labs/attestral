@@ -572,6 +572,23 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   that agentic rules stay silent on a pure-IaC repo.
 
 ### Fixed
+- **ATL-109 is OAuth-aware (kills a systematic false positive on hosted MCP
+  endpoints).** The rule fired on any remote MCP server (`url` set) that carried
+  no static credential. But MCP's HTTP transports mandate OAuth 2.1 (MCP Security
+  Best Practices, spec revisions 2025-06-18 / 2025-11-25): the client obtains the
+  bearer token through an interactive flow at connect time, so a spec-compliant
+  `https://` hosted endpoint (`https://api.githubcopilot.com/mcp/`,
+  `https://mcp.supabase.com/mcp`, `https://mcp.sentry.dev/...`) legitimately has
+  no token in the config - and asserting "no authentication, anyone can drive it"
+  on those is wrong. `ingest/mcp.py` now sets `_remote_unauthed` (the signal
+  ATL-109 matches) only for a genuinely-exposed endpoint: a non-loopback,
+  plaintext `http://` remote with no declared auth, where any bearer token would
+  also cross the wire in cleartext. TLS endpoints (`https`/`wss`) with no static
+  credential are OAuth-expected and no longer flagged; loopback dev entries are
+  exempt. ATL-109's title/description/recommendation and the site's browser-demo
+  `derive()` mirror were updated to match; the `mcp-supply-chain` fixture's
+  `insecure-remote` server moved to plaintext `http://` so the positive still
+  holds. Regression coverage in `tests/test_atl109_oauth_aware.py`.
 - **Security-group CIDR matching is direction-aware (kills the first-scan false
   positive on real Terraform).** The ingester collected `cidr_blocks` from any
   nested block, ingress or egress, into one `_cidr_blocks` union, so ATL-002
