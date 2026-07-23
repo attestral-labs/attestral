@@ -60,6 +60,12 @@ img{max-width:100%;height:auto}
   .nav-links{margin-left:auto;display:flex;align-items:center;gap:20px}
   .nav-links a{font-family:var(--mono);font-size:.76rem;text-decoration:none;color:var(--muted);transition:color .15s}
   .nav-links a:hover{color:var(--ink)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  .subnav{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--card) 40%,var(--paper))}
+  .subnav .wrap{display:flex;align-items:center;gap:18px;padding-top:8px;padding-bottom:8px;font-family:var(--mono);font-size:.7rem}
+  .subnav span{color:var(--muted);letter-spacing:.12em;text-transform:uppercase;font-size:.62rem}
+  .subnav a{color:var(--muted);text-decoration:none;transition:color .15s}
+  .subnav a:hover{color:var(--seal)}
   .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);width:34px;height:34px;border-radius:50%;
     cursor:pointer;font-size:.9rem;display:grid;place-items:center;transition:border-color .15s}
   .theme-toggle:hover{border-color:var(--ink)}
@@ -254,15 +260,27 @@ img{max-width:100%;height:auto}
       <svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>
       Attestral<span>.</span>
     </a>
-    <nav class="nav-links" aria-label="Sections">
-      <a href="#pipeline">The pipeline</a>
-      <a href="#caps">Capabilities</a>
-      <a href="#potential">Potential</a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="pipeline.html">Pipeline</a>
+      <a href="capabilities.html" aria-current="page">Capabilities</a>
+      <a href="system.html">System</a>
+      <a href="proof.html">Proof</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="architecture.html">Architecture</a>
       <a class="ghlink" href="https://github.com/attestral-labs/attestral">GitHub</a>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme" title="Toggle theme">&#9790;</button>
     </nav>
   </div>
 </header>
+<nav class="subnav" aria-label="On this page">
+  <div class="wrap">
+    <span>On this page</span>
+    <a href="#pipeline">The pipeline</a>
+    <a href="#caps">Commands</a>
+    <a href="#potential">Potential</a>
+  </div>
+</nav>
 <main id="top">
   <section class="hero">
     <div class="wrap">
