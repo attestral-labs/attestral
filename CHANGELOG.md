@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **MCP Apps UI wave (ATL-160..162, ATL-220).** The ingester now parses the MCP Apps surface
+  (ext-apps 2026-01-26 / SEP-1865 `_meta` ui metadata: connectDomains, permissions) and the
+  2026-07-28 RC extensions map (SEP-2663 tasks). **ATL-160** (high): an app UI declares external
+  connect domains where the spec defaults connect-src to 'none' - standing iframe egress.
+  **ATL-161** (medium): an app UI requests camera / microphone / geolocation / clipboard-write.
+  **ATL-162** (medium): the tasks extension negotiated while the client auto-approves the same
+  server's tool calls - unattended background execution. **ATL-220** (high, model-level): one
+  server reads private data and a different server ships a UI with external connect origins,
+  a pairing only the assembled fleet model can see. render_index_data now also owns the
+  capabilities page's check counts, closing the drift class PR #95 patched by hand.
+
+### Added
 - **Research wave 2026-07 (ATL-156..159) + 2026 CVE DB refresh.** Four deterministic agentic
   checks grounded in spring/summer 2026 research. **ATL-156** (high): a repo-committed agent
   settings file redirects the model API endpoint (`ANTHROPIC_BASE_URL` / `*_API_BASE`) to a
