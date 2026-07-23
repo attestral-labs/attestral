@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Attestral: continuous, audit-ready security design review for AI agents, MCP servers, and the cloud they can reach.">
+<title>Attestral · Security review for systems that act</title>
+<style>
+*{box-sizing:border-box}
+img{max-width:100%;height:auto}
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --seal-deep:#7C1B25;
+    --rule:#D3D6D0; --muted:#5D6660; --verify:#1F6A4A; --amber:#9A6B12; --card:#FBFBF9;
+    --term-bg:#171F1C; --term-bar:#232B26; --tint:rgba(150,34,46,.055);
+    --verify-tint:rgba(31,106,74,.10); --node:#5A665F;
+    --display:'Libre Caslon Text',Georgia,'Times New Roman',serif;
+    --body:'Public Sans',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+    --maxw:1160px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E120C; --ink:#EAEDE5; --seal:#E8737E; --seal-deep:#C0525E;
+      --rule:#2B3129; --muted:#9DA99E; --verify:#5FBE90; --amber:#D6A94E; --card:#161B13;
+      --term-bg:#0A0D07; --term-bar:#151A11; --tint:rgba(232,115,126,.10);
+      --verify-tint:rgba(95,190,144,.12); --node:#7E938A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E120C; --ink:#EAEDE5; --seal:#E8737E; --seal-deep:#C0525E;
+    --rule:#2B3129; --muted:#9DA99E; --verify:#5FBE90; --amber:#D6A94E; --card:#161B13;
+    --term-bg:#0A0D07; --term-bar:#151A11; --tint:rgba(232,115,126,.10);
+    --verify-tint:rgba(95,190,144,.12); --node:#7E938A;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;margin:0;overflow-x:hidden}
+  ::selection{background:var(--seal);color:var(--paper)}
+  a{color:inherit}
+  code{font-family:var(--mono);font-size:.88em}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 26px}
+  .prose{max-width:64ch}
+  h1,h2,h3{font-family:var(--display);font-weight:400;text-wrap:balance;margin:0}
+  h1{font-size:clamp(2.4rem,6.4vw,4.5rem);line-height:1.05;letter-spacing:-.014em}
+  h2{font-size:clamp(1.75rem,3.7vw,2.7rem);line-height:1.13;max-width:20ch}
+  h3{font-size:1.15rem;line-height:1.3}
+  p{margin:0 0 1rem}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.17em;text-transform:uppercase;color:var(--seal);display:block}
+  .muted{color:var(--muted)}
+  .lede{font-size:clamp(1.1rem,2vw,1.36rem);line-height:1.5}
+
+  header{position:sticky;top:0;z-index:60;background:color-mix(in srgb,var(--paper) 84%,transparent);
+    backdrop-filter:saturate(1.2) blur(10px);border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:center;gap:22px;height:60px}
+  .wordmark{display:flex;align-items:center;gap:9px;font-family:var(--display);font-size:1.3rem;font-weight:700;
+    text-decoration:none;color:var(--ink);letter-spacing:.01em}
+  .wordmark span{color:var(--seal)}
+  .nav-links{margin-left:auto;display:flex;align-items:center;gap:20px}
+  .nav-links a{font-family:var(--mono);font-size:.76rem;text-decoration:none;color:var(--muted);transition:color .15s}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  .subnav{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--card) 40%,var(--paper))}
+  .subnav .wrap{display:flex;align-items:center;gap:18px;padding-top:8px;padding-bottom:8px;font-family:var(--mono);font-size:.7rem}
+  .subnav span{color:var(--muted);letter-spacing:.12em;text-transform:uppercase;font-size:.62rem}
+  .subnav a{color:var(--muted);text-decoration:none;transition:color .15s}
+  .subnav a:hover{color:var(--seal)}
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);width:34px;height:34px;border-radius:50%;
+    cursor:pointer;font-size:.9rem;display:grid;place-items:center;transition:border-color .15s}
+  .theme-toggle:hover{border-color:var(--ink)}
+  @media(max-width:760px){.nav-links a:not(.ghlink){display:none}}
+
+  .btn{display:inline-flex;align-items:center;gap:9px;padding:13px 24px;text-decoration:none;font-weight:600;font-size:.95rem;
+    border:1.5px solid var(--ink);color:var(--ink);background:transparent;border-radius:3px;cursor:pointer;
+    transition:background .16s,color .16s,transform .16s}
+  .btn:hover{background:var(--ink);color:var(--paper);transform:translateY(-2px)}
+  .btn.seal{border-color:var(--seal);color:#fff;background:var(--seal)}
+  .btn.seal:hover{background:var(--seal-deep);border-color:var(--seal-deep)}
+  .btn-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:8px}
+
+  section{padding:clamp(56px,8.5vw,104px) 0;border-top:1px solid var(--rule)}
+  section.tight{padding:clamp(42px,6vw,70px) 0}
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+  /* ---- hero ---- */
+  .hero{padding-top:clamp(46px,7vw,84px);padding-bottom:clamp(30px,4vw,50px);border-top:none;text-align:center}
+  .hero .prose{margin:0 auto}
+  .metaline{font-family:var(--mono);font-size:.74rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 15px;justify-content:center;margin:20px 0 26px}
+  .metaline b{color:var(--ink);font-weight:600}.metaline .dot{color:var(--seal)}
+  .scrollcue{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+  .scrollcue span{display:inline-block;animation:bob 1.6s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(5px)}}
+  @media(prefers-reduced-motion:reduce){.scrollcue span{animation:none}}
+
+  /* ---- pipeline scrollytelling ---- */
+  .pipe{position:relative;border-top:1px solid var(--rule)}
+  .pipe-grid{max-width:1240px;margin:0 auto;padding:0 22px;display:grid;grid-template-columns:1.05fr .95fr;gap:36px;align-items:start}
+  .pipe-viz{position:sticky;top:60px;height:calc(100vh - 60px);min-height:440px;display:flex;align-items:center}
+  .stage{position:relative;width:100%;height:min(86vh,760px);border:1px solid var(--rule);border-radius:16px;overflow:hidden;
+    background:radial-gradient(130% 100% at 50% -10%,var(--tint),transparent 55%),
+      linear-gradient(180deg,color-mix(in srgb,var(--card) 55%,var(--paper)),var(--paper));
+    box-shadow:inset 0 0 140px -50px rgba(0,0,0,.28);touch-action:none;cursor:grab}
+  .stage.grabbing{cursor:grabbing}
+  #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .lab3d{position:absolute;transform:translate(-50%,-50%);font-family:var(--mono);font-size:.68rem;color:var(--ink);white-space:nowrap;
+    background:color-mix(in srgb,var(--card) 70%,transparent);padding:2px 7px;border-radius:5px;border:1px solid var(--rule);line-height:1.3;
+    transition:opacity .3s,color .3s,border-color .3s;backdrop-filter:blur(3px)}
+  .lab3d.b{color:var(--muted);letter-spacing:.13em;text-transform:uppercase;font-size:.56rem;border-style:dashed;background:transparent}
+  .lab3d.hot{color:var(--seal);border-color:var(--seal);background:var(--tint)}
+
+  .stagetag{position:absolute;top:14px;left:16px;z-index:3;font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);background:color-mix(in srgb,var(--card) 78%,transparent);border:1px solid var(--rule);border-radius:100px;padding:6px 13px;backdrop-filter:blur(5px)}
+  .stagetag b{color:var(--seal)}
+  .rail{position:absolute;top:50%;right:14px;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;gap:9px}
+  .rail button{width:9px;height:9px;padding:0;border-radius:50%;border:1px solid var(--muted);background:transparent;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+  .rail button[aria-current="true"]{background:var(--seal);border-color:var(--seal);transform:scale(1.35)}
+  .hud{position:absolute;bottom:14px;left:16px;right:16px;z-index:3;font-family:var(--mono);font-size:.75rem;color:var(--ink);
+    background:color-mix(in srgb,var(--card) 84%,transparent);border:1px solid var(--rule);border-radius:10px;padding:11px 13px;backdrop-filter:blur(6px);
+    min-height:0;transition:border-color .3s;pointer-events:none}
+  .hud.danger{border-color:var(--seal)}.hud.good{border-color:color-mix(in srgb,var(--verify) 60%,var(--rule))}
+  .hud .hk{font-size:.6rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:block}
+  .hud b{color:var(--seal)} .hud .ok{color:var(--verify)}
+  .meter{height:7px;border-radius:100px;background:color-mix(in srgb,var(--muted) 30%,transparent);overflow:hidden;margin-top:6px}
+  .meter i{display:block;height:100%;width:0;background:var(--seal);transition:width 1.1s cubic-bezier(.2,.7,.2,1)}
+  .tiers{display:flex;gap:6px;margin-top:8px;font-size:.62rem;color:var(--muted)}
+  .tiers span{border:1px solid var(--rule);border-radius:4px;padding:2px 7px}
+  .tiers span.on{color:var(--ink);border-color:var(--ink)}
+  .bl{margin:6px 0 0;padding:0;list-style:none;font-size:.72rem}
+  .bl li{display:flex;gap:8px;padding:1px 0;color:var(--muted);opacity:.32;transition:opacity .25s,color .25s}
+  .bl li.hit{opacity:1;color:var(--ink)}.bl li .rn{color:var(--seal);font-weight:600;min-width:13px}.bl li .bd{margin-left:auto;font-size:.64rem;color:var(--muted)}
+  .glfail{display:none;padding:40px 24px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:.85rem}
+  .stage.failed #gl,.stage.failed .labels,.stage.failed .rail,.stage.failed .hud{display:none}
+  .stage.failed .glfail{display:block}
+
+  .pipe-steps{padding:22vh 0 30vh}
+  .pstep{min-height:78vh;display:flex;flex-direction:column;justify-content:center}
+  .pstep .num{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--seal);margin-bottom:12px}
+  .pstep h2{font-size:clamp(1.5rem,3vw,2.15rem);max-width:16ch;margin-bottom:14px}
+  .pstep p{max-width:46ch;color:var(--muted);font-size:1.02rem}
+  .pstep .aside{font-family:var(--mono);font-size:.8rem;color:var(--ink);border-left:2px solid var(--seal);padding:3px 0 3px 14px;margin-top:12px;max-width:44ch}
+  @media(max-width:900px){
+    .pipe-grid{grid-template-columns:1fr;gap:0}
+    .pipe-viz{top:60px;height:56vh;min-height:340px}
+    .stage{height:100%}
+    .pipe-steps{padding:6vh 0 20vh}
+    .pstep{min-height:70vh}
+  }
+
+  /* ---- terminal + capability explorer ---- */
+  .term{background:var(--term-bg);border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 24px 50px -30px rgba(0,0,0,.55)}
+  .term-bar{display:flex;align-items:center;gap:7px;padding:11px 14px;background:var(--term-bar)}
+  .term-bar i{width:11px;height:11px;border-radius:50%;background:#3a453f;display:block}
+  .term-bar i:nth-child(1){background:#E8737E}.term-bar i:nth-child(2){background:#D9B26A}.term-bar i:nth-child(3){background:#5FBE90}
+  .term-title{margin-left:8px;font-family:var(--mono);font-size:.72rem;color:#8FA398;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .term-body{padding:18px 20px;font-family:var(--mono);font-size:.79rem;line-height:1.75;color:#DDE2DD;min-height:230px;white-space:pre-wrap;word-break:break-word}
+  .term-body .g{color:#7FC79E}.term-body .r{color:#F19AA2}.term-body .y{color:#E4C57E}.term-body .m{color:#8FA398}.term-body .w{color:#fff}
+  .caret{display:inline-block;width:8px;height:1.05em;background:#7FC79E;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+  @media(prefers-reduced-motion:reduce){.caret{animation:none}}
+  .cap-grid{display:grid;grid-template-columns:280px 1fr;gap:26px;margin-top:34px}
+  @media(max-width:820px){.cap-grid{grid-template-columns:1fr}}
+  .cap-list{display:flex;flex-direction:column;gap:2px}
+  @media(max-width:820px){.cap-list{flex-direction:row;overflow-x:auto;gap:8px;padding-bottom:6px}}
+  .cap-btn{text-align:left;background:transparent;border:none;border-left:2px solid var(--rule);padding:12px 16px;cursor:pointer;color:var(--muted);
+    transition:color .15s,border-color .15s,background .15s;display:flex;flex-direction:column;gap:2px;flex:none}
+  .cap-btn:hover{color:var(--ink);background:var(--tint)}
+  .cap-btn .cmd{font-family:var(--mono);font-size:.86rem;color:inherit}.cap-btn .cd{font-size:.78rem}
+  .cap-btn[aria-selected="true"]{color:var(--ink);border-left-color:var(--seal);background:var(--tint)}
+  .cap-btn[aria-selected="true"] .cmd{color:var(--seal)}
+  @media(max-width:820px){.cap-btn{border-left:none;border-bottom:2px solid var(--rule);white-space:nowrap}.cap-btn[aria-selected="true"]{border-bottom-color:var(--seal)}}
+
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:26px;margin-top:30px}
+  @media(max-width:720px){.metrics{grid-template-columns:repeat(2,1fr);gap:22px}}
+  .metric .num{font-family:var(--display);font-size:clamp(2.1rem,4.5vw,3rem);line-height:1;color:var(--seal);font-variant-numeric:tabular-nums}
+  .metric .lbl{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin-top:10px}
+  .metric .sub{font-size:.82rem;color:var(--muted);margin-top:3px}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:22px}
+  .chip{font-family:var(--mono);font-size:.74rem;color:var(--ink);border:1px solid var(--rule);background:var(--card);border-radius:100px;padding:6px 13px}
+  .chip b{color:var(--seal);font-weight:600}
+  .pull{font-family:var(--display);font-size:clamp(1.5rem,3.4vw,2.2rem);line-height:1.22;max-width:24ch;border-left:3px solid var(--seal);padding:4px 0 4px 24px;margin:0 auto}
+
+  .cmdbox{display:inline-flex;align-items:center;gap:14px;background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.96rem;padding:13px 14px 13px 18px;border-radius:6px;max-width:100%;overflow-x:auto}
+  .cmdbox .pr{color:#7FC79E}
+  .cmdbox button{background:transparent;border:1px solid #3a453f;color:#9fb0a7;font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;padding:6px 11px;border-radius:4px;cursor:pointer;transition:color .15s,border-color .15s;flex:none}
+  .cmdbox button:hover{color:#fff;border-color:#6a7a72}
+  .end{text-align:center}.end h2{margin:0 auto 12px;max-width:22ch}.end .btn-row{justify-content:center}
+  .works{font-family:var(--mono);font-size:.8rem;color:var(--muted);margin:0 0 26px}
+  .works b{color:var(--verify)}
+  footer{border-top:1px solid var(--rule);padding:30px 0 46px}
+  .foot{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+  .foot a{color:var(--muted);text-decoration:none}.foot a:hover{color:var(--ink)}
+  .stamp{display:inline-flex;align-items:center;gap:9px}
+  .stamp .s{width:34px;height:34px;border-radius:50%;background:var(--seal);color:#fff;font-family:var(--mono);font-size:.5rem;display:grid;place-items:center;text-align:center;line-height:1.15;border:2px solid var(--seal-deep);transform:rotate(-7deg)}
+
+  /* ---- 2D pipeline diagram ---- */
+  #stage{cursor:default}
+  #diagram{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #diagram text{font-family:var(--mono)}
+  .d-laneband{fill:color-mix(in srgb,var(--card) 45%,transparent);stroke:var(--rule);stroke-width:1}
+  .d-lanelabel{fill:var(--muted);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase}
+  .d-edge{stroke:color-mix(in srgb,var(--muted) 42%,var(--paper));stroke-width:1.4;stroke-linecap:round;fill:none;transition:stroke .5s ease,opacity .5s ease,stroke-width .3s ease}
+  .d-edge.tri{stroke:var(--seal);stroke-width:2.4}
+  .d-edge.allow{stroke:var(--verify);stroke-width:2.2}
+  .d-edge.dim{opacity:.2}
+  svg.focus #nodes,svg.focus #edges{opacity:.14;transition:opacity .5s ease}
+  .d-shape{fill:var(--card);stroke:var(--node);stroke-width:1.6;transition:fill .45s ease,stroke .45s ease,stroke-width .3s ease}
+  .d-node{transition:opacity .45s ease}
+  .d-nlabel{font-size:11px;fill:var(--muted);text-anchor:middle;transition:fill .4s ease}
+  .d-node.hub .d-shape{fill:var(--ink);stroke:var(--ink)}
+  .d-node.hub .d-nlabel{fill:var(--ink);font-size:12px}
+  .d-hubmark{stroke:var(--paper);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .d-node.crit .d-shape{fill:var(--seal);stroke:var(--seal-deep)}
+  .d-node.high .d-shape{fill:var(--amber);stroke:var(--amber)}
+  .d-node.med .d-shape{fill:var(--muted);stroke:var(--muted)}
+  .d-node.crit .d-nlabel,.d-node.high .d-nlabel,.d-node.med .d-nlabel{fill:var(--ink)}
+  .d-node.lit .d-shape{stroke:var(--seal);stroke-width:2.6}
+  .d-node.allow .d-shape{stroke:var(--verify);stroke-width:2.6}
+  .d-node.waived .d-shape{fill:transparent;stroke:var(--muted);stroke-dasharray:4 3}
+  .d-node.waived .d-nlabel{fill:var(--muted)}
+  .d-node.dim{opacity:.3}
+  .d-anno{opacity:0;transition:opacity .5s ease;pointer-events:none}
+  .d-anno.on{opacity:1}
+  .d-pin{opacity:0;transition:opacity .35s ease}
+  .d-pin.vis{opacity:1}
+  .d-pinstem{stroke-width:1.3}
+  .d-pin.crit .d-pinstem{stroke:var(--seal)}.d-pin.crit .d-pinhead{fill:var(--seal)}
+  .d-pin.high .d-pinstem{stroke:var(--amber)}.d-pin.high .d-pinhead{fill:var(--amber)}
+  .d-pin.med .d-pinstem{stroke:var(--muted)}.d-pin.med .d-pinhead{fill:var(--muted)}
+  .d-chip rect{fill:var(--card);stroke:var(--rule);stroke-width:1}
+  .d-chip text{fill:var(--ink);font-size:11px}
+  .d-dot{fill:var(--muted)}
+  .d-scan{stroke:var(--seal);stroke-width:1.6;opacity:.55}
+  .d-scanfill{fill:var(--seal);opacity:.05}
+  .d-ring{fill:none;stroke:var(--seal);stroke-width:1.4}
+  .d-beam{fill:var(--seal);opacity:.12}
+  .d-glyph{fill:var(--card);stroke:var(--seal);stroke-width:1.6}
+  .d-glyph.ink{stroke:var(--ink)}
+  .d-glyphlabel{fill:var(--muted);font-size:10px;text-anchor:middle;letter-spacing:.08em;text-transform:uppercase}
+  .d-tag{font-size:10px;text-anchor:middle}
+  .d-block{fill:var(--card);stroke:var(--node);stroke-width:1.4}
+  .d-blocklabel{fill:var(--muted);font-size:9px;text-anchor:middle}
+  .d-link{stroke:var(--seal);stroke-width:2}
+  .d-seal{fill:var(--seal)}
+  .d-sealtext{fill:#fff;font-size:10px;text-anchor:middle;letter-spacing:.1em}
+  .d-gate{stroke:var(--verify);stroke-width:2;stroke-dasharray:6 4}
+  .d-extlabel{fill:var(--muted);font-size:10px}
+  .glfail{display:block}
+  .stage.ready .glfail{display:none}
+  @media (prefers-reduced-motion:reduce){.d-edge,.d-shape,.d-node,.d-nlabel,.d-anno,.d-pin{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="#top">
+      <svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>
+      Attestral<span>.</span>
+    </a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="pipeline.html">Pipeline</a>
+      <a href="capabilities.html" aria-current="page">Capabilities</a>
+      <a href="system.html">System</a>
+      <a href="proof.html">Proof</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a class="ghlink" href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme" title="Toggle theme">&#9790;</button>
+    </nav>
+  </div>
+</header>
+<nav class="subnav" aria-label="On this page">
+  <div class="wrap">
+    <span>On this page</span>
+    <a href="#pipeline">The pipeline</a>
+    <a href="#caps">Commands</a>
+    <a href="#potential">Potential</a>
+  </div>
+</nav>
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="prose">
+        <span class="eyebrow">Capabilities &middot; v0.18.0 &middot; Apache&#8209;2.0</span>
+        <h1 style="margin:18px 0 20px">Security review for systems that act.</h1>
+        <p class="lede muted">An AI agent isn&rsquo;t a program you scan line by line. It&rsquo;s a system that <em>reaches</em>: across tools, across trust boundaries, straight into your cloud. Attestral builds a living model of the whole thing and reviews the architecture, from the first design sketch to whatever&rsquo;s running at 2am. Below is the entire pipeline, one stage at a time, as a living diagram. Scroll, and watch it build itself.</p>
+        <div class="metaline">
+          <span><b>250</b> checks</span><span class="dot">&middot;</span>
+          <span><b>MCP</b> + agent + cloud</span><span class="dot">&middot;</span>
+          <span><b>OWASP</b> Agentic &amp; LLM Top&nbsp;10</span><span class="dot">&middot;</span>
+          <span><b>MITRE</b> ATLAS</span>
+        </div>
+        <div class="scrollcue"><span>&#8595; scroll the pipeline</span></div>
+      </div>
+    </div>
+  </section>
+  <div class="pipe" id="pipeline">
+    <div class="pipe-grid">
+      <div class="pipe-viz">
+        <div class="stage" id="stage">
+          <svg id="diagram" aria-hidden="true"></svg>
+          <div class="stagetag" id="stagetag"><b>01</b> &nbsp;Ingest</div>
+          <div class="rail" id="rail" aria-hidden="true"></div>
+          <div class="hud" id="hud"><span class="hk">reading</span>terraform, kubernetes, mcp configs, prompts</div>
+          <div class="glfail">This diagram needs JavaScript. The pipeline still holds: Attestral ingests your configs, models the system, reviews the graph, then compiles the reviewed design into a runtime policy.</div>
+        </div>
+      </div>
+
+      <div class="pipe-steps">
+        <div class="pstep" data-stage="0">
+          <div class="num">Stage 01 / Ingest</div>
+          <h2>First, it reads your mess.</h2>
+          <p>Terraform, Kubernetes, MCP configs, the prompt files nobody admits to committing. Attestral slurps them all in, comments and trailing commas included, and doesn&rsquo;t judge. Yet.</p>
+          <div class="aside">Four ingesters, zero setup. Point it at a repo and it finds the agent surface on its own.</div>
+        </div>
+        <div class="pstep" data-stage="1">
+          <div class="num">Stage 02 / Model</div>
+          <h2>Then it builds a map, not a list.</h2>
+          <p>Files become a system model: every component, every edge, and the trust boundaries they cross (agent runtime, cluster, cloud). This is the part linters skip, which is exactly why they miss the interesting failures.</p>
+          <div class="aside">Nodes are components, shaped by tier. Lines are reachability. The three lanes are trust boundaries.</div>
+        </div>
+        <div class="pstep" data-stage="2">
+          <div class="num">Stage 03 / Rules</div>
+          <h2>250 checks sweep the graph.</h2>
+          <p>No vibes, no maybes. Named, deterministic checks that either fire or don&rsquo;t, from unpinned installs to a lethal trifecta spanning three servers. Watch the scan pass through and the findings pop up where the relationships go wrong.</p>
+          <div class="aside">Critical in seal red, high in amber. Each one links to a one-line fix.</div>
+        </div>
+        <div class="pstep" data-stage="3">
+          <div class="num">Stage 04 / Blast radius</div>
+          <h2>The uncomfortable question, answered early.</h2>
+          <p>If <em>this</em> node gets popped, what goes with it? Attestral fires a wave from a compromised surface and ranks everything it can reach, across boundaries, in order. You get the postmortem before the incident, which is a much nicer time to get it.</p>
+          <div class="aside">Here: secrets-manager falls, and the blast rolls out through the cloud floor.</div>
+        </div>
+        <div class="pstep" data-stage="4">
+          <div class="num">Stage 05 / Language layer</div>
+          <h2>Some risks hide in the words.</h2>
+          <p>A tool description that&rsquo;s a little too eager to &ldquo;ignore previous instructions.&rdquo; The ML layer scores the language surfaces for prompt injection. It ships with a zero-dependency heuristic and upgrades to a real transformer only if you ask, and every tier returns the same shape of finding.</p>
+          <div class="aside">heuristic &#8594; onnx &#8594; deberta. Same output, your choice of horsepower.</div>
+        </div>
+        <div class="pstep" data-stage="5">
+          <div class="num">Stage 06 / Cross-examination</div>
+          <h2>For the gray areas, two models argue.</h2>
+          <p>One tries to elicit the bad behavior, the other judges whether it&rsquo;s actually real. It&rsquo;s cross-examination, minus the courtroom drama and the hourly rate. Opt-in, bring your own API key, off by default.</p>
+          <div class="aside">Elicitor proposes, judge disposes. Only survivors make the report.</div>
+        </div>
+        <div class="pstep" data-stage="6">
+          <div class="num">Stage 07 / Waivers</div>
+          <h2>Not every finding is a fire.</h2>
+          <p>Waive one and it&rsquo;s documented, dated, and set to expire, never quietly deleted. It stays right there in the record with a note attached and turns into a proper SARIF suppression. Auditors love this. You will too, eventually.</p>
+          <div class="aside">Waived is not the same as hidden. The finding keeps its seat.</div>
+        </div>
+        <div class="pstep" data-stage="7">
+          <div class="num">Stage 08 / Evidence chain</div>
+          <h2>Everything gets sealed.</h2>
+          <p>Findings link into a SHA-256 evidence chain. Nudge one after the fact and verification lights up like a smoke alarm. Hand the whole thing to your auditor, tamper-evident and boring in the best way, and go get a coffee.</p>
+          <div class="aside">Hash, prev-hash, seal. Change anything and the chain stops verifying.</div>
+        </div>
+        <div class="pstep" data-stage="8">
+          <div class="num">Stage 09 / Runtime loop</div>
+          <h2>Here&rsquo;s the part that isn&rsquo;t a scanner.</h2>
+          <p>Attestral compiles the attested design into a default-deny policy, then diffs live traffic against it. The design you reviewed becomes the guardrail that enforces it. When reality improvises, drift catches it mid-note. Most events sail through. The one that shouldn&rsquo;t, doesn&rsquo;t.</p>
+          <div class="aside">Green passes the policy. Red is drift, flagged the instant it happens.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <section id="caps">
+    <div class="wrap">
+      <div class="prose reveal">
+        <span class="eyebrow">One toolchain, terminal-first</span>
+        <h2 style="margin-top:14px">Point it at a repo. Pick a command.</h2>
+        <p class="muted">Every stage above is one command with tidy, severity-grouped output and <code>attestral explain &lt;ID&gt;</code> a keystroke away. Pick one and watch it work.</p>
+      </div>
+      <div class="cap-grid reveal">
+        <div class="cap-list" role="tablist" aria-label="Commands">
+          <button class="cap-btn" role="tab" aria-selected="true" data-cap="scan"><span class="cmd">attestral scan</span><span class="cd muted">review a repo or MCP config</span></button>
+          <button class="cap-btn" role="tab" aria-selected="false" data-cap="fleet"><span class="cmd">attestral fleet</span><span class="cd muted">many repos as one agent fleet</span></button>
+          <button class="cap-btn" role="tab" aria-selected="false" data-cap="blast"><span class="cmd">attestral blast-radius</span><span class="cd muted">rank surfaces by reach</span></button>
+          <button class="cap-btn" role="tab" aria-selected="false" data-cap="compile"><span class="cmd">attestral compile</span><span class="cd muted">design &#8594; runtime policy</span></button>
+          <button class="cap-btn" role="tab" aria-selected="false" data-cap="drift"><span class="cmd">attestral drift</span><span class="cd muted">watch runtime for divergence</span></button>
+          <button class="cap-btn" role="tab" aria-selected="false" data-cap="verify"><span class="cmd">attestral verify</span><span class="cd muted">check the evidence chain</span></button>
+        </div>
+        <div class="cap-panel">
+          <div class="term">
+            <div class="term-bar"><i></i><i></i><i></i><span class="term-title" id="capTitle">attestral scan ./agent</span></div>
+            <div class="term-body" id="capBody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="potential">
+    <div class="wrap">
+      <div class="prose reveal">
+        <span class="eyebrow">Where this goes</span>
+        <h2 style="margin-top:14px">A system of record for how your agents are allowed to behave.</h2>
+        <p class="muted">Right now most agent deployments have no artifact that says what the system is <em>supposed</em> to do: which tools may touch which data, which flows are allowed, what happens when one gets compromised. Attestral turns that into something real, verifiable, and enforceable.</p>
+        <p class="muted">Aimed at its full potential, every agent ships with an attested security design: reviewed against the OWASP Agentic and LLM Top 10 and MITRE ATLAS, compiled into a default-deny policy that enforces it at runtime, with a blast radius you already know before anything goes wrong, and an evidence chain an auditor can walk line by line. Not a report you file and forget. A living contract between the design and the running system.</p>
+        <p class="muted">That&rsquo;s the moat, and it&rsquo;s stubbornly hard to copy by piling on rules: a per-resource linter has no system model to attest, and a pure-LLM reviewer has nothing deterministic to enforce. Attestral holds both ends, the reasoning and the proof.</p>
+      </div>
+      <div class="metrics reveal">
+        <div class="metric"><div class="num">250</div><div class="lbl">Checks</div><div class="sub">agent, MCP &amp; cloud</div></div>
+        <div class="metric"><div class="num">111</div><div class="lbl">Cloud controls</div><div class="sub">AWS &middot; Azure &middot; GCP &middot; K8s</div></div>
+        <div class="metric"><div class="num">100s</div><div class="lbl">Real servers</div><div class="sub">standing regression corpus</div></div>
+        <div class="metric"><div class="num">0</div><div class="lbl">Keys to start</div><div class="sub">ML &amp; LLM opt-in</div></div>
+      </div>
+      <div class="chips reveal">
+        <span class="chip"><b>OWASP</b> LLM Top 10</span><span class="chip"><b>OWASP</b> Agentic Top 10</span>
+        <span class="chip"><b>MITRE</b> ATLAS</span><span class="chip"><b>NIST</b> controls</span>
+        <span class="chip"><b>CIS</b> AWS / Azure / GCP / K8s</span><span class="chip"><b>SARIF</b> output</span>
+      </div>
+    </div>
+  </section>
+  <section class="end tight">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="eyebrow" style="color:var(--muted)">Terminal-first &middot; nothing hits disk unless you ask</span>
+        <h2>Try it. It works.</h2>
+        <p class="works">That&rsquo;s the whole pitch. <b>One pip install, one command,</b> and you are reviewing the agents you already run.</p>
+        <div style="display:flex;justify-content:center;margin:0 0 22px">
+          <div class="cmdbox"><span><span class="pr">$</span> attestral scan --local</span><button data-copy="attestral scan --local" type="button">Copy</button></div>
+        </div>
+        <div class="btn-row">
+          <a class="btn seal" href="https://github.com/attestral-labs/attestral">Get Attestral</a>
+          <a class="btn" href="https://github.com/attestral-labs/attestral">Read the docs</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap foot">
+    <span class="stamp"><span class="s">ATL<br>&#10003;</span> Attestral &middot; security review for the agentic era</span>
+    <span>Apache&#8209;2.0 &middot; <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs</a></span>
+  </div>
+</footer>
+<script>
+(function(){
+  "use strict";
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var root=document.documentElement;
+  function tok(n){return getComputedStyle(root).getPropertyValue(n).trim();}
+  var tt=document.getElementById('themeToggle');
+  function curTheme(){var r=root.getAttribute('data-theme');if(r)return r;return (window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light';}
+  function paintToggle(){tt.textContent=curTheme()==='dark'?'☀':'☾';}
+  paintToggle();
+
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.14});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+  document.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){if(navigator.clipboard)navigator.clipboard.writeText(b.getAttribute('data-copy'));var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t;},1400);});});
+
+  function typeInto(el,segs,done){if(reduce){el.innerHTML=segs.map(function(s){return '<span class="'+(s[1]||'')+'">'+s[0]+'</span>';}).join('');if(done)done();return;}
+    el.innerHTML='';var i=0;(function seg(){if(i>=segs.length){if(done)done();return;}var span=document.createElement('span');span.className=segs[i][1]||'';el.appendChild(span);
+      var txt=segs[i][0],j=0,speed=segs[i][2]||7,after=segs[i][3]||30;(function ch(){if(j<txt.length){span.textContent+=txt.charAt(j++);setTimeout(ch,speed);}else{i++;setTimeout(seg,after);}})();})();}
+
+  var CAP={
+    scan:{title:'attestral scan ./agent',body:[['$ ',''],['attestral scan ./agent\n','w',10,160],['\n',''],['  MCP servers: 3   tools: 11   boundaries: 2\n','m',3,120],['\n',''],['  CRITICAL  ','r'],['ATL-202  lethal trifecta in this fleet\n','w'],['  HIGH      ','y'],['ATL-115  remote server holds a downstream credential\n','w'],['  MEDIUM    ','y'],['ATL-106  server pinned to a mutable :latest tag\n','w'],['\n',''],['  grouped by severity. ','m'],['attestral explain ATL-115','g'],[' for the fix.\n','m']]},
+    fleet:{title:'attestral fleet gateway notifier retriever',body:[['$ ',''],['attestral fleet ./gateway ./notifier ./retriever\n','w',9,160],['\n',''],['  modeling 3 repos as ONE agent fleet...\n','m',3,220],['\n',''],['  CROSS-SERVER FLOW  ','r'],['ATL-207  toxic flow\n','w'],['    retriever (untrusted docs) -> gateway (secrets) -> notifier (egress)\n','m'],['  CROSS-SERVER FLOW  ','r'],['ATL-205  a tool description steers another server\'s tool\n','w'],['\n',''],['  these only exist when the repos run together.\n','m']]},
+    blast:{title:'attestral blast-radius ./agent',body:[['$ ',''],['attestral blast-radius ./agent\n','w',9,160],['\n',''],['  agent surfaces ranked by if-compromised reach:\n','m',3,160],['\n',''],['  1  ','r'],['aws-tools        ','w'],['-> s3, iam, secrets-manager   (cloud)\n','m'],['  2  ','y'],['fs-reader        ','w'],['-> $HOME, ./.env               (host)\n','m'],['  3  ','y'],['slack-post       ','w'],['-> external workspace          (egress)\n','m'],['\n',''],['  fix the top of the list first.\n','m']]},
+    compile:{title:'attestral compile ./agent -o policy.json',body:[['$ ',''],['attestral compile ./agent -o policy.json\n','w',8,160],['\n',''],['  compiling attested design -> runtime policy...\n','m',3,220],['\n',''],['  ALLOW  ','g'],['fs-reader:read   within ./workspace\n','w'],['  ALLOW  ','g'],['retriever:query  read-only\n','w'],['  DENY   ','r'],['* everything not attested (default-deny)\n','w'],['\n',''],['  wrote policy.json  (14 allow rules, default deny)\n','m']]},
+    drift:{title:'attestral drift policy.json events.log',body:[['$ ',''],['attestral drift policy.json events.log\n','w',8,160],['\n',''],['  diffing 1,204 runtime events against policy...\n','m',3,220],['\n',''],['  DENY   ','r'],['slack-post:send to #external not in policy\n','w'],['         ','m'],['violates ATL-202 control (outbound channel)\n','m'],['  OK     ','g'],['1,203 events within the attested design\n','w'],['\n',''],['  1 drift event. runtime stepped outside the review.\n','m']]},
+    verify:{title:'attestral verify report.json',body:[['$ ',''],['attestral verify report.json\n','w',10,160],['\n',''],['  recomputing SHA-256 evidence chain...\n','m',3,220],['\n',''],['  OK  ','g'],['chain intact across 3 findings\n','w'],['  OK  ','g'],['1 waiver documented + expiring (not hidden)\n','w'],['  OK  ','g'],['head signature valid\n','w'],['\n',''],['  tamper-evident. hand it to the auditor.\n','m']]}
+  };
+  var capBtns=document.querySelectorAll('.cap-btn'),capBody=document.getElementById('capBody'),capTitle=document.getElementById('capTitle');
+  function selectCap(k){capBtns.forEach(function(b){b.setAttribute('aria-selected',b.getAttribute('data-cap')===k);});capTitle.textContent=CAP[k].title;typeInto(capBody,CAP[k].body.map(function(s){return [s[0],s[1],reduce?0:(s[2]||7),s[3]||30];}));}
+  capBtns.forEach(function(b){b.addEventListener('click',function(){selectCap(b.getAttribute('data-cap'));});});
+  var cIO=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){selectCap('scan');cIO.disconnect();}});},{threshold:.3});
+  cIO.observe(document.getElementById('caps'));
+  /* ===================== 2D pipeline (stratified trust-boundary diagram) ===================== */
+  var stage=document.getElementById('stage'),hud=document.getElementById('hud'),stagetag=document.getElementById('stagetag');
+  var svg=document.getElementById('diagram');
+  var SVGNS='http://www.w3.org/2000/svg';
+  function el(t,a,p){var e=document.createElementNS(SVGNS,t);if(a)for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;}
+  function diamond(cx,cy,r){return cx+','+(cy-r)+' '+(cx+r)+','+cy+' '+cx+','+(cy+r)+' '+(cx-r)+','+cy;}
+  function hex(cx,cy,r){var p=[];for(var i=0;i<6;i++){var a=Math.PI/180*(60*i-30);p.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1));}return p.join(' ');}
+
+  // form encodes trust boundary (gem=agent tool, hex=cluster, block=cloud, core=the agent); colour is reserved for state
+  var NODES=[
+    {id:'agent',label:'agent',bd:'agent',x:280,y:150,hub:true,form:'core'},
+    {id:'fs',label:'fs-reader',bd:'agent',x:92,y:152,form:'gem'},
+    {id:'web',label:'web-fetch',bd:'agent',x:186,y:152,form:'gem'},
+    {id:'slack',label:'slack-post',bd:'agent',x:374,y:152,form:'gem'},
+    {id:'retr',label:'retriever',bd:'agent',x:468,y:152,form:'gem'},
+    {id:'gw',label:'gateway',bd:'cluster',x:180,y:370,form:'hex'},
+    {id:'queue',label:'queue',bd:'cluster',x:280,y:370,form:'hex'},
+    {id:'k8s',label:'k8s-api',bd:'cluster',x:380,y:370,form:'hex'},
+    {id:'s3',label:'s3',bd:'cloud',x:92,y:588,form:'block'},
+    {id:'iam',label:'iam',bd:'cloud',x:186,y:588,form:'block'},
+    {id:'secrets',label:'secrets-manager',bd:'cloud',x:280,y:588,form:'block'},
+    {id:'rds',label:'rds',bd:'cloud',x:374,y:588,form:'block'},
+    {id:'lambda',label:'lambda',bd:'cloud',x:468,y:588,form:'block'}
+  ];
+  var EDGES=[['agent','fs'],['agent','web'],['agent','slack'],['agent','retr'],['agent','gw'],['retr','k8s'],['gw','queue'],['gw','k8s'],['k8s','s3'],['k8s','secrets'],['gw','iam'],['gw','rds'],['queue','lambda'],['lambda','s3']];
+  var IDX={};NODES.forEach(function(n){IDX[n.id]=n;});
+  var FINDINGS=[{id:'web',sev:'crit'},{id:'secrets',sev:'crit'},{id:'gw',sev:'high'},{id:'k8s',sev:'high'},{id:'lambda',sev:'med'}];
+  var TRI=['fs','web','slack'],TRI_EDGES=[0,1,2],ALLOW_EDGES=[0,3,4,5,6];
+  var STAGES=['ingest','model','rules','blast','ml','llm','waivers','evidence','runtime'];
+  var TAGS=['01 Ingest','02 Model','03 Rules','04 Blast radius','05 Language','06 Cross-examine','07 Waivers','08 Evidence','09 Runtime'];
+  var LANES=[{name:'agent runtime',y:54,h:196},{name:'cluster',y:272,h:196},{name:'cloud',y:490,h:196}];
+  var CH=[['main.tf',70],['deploy.yaml',205],['.mcp.json',345],['system.prompt',478]];
+
+  var edgeEls=[],pinEls=[],trafficEls=[],ringEls=[],pulseEls=[],flowEls=[],ingDots=[];
+  var scanLine=null,scanFill=null,beamRect=null,denyDot=null,denyTag=null,denyT=0;
+  var blast={active:false,t:0,reached:{},ranked:[],maxD:1};
+
+  var built=false;
+  try{ if(svg){buildSVG();built=true;stage.classList.add('ready');} }catch(err){ stage.classList.add('failed'); }
+
+  function buildSVG(){
+    svg.setAttribute('viewBox','0 0 560 740');svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    var gLane=el('g',{},svg);
+    LANES.forEach(function(L){ el('rect',{x:24,y:L.y,width:512,height:L.h,rx:14,'class':'d-laneband'},gLane);
+      el('text',{x:40,y:L.y+22,'class':'d-lanelabel'},gLane).textContent=L.name; });
+    var gEdge=el('g',{id:'edges'},svg);
+    edgeEls=EDGES.map(function(e){var a=IDX[e[0]],b=IDX[e[1]];return el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,'class':'d-edge'},gEdge);});
+    var gNode=el('g',{id:'nodes'},svg);
+    NODES.forEach(function(n){var g=el('g',{'class':'d-node'+(n.hub?' hub':''),id:'nd-'+n.id},gNode);
+      if(n.form==='core'){ el('rect',{x:n.x-24,y:n.y-24,width:48,height:48,rx:9,'class':'d-shape'},g);
+        el('path',{d:'M'+(n.x-10)+' '+(n.y+8)+'L'+n.x+' '+(n.y-11)+'L'+(n.x+10)+' '+(n.y+8),'class':'d-hubmark'},g);
+        el('line',{x1:n.x-5.5,y1:n.y+1,x2:n.x+5.5,y2:n.y+1,'class':'d-hubmark'},g); }
+      else if(n.form==='gem'){ el('polygon',{points:diamond(n.x,n.y,17),'class':'d-shape'},g); }
+      else if(n.form==='hex'){ el('polygon',{points:hex(n.x,n.y,21),'class':'d-shape'},g); }
+      else { el('rect',{x:n.x-19,y:n.y-15,width:38,height:30,rx:5,'class':'d-shape'},g); }
+      var ly=n.hub?n.y+42:(n.bd==='cloud'?n.y+34:n.y+31);
+      el('text',{x:n.x,y:ly,'class':'d-nlabel'},g).textContent=n.label;
+    });
+    var gA=el('g',{id:'anno'},svg);
+    // ingest chips + inflow
+    var gi=el('g',{id:'anno-ingest','class':'d-anno'},gA);
+    CH.forEach(function(c){var w=c[0].length*6.6+16,x=c[1]-w/2;var cg=el('g',{'class':'d-chip'},gi);
+      el('line',{x1:c[1],y1:40,x2:280,y2:118,stroke:'var(--rule)','stroke-width':1,'stroke-dasharray':'3 4'},cg);
+      el('rect',{x:x,y:18,width:w,height:22,rx:5},cg);
+      el('text',{x:c[1],y:33,'text-anchor':'middle'},cg).textContent=c[0];});
+    ingDots=CH.map(function(c){return el('circle',{cx:c[1],cy:30,r:2.4,'class':'d-dot'},gi);});
+    // rules scan
+    var gr=el('g',{id:'anno-rules','class':'d-anno'},gA);
+    scanFill=el('rect',{x:24,y:54,width:512,height:0,'class':'d-scanfill'},gr);
+    scanLine=el('line',{x1:24,y1:54,x2:536,y2:54,'class':'d-scan'},gr);
+    // pins (persistent group, toggled per node)
+    var gp=el('g',{id:'pins'},gA);
+    pinEls=FINDINGS.map(function(f){var n=IDX[f.id];var g=el('g',{'class':'d-pin '+f.sev},gp);
+      el('line',{x1:n.x,y1:n.y-20,x2:n.x,y2:n.y-40,'class':'d-pinstem'},g);
+      el('polygon',{points:diamond(n.x,n.y-46,6.5),'class':'d-pinhead'},g);return {g:g,f:f};});
+    // blast rings
+    var gb=el('g',{id:'anno-blast','class':'d-anno'},gA);
+    ringEls=[0,1,2].map(function(){return el('circle',{cx:IDX.secrets.x,cy:IDX.secrets.y,r:0,'class':'d-ring'},gb);});
+    // ml beam
+    var gm=el('g',{id:'anno-ml','class':'d-anno'},gA);
+    beamRect=el('rect',{x:150,y:130,width:262,height:44,rx:6,'class':'d-beam'},gm);
+    // llm cross-examination vignette
+    var gl=el('g',{id:'anno-llm','class':'d-anno'},gA);
+    el('text',{x:280,y:214,'class':'d-tag',fill:'var(--verify)'},gl).textContent='verdict: upheld';
+    el('rect',{x:170,y:236,width:44,height:44,rx:8,'class':'d-glyph ink'},gl);
+    el('text',{x:192,y:300,'class':'d-glyphlabel'},gl).textContent='elicitor';
+    el('polygon',{points:hex(368,258,22),'class':'d-glyph'},gl);
+    el('text',{x:368,y:300,'class':'d-glyphlabel'},gl).textContent='judge';
+    pulseEls=[0,1,2,3,4,5].map(function(){return el('circle',{cx:192,cy:258,r:3,'class':'d-dot',opacity:0},gl);});
+    // waiver slip
+    var gw=el('g',{id:'anno-waivers','class':'d-anno'},gA);
+    el('rect',{x:IDX.gw.x+16,y:IDX.gw.y-42,width:104,height:22,rx:5,fill:'var(--card)',stroke:'var(--muted)','stroke-width':1,'stroke-dasharray':'4 3'},gw);
+    el('text',{x:IDX.gw.x+68,y:IDX.gw.y-27,'class':'d-tag',fill:'var(--muted)'},gw).textContent='WAIVED · exp 90d';
+    el('line',{x1:IDX.gw.x+16,y1:IDX.gw.y-20,x2:IDX.gw.x+4,y2:IDX.gw.y-14,stroke:'var(--muted)','stroke-width':1},gw);
+    // evidence chain
+    var ge=el('g',{id:'anno-evidence','class':'d-anno'},gA);
+    var shas=['9f0','a1b','c08','2b3'];
+    for(var i=0;i<4;i++){var bx=138+i*78;
+      el('rect',{x:bx,y:332,width:58,height:58,rx:7,'class':'d-block'},ge);
+      el('text',{x:bx+29,y:410,'class':'d-blocklabel'},ge).textContent='sha:'+shas[i]+'…';
+      if(i<3)el('line',{x1:bx+58,y1:361,x2:bx+78,y2:361,'class':'d-link'},ge);}
+    el('rect',{x:448,y:349,width:60,height:24,rx:5,'class':'d-seal'},ge);
+    el('text',{x:478,y:365,'class':'d-sealtext'},ge).textContent='SEALED';
+    // runtime gate + external + permitted flow + deny
+    var gt=el('g',{id:'anno-runtime','class':'d-anno'},gA);
+    el('text',{x:506,y:44,'class':'d-extlabel','text-anchor':'middle'},gt).textContent='#external';
+    el('line',{x1:IDX.slack.x,y1:IDX.slack.y-12,x2:502,y2:52,stroke:'var(--muted)','stroke-width':1,'stroke-dasharray':'3 4',opacity:0.5},gt);
+    el('line',{x1:450,y1:70,x2:474,y2:98,'class':'d-gate'},gt);
+    flowEls=ALLOW_EDGES.map(function(){return el('circle',{cx:0,cy:0,r:3,fill:'var(--verify)',opacity:0},gt);});
+    denyDot=el('circle',{cx:IDX.slack.x,cy:IDX.slack.y-12,r:4,fill:'var(--seal)',opacity:0},gt);
+    denyTag=el('text',{x:452,y:120,'class':'d-tag',fill:'var(--seal)'},gt);denyTag.textContent='DENY';
+    // ambient traffic pool (model)
+    var gtr=el('g',{id:'traffic'},gA);
+    trafficEls=EDGES.map(function(){return el('circle',{cx:0,cy:0,r:2.6,'class':'d-dot',opacity:0},gtr);});
+  }
+
+  /* ---- HUD ---- */
+  var HUD={
+    ingest:{k:'reading',cls:'hud',html:'terraform &middot; kubernetes &middot; mcp configs &middot; prompts'},
+    model:{k:'system model',cls:'hud',html:'13 components &middot; 14 edges &middot; 3 trust boundaries'},
+    rules:{k:'deterministic rules',cls:'hud danger',html:'<b>250</b> checks swept &middot; <b>5</b> findings &middot; 1 lethal trifecta'},
+    blast:{k:'blast radius from secrets-manager',cls:'hud danger',html:'<ul class="bl" id="bl"></ul>'},
+    ml:{k:'injection score (ml layer)',cls:'hud danger',html:'web-fetch description &nbsp; p=<b>0.94</b><div class="meter"><i id="mtr"></i></div><div class="tiers"><span class="on">heuristic</span><span>onnx</span><span>deberta</span></div>'},
+    llm:{k:'llm cross-examination',cls:'hud',html:'elicitor proposes &#8594; judge disposes &nbsp; verdict: <b>upheld</b> (opt-in)'},
+    waivers:{k:'waiver',cls:'hud',html:'gateway:iam &middot; <b>documented</b>, expires in 90d, still in the chain'},
+    evidence:{k:'evidence chain',cls:'hud good',html:'4 blocks &middot; SHA-256 linked &middot; head <span class="ok">SEALED</span> &middot; tamper-evident'},
+    runtime:{k:'compile &#8594; drift',cls:'hud good',html:'<span class="ok">1,203 OK</span> &middot; <b>1 DENY</b> (slack-post &#8594; #external, not in policy)'}
+  };
+  function setHUD(s){var d=HUD[s];hud.className=d.cls;hud.innerHTML='<span class="hk">'+d.k+'</span>'+d.html;}
+
+  /* ---- state helpers ---- */
+  var cur='ingest';
+  function annoOn(id){var g=document.getElementById('anno-'+id);if(g)g.classList.add('on');}
+  function clearAnno(){['ingest','rules','blast','ml','llm','waivers','evidence','runtime'].forEach(function(id){var g=document.getElementById('anno-'+id);if(g)g.classList.remove('on');});}
+  function clsNodes(){NODES.forEach(function(n){document.getElementById('nd-'+n.id).setAttribute('class','d-node'+(n.hub?' hub':''));});}
+  function addCls(id,c){var g=document.getElementById('nd-'+id);g.setAttribute('class',g.getAttribute('class')+' '+c);}
+  function clsEdges(){edgeEls.forEach(function(e){e.setAttribute('class','d-edge');});}
+  function pinsVis(on){pinEls.forEach(function(p){p.g.classList.toggle('vis',!!on);});}
+
+  function startBlast(){var s=IDX.secrets;
+    blast={active:true,t:0,reached:{secrets:true},ranked:[],maxD:1};
+    blast.ranked=NODES.filter(function(n){return n.id!=='secrets';}).map(function(n){return {id:n.id,d:Math.sqrt((n.x-s.x)*(n.x-s.x)+(n.y-s.y)*(n.y-s.y))};}).sort(function(a,b){return a.d-b.d;});
+    blast.maxD=blast.ranked[blast.ranked.length-1].d;
+    addCls('secrets','crit');
+    var list=document.getElementById('bl');
+    if(list){list.innerHTML='';
+      var l0=document.createElement('li');l0.className='hit';l0.innerHTML='<span class="rn">0</span> secrets-manager <span class="bd">source</span>';list.appendChild(l0);
+      blast.ranked.forEach(function(r,idx){var n=IDX[r.id];var li=document.createElement('li');li.id='bl-'+r.id;li.innerHTML='<span class="rn">'+(idx+1)+'</span> '+n.label+' <span class="bd">'+n.bd+'</span>';list.appendChild(li);});}
+    if(reduce){blast.ranked.forEach(function(r){addCls(r.id,'crit');var li=document.getElementById('bl-'+r.id);if(li)li.classList.add('hit');});}
+  }
+
+  function applyStage(s){
+    cur=s;var i=STAGES.indexOf(s);
+    stagetag.innerHTML='<b>'+TAGS[i].slice(0,2)+'</b> &nbsp;'+TAGS[i].slice(3);
+    setHUD(s);
+    if(!built)return;
+    svg.setAttribute('data-stage',s);
+    svg.classList.toggle('focus',s==='llm'||s==='evidence');
+    clsNodes();clsEdges();clearAnno();pinsVis(false);
+    scanFill.setAttribute('height',0);scanLine.setAttribute('y1',54);scanLine.setAttribute('y2',54);
+    denyT=reduce?1:0;
+    if(s==='ingest'){ annoOn('ingest');NODES.forEach(function(n){addCls(n.id,'dim');}); }
+    else if(s==='rules'){ annoOn('rules');
+      FINDINGS.forEach(function(f){addCls(f.id,f.sev);});
+      TRI.forEach(function(id){if(FINDINGS.every(function(f){return f.id!==id;}))addCls(id,'crit');});
+      TRI_EDGES.forEach(function(ei){edgeEls[ei].classList.add('tri');});
+      if(reduce)pinsVis(true); }
+    else if(s==='blast'){ annoOn('blast');startBlast(); }
+    else if(s==='ml'){ annoOn('ml');addCls('web','lit');addCls('slack','lit');
+      var mtr=document.getElementById('mtr');if(mtr){mtr.style.width=reduce?'94%':'0';if(!reduce)setTimeout(function(){mtr.style.width='94%';},130);} }
+    else if(s==='llm'){ annoOn('llm'); }
+    else if(s==='waivers'){ annoOn('waivers');addCls('gw','waived');
+      EDGES.forEach(function(e,ei){if(e[0]==='gw'||e[1]==='gw')edgeEls[ei].classList.add('dim');}); }
+    else if(s==='evidence'){ annoOn('evidence'); }
+    else if(s==='runtime'){ annoOn('runtime');
+      edgeEls.forEach(function(e,ei){e.classList.add(ALLOW_EDGES.indexOf(ei)>=0?'allow':'dim');});
+      NODES.forEach(function(n){var ok=ALLOW_EDGES.some(function(ei){return EDGES[ei][0]===n.id||EDGES[ei][1]===n.id;});if(ok)addCls(n.id,'allow');else if(!n.hub)addCls(n.id,'dim');}); }
+  }
+
+  /* ---- rail + scroll wiring ---- */
+  var rail=document.getElementById('rail'),railBtns=[];
+  STAGES.forEach(function(s,i){var b=document.createElement('button');b.type='button';b.setAttribute('aria-label','Stage '+(i+1)+': '+s);
+    b.addEventListener('click',function(){var t=document.querySelector('.pstep[data-stage="'+i+'"]');if(t)t.scrollIntoView({behavior:'smooth',block:'center'});});rail.appendChild(b);railBtns.push(b);});
+  function markRail(i){railBtns.forEach(function(b,j){b.setAttribute('aria-current',j===i?'true':'false');});}
+  var steps=document.querySelectorAll('.pstep');
+  var sIO=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var i=+e.target.getAttribute('data-stage');applyStage(STAGES[i]);markRail(i);}});},{rootMargin:'-45% 0px -45% 0px',threshold:0});
+  steps.forEach(function(st){sIO.observe(st);});
+
+  /* ---- animation ---- */
+  function edgePos(i,ph){var a=IDX[EDGES[i][0]],b=IDX[EDGES[i][1]];return {x:a.x+(b.x-a.x)*ph,y:a.y+(b.y-a.y)*ph};}
+  var clock=0;
+  function frame(){
+    clock++;
+    if(built){
+      // ambient traffic (model only; runtime uses its own green flow)
+      if(cur==='model'&&!reduce){ for(var t=0;t<EDGES.length;t++){var ph=((clock*0.004)+(t*0.09))%1;var p=edgePos(t,ph);trafficEls[t].setAttribute('cx',p.x);trafficEls[t].setAttribute('cy',p.y);trafficEls[t].setAttribute('opacity',0.8);} }
+      else { for(var t2=0;t2<trafficEls.length;t2++)trafficEls[t2].setAttribute('opacity',0); }
+      // ingest inflow
+      if(cur==='ingest'&&!reduce){ ingDots.forEach(function(d,k){var ph=((clock*0.011)+(k*0.25))%1;d.setAttribute('cx',CH[k][1]+(280-CH[k][1])*ph);d.setAttribute('cy',30+(118-30)*ph);d.setAttribute('opacity',0.75);}); }
+      else ingDots.forEach(function(d){d.setAttribute('opacity',0);});
+      // rules scan sweep
+      if(cur==='rules'){ if(reduce){pinsVis(true);} else {
+        var sy=54+((clock*2.6)%760);var yy=Math.min(sy,686);
+        scanLine.setAttribute('y1',yy);scanLine.setAttribute('y2',yy);scanFill.setAttribute('height',Math.max(0,yy-54));
+        pinEls.forEach(function(p){if(yy>=IDX[p.f.id].y-46)p.g.classList.add('vis');}); } }
+      // blast wave
+      if(cur==='blast'&&blast.active&&!reduce){ blast.t+=2.7;var rad=blast.t;
+        ringEls.forEach(function(r,k){var rr=rad-k*42;r.setAttribute('r',Math.max(0,rr));r.setAttribute('opacity',rr>0?Math.max(0,0.5*(1-rr/(blast.maxD+80))):0);});
+        blast.ranked.forEach(function(rk){if(!blast.reached[rk.id]&&rad>=rk.d){blast.reached[rk.id]=true;addCls(rk.id,'crit');var li=document.getElementById('bl-'+rk.id);if(li)li.classList.add('hit');}});
+        if(rad>blast.maxD+90)blast.active=false; }
+      // ml beam
+      if(cur==='ml'&&!reduce){ beamRect.setAttribute('y',130+Math.sin(clock*0.06)*6); }
+      // llm pulses elicitor<->judge
+      if(cur==='llm'&&!reduce){ var A={x:214,y:258},B={x:346,y:258};
+        pulseEls.forEach(function(d,k){var ph=((clock*0.011)+(k/pulseEls.length))%1;var dir=(k%2===0)?ph:(1-ph);
+          d.setAttribute('cx',A.x+(B.x-A.x)*dir);d.setAttribute('cy',A.y+(B.y-A.y)*dir-Math.sin(dir*Math.PI)*9);d.setAttribute('fill','var(--seal)');d.setAttribute('opacity',0.9);}); }
+      else pulseEls.forEach(function(d){d.setAttribute('opacity',0);});
+      // runtime: permitted green flow + one denied outbound event
+      if(cur==='runtime'){
+        ALLOW_EDGES.forEach(function(ei,k){var ph=reduce?0.5:(((clock*0.005)+(k*0.17))%1);var p=edgePos(ei,ph);flowEls[k].setAttribute('cx',p.x);flowEls[k].setAttribute('cy',p.y);flowEls[k].setAttribute('opacity',0.9);});
+        if(!reduce&&denyT<1)denyT+=0.018;if(denyT>1)denyT=1;
+        var s=IDX.slack,gx=458,gy=78;denyDot.setAttribute('cx',s.x+(gx-s.x)*denyT);denyDot.setAttribute('cy',(s.y-12)+(gy-(s.y-12))*denyT);denyDot.setAttribute('opacity',denyT>0.02?1:0);
+      } else { flowEls.forEach(function(d){d.setAttribute('opacity',0);});denyDot.setAttribute('opacity',0); }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  applyStage('ingest');markRail(0);
+  if(built)requestAnimationFrame(frame);
+  })();
+</script>
+</body>
+</html>
