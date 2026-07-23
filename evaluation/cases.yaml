@@ -156,6 +156,14 @@ positive:
     path: examples/registry-namespace-mismatch
     expect: [ATL-159]
     cite: "Namespace squatting a domain the publisher does not control (MCP registry namespace verification: com.example/* requires proof of example.com ownership); CWE-829"
+  - id: mcp-apps-ui
+    path: examples/mcp-apps-ui
+    expect: [ATL-108, ATL-160, ATL-161, ATL-162]
+    cite: "MCP Apps UI surface (ext-apps spec 2026-01-26, SEP-1865): connectDomains beyond the spec's connect-src 'none' default is standing iframe egress, sensor/clipboard permissions are server-authored data capture; tasks extension (SEP-2663) with auto-approved tool calls is unattended background execution; Backslash Security on the 2026-07-28 spec's new endpoint-side attack surfaces (July 2026)"
+  - id: mcp-apps-ui-fleet
+    path: examples/mcp-apps-ui-fleet
+    expect: [ATL-160, ATL-220]
+    cite: "Cross-server pairing of a private-data server with a DIFFERENT server's app-UI connect origins - the lethal-trifecta egress side carried by an iframe's CSP, visible only in the assembled fleet model (ext-apps 2026-01-26; Backslash July 2026)"
 
 benign:
   - id: benign-readonly-fleet
