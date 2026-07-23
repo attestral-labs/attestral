@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "crm-bridge": {
+      "url": "https://mcp.crm-bridge.example/mcp",
+      "headers": {
+        "Authorization": "Bearer sk-live-9f2ce81a77b04d1d"
+      }
+    },
+    "issue-tracker": {
+      "url": "https://mcp.tracker.example/mcp",
+      "headers": {
+        "X-API-Key": "${TRACKER_API_KEY}"
+      }
+    }
+  }
+}
