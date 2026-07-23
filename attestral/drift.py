@@ -2,8 +2,9 @@
 
 Reads a JSONL stream of tool-call events (mcp-guard telemetry format:
 one object per line with at least `server`, `tool`, and optionally
-`args`, `url`, `ts`, `capabilities`) and diffs each event against the
-compiled policy derived from the attested design.
+`args`, `url`, `ts`, `capabilities`, and the SEP-2567 handle fields
+`handle` + `handle_op`) and diffs each event against the compiled
+policy derived from the attested design.
 
 Fail-closed philosophy carries through: an event that references a server
 absent from the attested model is CRITICAL drift - the deployed system has
@@ -34,10 +35,23 @@ DRIFT_RULES = {
     "DRF-006": ("Runaway tool-call loop (resource drain)", Severity.HIGH),
     "DRF-007": ("Server call volume exceeds attested budget", Severity.MEDIUM),
     "DRF-008": ("Unauthorized runtime capability / process spawn", Severity.CRITICAL),
+    "DRF-009": ("Portable handle replayed by a different principal", Severity.CRITICAL),
+    "DRF-010": ("Portable handle spent with unknown provenance", Severity.HIGH),
 }
 
+# The concrete fix for the handle findings (DRF-009/010). MCP SEP-2567/2575
+# ("stateless core") makes servers mint portable task/resource handles that
+# travel in conversation text, so a handle IS a bearer credential: any
+# principal that sees it can spend it.
+_HANDLE_FIX = (
+    "Revoke the handle and rotate any session transcript that carried it, then "
+    "bind handle spends to the minting principal at the guard so a leaked "
+    "handle is inert (MCP SEP-2567 handles are bearer credentials)."
+)
 
-def _mk(rule: str, server: str, detail: str, event_no: int) -> Finding:
+
+def _mk(rule: str, server: str, detail: str, event_no: int,
+        recommendation: str | None = None) -> Finding:
     title, sev = DRIFT_RULES[rule]
     return Finding(
         rule_id=rule,
@@ -45,13 +59,80 @@ def _mk(rule: str, server: str, detail: str, event_no: int) -> Finding:
         severity=sev,
         component_id=f"mcp_server.{server}",
         description=(f"Event #{event_no}: {detail}" if event_no else detail),
-        recommendation=(
+        recommendation=recommendation or (
             "Either revert the runtime change, or update the design, re-run the "
             "review, and re-compile the policy so deployment and review match."
         ),
         source="runtime-telemetry",
         origin="deterministic",
     )
+
+
+def _handle_display(handle: str) -> str:
+    """Truncate a handle for display: a finding must never re-publish a
+    spendable bearer credential in full."""
+    return handle if len(handle) <= 12 else handle[:12] + "…"
+
+
+def _handle_replay(minted: dict, ev: dict, event_no: int) -> list[Finding]:
+    """Stateful handle-provenance check for one event, updating `minted`
+    (handle -> (minter server, mint event #)). Shared by the batch detector
+    and the streaming monitor.
+
+    MCP SEP-2567/2575 ("stateless core") mints portable task/resource handles
+    that travel in conversation text; a handle in text is a bearer credential
+    any principal that sees it can spend. Two drift classes:
+      * DRF-009 - a spend whose principal (the event's `server` identity, the
+        same field every other drift check keys on) differs from the handle's
+        minter: a replay/confused-deputy in progress.
+      * DRF-010 - a spend of a handle never seen minted in this log: unknown
+        provenance, possibly replayed from another session's transcript.
+
+    Fail-closed, in the DRF-008 style (only a positively-observed, well-formed
+    signal counts):
+      * only a non-empty string `handle` with `handle_op` exactly "mint" or
+        "spend" participates; anything absent, malformed, or unrecognized is
+        ignored - no crash, no spurious finding - so legacy handle-free logs
+        behave byte-identically to before these checks existed.
+      * first mint wins: a re-mint of a known handle never rewrites its
+        provenance, so a thief can't launder a stolen handle by re-minting it
+        under their own identity.
+      * deliberately policy-independent: provenance is a property of the event
+        stream itself, so a replay by an unattested server is still flagged
+        (DRF-001 fires separately for the server).
+
+    Double-spend of a single-use handle is deliberately out of scope: neither
+    the event schema nor the compiled policy carries a single-use marker, and
+    inventing one would be speculative until the SEP lands.
+    """
+    handle = ev.get("handle")
+    op = ev.get("handle_op")
+    if not isinstance(handle, str) or not handle or op not in ("mint", "spend"):
+        return []
+    principal = str(ev.get("server", ""))
+    if op == "mint":
+        minted.setdefault(handle, (principal, event_no))
+        return []
+    origin = minted.get(handle)
+    if origin is None:
+        return [_mk(
+            "DRF-010", principal,
+            f"handle '{_handle_display(handle)}' spent with no mint observed in "
+            "this log - unknown provenance, possibly replayed from another "
+            "session's transcript (MCP SEP-2567)",
+            event_no, recommendation=_HANDLE_FIX,
+        )]
+    minter, mint_no = origin
+    if minter != principal:
+        return [_mk(
+            "DRF-009", principal,
+            f"handle '{_handle_display(handle)}' minted by '{minter}' (event "
+            f"#{mint_no}) was spent by '{principal}' - a portable handle in "
+            "conversation text is a bearer credential and this spend crossed "
+            "principals (MCP SEP-2567)",
+            event_no, recommendation=_HANDLE_FIX,
+        )]
+    return []
 
 
 def _path_in_roots(path: str, roots: list[str]) -> bool:
@@ -142,8 +223,10 @@ def _per_event(servers: dict, ev: dict, event_no: int) -> list[Finding]:
 def detect_drift(policy: dict, events: list[dict]) -> list[Finding]:
     servers: dict[str, dict] = policy.get("servers", {})
     findings: list[Finding] = []
+    minted: dict[str, tuple[str, int]] = {}
     for i, ev in enumerate(events, 1):
         findings.extend(_per_event(servers, ev, i))
+        findings.extend(_handle_replay(minted, ev, i))
     findings.extend(_budget_drift(policy, events))
     findings.sort(key=lambda f: f.severity.rank, reverse=True)
     return findings
@@ -168,6 +251,8 @@ _DRF_NOTES = {
     "DRF-001": "needs re-review to admit the server into the design",
     "DRF-005": "if this was a legitimate upgrade, re-attest the new surface under human review",
     "DRF-006": "blocked, but the alarm persists - a clean clear needs a human budget decision",
+    "DRF-009": "revoke the replayed handle and rotate the session that leaked it before re-allowing",
+    "DRF-010": "confirm log coverage from session start before trusting handle provenance",
 }
 
 
@@ -287,6 +372,8 @@ class DriftMonitor:
         self._over_emitted: set[str] = set()
         # DRF-005 last-seen manifest per server
         self._manifest_seen: dict[str, str] = {}
+        # DRF-009/010 handle provenance ledger (handle -> (minter, event #))
+        self._minted: dict[str, tuple[str, int]] = {}
 
     def observe(self, ev: dict) -> list[Finding]:
         """Return the new drift findings this single event triggers."""
@@ -295,6 +382,9 @@ class DriftMonitor:
         # Streaming DRF-005 is change-detected below (fire once per new manifest),
         # so drop the per-event one and re-derive with throttling.
         out = [f for f in _per_event(self.servers, ev, i) if f.rule_id != "DRF-005"]
+        # DRF-009/010 are edge-triggered per bad spend, so the batch helper's
+        # semantics carry over unchanged - just persist the mint ledger.
+        out.extend(_handle_replay(self._minted, ev, i))
 
         name = str(ev.get("server", ""))
         entry = self.servers.get(name)
