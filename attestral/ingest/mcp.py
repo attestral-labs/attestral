@@ -6,6 +6,14 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from attestral.ingest import _jsonc
+
+# Shared with the instruction-file check (ATL-113): S_IWOTH on the file,
+# falling back to its parent dir; fail-closed - an unstattable path is NOT
+# writable. Here it backs ATL-163: a world-writable MCP config is the static
+# precondition of the CVE-2026-30615 (Windsurf) persistence chain, where a
+# prompt injection rewrote the local config to auto-register a malicious
+# stdio server on every future session.
+from attestral.ingest.prompts import _world_writable
 from attestral.manifest import manifest_hash, normalize_tools
 from attestral.model import Component, SystemModel
 
@@ -648,8 +656,18 @@ def ingest_mcp(path: str | Path, model: SystemModel) -> SystemModel:
         except json.JSONDecodeError:
             continue
         servers = data.get("mcpServers") or data.get("servers") or {}
+        # World-writability is a fact about the FILE, checked once per config
+        # and stamped on every server it registers (present only when true):
+        # each entry in a writable config is independently swappable for an
+        # attacker's launch command, so per-server findings are honest. This
+        # covers repo-committed configs and scan --local alike, since
+        # local_config funnels its discovered files through this function.
+        writable = bool(servers) and _world_writable(f)
         for name, cfg in servers.items():
-            model.add(component_from_server(name, cfg, str(f)))
+            comp = component_from_server(name, cfg, str(f))
+            if writable:
+                comp.attributes["_config_world_writable"] = True
+            model.add(comp)
     return model
 
 

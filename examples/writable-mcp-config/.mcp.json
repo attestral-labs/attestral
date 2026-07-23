@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "docs-search": {
+      "command": "npx",
+      "args": ["@example/docs-mcp@1.4.2"]
+    },
+    "release-notes": {
+      "command": "npx",
+      "args": ["@example/release-notes-mcp@2.0.1"]
+    }
+  }
+}

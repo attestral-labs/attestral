@@ -7,6 +7,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **ATL-163: MCP config file writable by other users (CVE-2026-30615 class).** `ingest_mcp`
+  now checks each config file for world-write (`o+w` on the file or its parent directory,
+  fail-closed, group-write deliberately ignored) and stamps `_config_world_writable` on every
+  server the file registers - each entry in a writable config is independently swappable for
+  an attacker's launch command, the persistence step in the Windsurf attack where a prompt
+  injection rewrote the local MCP config to auto-register a malicious stdio server. Covers
+  repo-committed configs and `scan --local` alike, including Claude Code's nested
+  project-scope servers. Fixture `examples/writable-mcp-config` (the `o+w` bit is set by the
+  test and the benchmark harness; git cannot store it). Cites OWASP-ASI05, CWE-732, NIST CM-5.
 - **MCP Apps UI wave (ATL-160..162, ATL-220).** The ingester now parses the MCP Apps surface
   (ext-apps 2026-01-26 / SEP-1865 `_meta` ui metadata: connectDomains, permissions) and the
   2026-07-28 RC extensions map (SEP-2663 tasks). **ATL-160** (high): an app UI declares external

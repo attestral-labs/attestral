@@ -886,6 +886,25 @@ rules:
     recommendation: Gate task-creating tools behind explicit human approval - remove this server from the auto-approve list, or allowlist only synchronous read-only tools so a background task can never start unattended.
     frameworks: ["OWASP-ASI02:2026", "MCP SEP-2663", "NIST AC-6(9)"]
 
+  # --- Config-writability (issue #98): CVE-2026-30615 (Windsurf) turned a
+  # --- prompt injection into persistence by rewriting the local MCP config
+  # --- and auto-registering a malicious stdio server. The static precondition
+  # --- - a world-writable config file or parent dir (o+w only; group-write is
+  # --- deliberately NOT flagged, macOS staff-group setups would false-
+  # --- positive) - is stamped per server by ingest_mcp, so one check covers
+  # --- repo-committed configs and scan --local. Fixture:
+  # --- examples/writable-mcp-config/ (the o+w bit is set by the test and the
+  # --- benchmark harness; git cannot store it).
+
+  - id: ATL-163
+    title: MCP config file is writable by other users
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _config_world_writable: true } }
+    description: The config file this server is registered in (or its parent directory) is world-writable, so any local user or compromised process can rewrite it and swap the server's launch command for their own binary - the persistence step in the Windsurf attack (CVE-2026-30615), where a prompt injection rewrote the MCP config to auto-register a malicious stdio server on every future session. Same threat shape as a writable instruction file (ATL-113), but strictly worse - it swaps what launches, not just what the agent is told.
+    recommendation: Remove world-write access from the MCP config file and its directory (chmod o-w on both; owner-only is better), then re-review the server list for entries you did not add - a writable config may already have been tampered with. Treat every file that can register a server launch command as security-sensitive configuration.
+    frameworks: ["OWASP-ASI05:2026", "CWE-732", "NIST CM-5"]
+
   - id: ATL-151
     title: Secret hard-coded in an agent-instruction file
     severity: high

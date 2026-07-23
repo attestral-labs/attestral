@@ -19,7 +19,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from attestral.ingest.mcp import component_from_server, ingest_mcp
+from attestral.ingest.mcp import _world_writable, component_from_server, ingest_mcp
 from attestral.model import SystemModel, TrustBoundary
 
 
@@ -222,11 +222,19 @@ def build_local_model(
         before = len(model.by_type("mcp_server"))
         ingest_mcp(src.path, model)
         # ingest_mcp reads a file's top-level servers; Claude Code's user
-        # config additionally nests the current project's local scope.
+        # config additionally nests the current project's local scope. Those
+        # nested servers bypass ingest_mcp, so the ATL-163 stamp it applies
+        # (world-writable config file or parent dir, o+w only, fail-closed)
+        # is re-applied here - same file, same rewrite target (CVE-2026-30615).
         if src.tool == "Claude Code (user)":
-            for name, cfg in _claude_code_project_servers(src.path, cwd_p).items():
-                model.add(component_from_server(
+            nested = _claude_code_project_servers(src.path, cwd_p)
+            writable = bool(nested) and _world_writable(src.path)
+            for name, cfg in nested.items():
+                comp = component_from_server(
                     name, cfg, f"{src.path} [project: {cwd_p}]"
-                ))
+                )
+                if writable:
+                    comp.attributes["_config_world_writable"] = True
+                model.add(comp)
         src.servers = len(model.by_type("mcp_server")) - before
     return model, sources
