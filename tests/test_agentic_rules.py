@@ -316,3 +316,32 @@ def test_patched_actors_mcp_server_not_flagged(tmp_path):
     from attestral.model import SystemModel
     model = ingest_mcp(cfg, SystemModel())
     assert model.get("mcp_server.apify").attr("_has_known_cve") is False
+
+
+def test_known_cve_mobile_mcp_fires_atl117(tmp_path):
+    # CVE-2026-35394: intent injection in @mobilenext/mobile-mcp - unvalidated
+    # mobile_open_url URLs reach Android's intent system. Fixed in 0.0.50.
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(
+        '{"mcpServers": {"mobile": {"command": "npx", '
+        '"args": ["@mobilenext/mobile-mcp@0.0.49"]}}}'
+    )
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+    model = ingest_mcp(cfg, SystemModel())
+    srv = model.get("mcp_server.mobile")
+    assert srv.attr("_has_known_cve") is True
+    assert srv.attr("_known_cve") == "CVE-2026-35394"
+    assert "ATL-117" in {f.rule_id for f in RuleEngine().evaluate(model)}
+
+
+def test_patched_mobile_mcp_not_flagged(tmp_path):
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(
+        '{"mcpServers": {"mobile": {"command": "npx", '
+        '"args": ["@mobilenext/mobile-mcp@0.0.50"]}}}'
+    )
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+    model = ingest_mcp(cfg, SystemModel())
+    assert model.get("mcp_server.mobile").attr("_has_known_cve") is False

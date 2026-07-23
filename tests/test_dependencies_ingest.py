@@ -56,6 +56,14 @@ def test_langgraph_chain_and_mcp_sdk_cves():
     assert _dep_cve("@modelcontextprotocol/sdk", "1.2.0") is None   # below the affected floor
 
 
+def test_litellm_mcp_config_command_injection_cve():
+    # CVE-2026-30623: authenticated command injection via LiteLLM's MCP server
+    # creation (arbitrary stdio command/args). Patched in 1.83.7.
+    assert _dep_cve("litellm", "1.83.6") == "CVE-2026-30623"
+    assert _dep_cve("litellm", "1.80.0") == "CVE-2026-30623"
+    assert _dep_cve("litellm", "1.83.7") is None                    # patched
+
+
 def test_name_normalization():
     # PEP 503: langchain_core / LangChain-Core normalize to the same package.
     assert _dep_cve("LangChain_Core", "1.2.4") == "CVE-2025-68664"
