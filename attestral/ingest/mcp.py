@@ -3,12 +3,43 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from attestral.ingest import _jsonc
 from attestral.manifest import manifest_hash, normalize_tools
 from attestral.model import Component, SystemModel
 
 _SECRET_HINTS = ("KEY", "SECRET", "TOKEN", "PASSWORD", "CREDENTIAL")
+
+# Header keys (lowercased, substring) that carry a credential to a remote MCP
+# endpoint. Used twice, with opposite polarity: ANY of these counts as "the
+# remote is authenticated" (clears ATL-109), while one holding a LITERAL value
+# in a committed config is a hardcoded credential (ATL-157). Env indirection
+# (`${VAR}` / `$VAR`) is the correct pattern and never counts as literal, and
+# obvious placeholders (`<token>`, `REDACTED`, `changeme`, ...) fail closed so
+# a sanitized example config is never flagged.
+_AUTH_HEADER_HINTS = ("authorization", "api-key", "apikey", "token", "secret", "auth")
+_HEADER_PLACEHOLDER_PREFIXES = (
+    "<", "...", "your", "xxx", "changeme", "change-me", "change_me",
+    "redacted", "todo", "tbd", "replace", "placeholder", "example",
+)
+
+
+def _literal_auth_header_value(value) -> bool:
+    """True iff a header value is a concrete committed credential: a non-empty
+    string with no env indirection and no placeholder shape."""
+    if not isinstance(value, str):
+        return False
+    v = value.strip()
+    if not v or "$" in v:  # ${VAR} / $VAR: resolved from the environment
+        return False
+    v_l = v.lower()
+    for scheme in ("bearer ", "basic ", "token "):
+        if v_l.startswith(scheme):
+            v_l = v_l[len(scheme):].strip()
+    if not v_l or v_l.startswith(_HEADER_PLACEHOLDER_PREFIXES):
+        return False
+    return True
 
 # Env keys that are specifically CLOUD credentials: unlike the generic
 # _SECRET_HINTS, these prove a live path from the agent runtime into the
@@ -126,6 +157,11 @@ _KNOWN_VULNS = (
     # in mcp-atlassian via unvalidated X-Atlassian-Jira-Url/Confluence-Url
     # headers. Affected below 0.17.0; fixed in 0.17.0.
     ("mcp-atlassian", (0, 16, 9999), "CVE-2026-27826"),
+    # CVE-2026-35394: intent injection in @mobilenext/mobile-mcp - the
+    # mobile_open_url tool passed URLs to Android's intent system with no
+    # scheme validation, allowing arbitrary intents (calls, SMS, USSD, content
+    # providers). Affected below 0.0.50; fixed in 0.0.50 (scheme allowlist).
+    ("mobile-mcp", (0, 0, 49), "CVE-2026-35394"),
 )
 
 
@@ -205,6 +241,42 @@ def _external_schema_refs(tools) -> list[str]:
             for k in _TOOL_SCHEMA_KEYS:
                 _walk(t.get(k))
     return refs
+
+
+def _header_mapped_params(tools) -> list[str]:
+    """Every tool parameter mapped into a transport HTTP header via the
+    `x-mcp-header` schema extension (MCP SEP-2243, Final). The client mirrors
+    the model-chosen argument value into an `Mcp-Param-{Name}` header that load
+    balancers, WAFs, rate limiters, and authorization gateways act on - so a
+    mapped parameter is model-controlled input flowing straight into transport
+    policy decisions (ATL-158). Entries read "tool.param -> Mcp-Param-Name".
+    Only a string-valued `x-mcp-header` counts (the SEP requires it); anything
+    else is ignored, never guessed."""
+    out: list[str] = []
+
+    def _walk(node, tname: str) -> None:
+        if isinstance(node, dict):
+            props = node.get("properties")
+            if isinstance(props, dict):
+                for pname, pschema in props.items():
+                    if isinstance(pschema, dict) and isinstance(pschema.get("x-mcp-header"), str):
+                        out.append(f"{tname}.{pname} -> Mcp-Param-{pschema['x-mcp-header']}")
+            for v in node.values():
+                _walk(v, tname)
+        elif isinstance(node, list):
+            for v in node:
+                _walk(v, tname)
+
+    if isinstance(tools, list):
+        items = [(str(t.get("name", "tool")), t) for t in tools if isinstance(t, dict)]
+    elif isinstance(tools, dict):
+        items = [(str(k), t) for k, t in tools.items() if isinstance(t, dict)]
+    else:
+        items = []
+    for tname, t in items:
+        for k in _TOOL_SCHEMA_KEYS:
+            _walk(t.get(k), tname)
+    return out
 
 
 def _tool_names(tools) -> list[str]:
@@ -297,6 +369,21 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             # which is the client's inbound credential to reach this endpoint
             # (ATL-109's own remediation) and must never trip a deputy finding.
             attrs["_confused_deputy"] = bool(attrs["_env_has_secrets"])
+            # Hardcoded inbound credential (ATL-157): an auth-shaped header
+            # whose value is a LITERAL committed token rather than `${ENV}`
+            # indirection. Deliberately distinct from ATL-109: the endpoint IS
+            # authenticated (this header clears _remote_unauthed above, and
+            # OAuth-per-spec endpoints carry no header at all) - the finding
+            # is that the credential itself now lives in version control.
+            static_auth = sorted(
+                str(k)
+                for k, v in (headers.items() if isinstance(headers, dict) else [])
+                if any(h in str(k).lower() for h in _AUTH_HEADER_HINTS)
+                and _literal_auth_header_value(v)
+            )
+            if static_auth:
+                attrs["_static_auth_header_keys"] = static_auth
+                attrs["_has_static_auth_header"] = True
         # Coarse capability classes for the model-level combination
         # rules. The risk they capture is fleet-level: no single server
         # is the finding - private data + an outbound channel is an
@@ -382,6 +469,10 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         if ext_refs:
             attrs["_tool_schema_external_ref"] = True
             attrs["_external_schema_ref_urls"] = ext_refs
+        header_params = _header_mapped_params(cfg.get("tools"))
+        if header_params:
+            attrs["_header_mapped_params"] = header_params
+            attrs["_has_header_mapped_params"] = True
         # Rug-pull pin: canonical hash of the launch identity + tool surface.
         # compile carries it into the policy; drift re-hashes at runtime.
         attrs["_manifest_hash"] = manifest_hash(
@@ -480,6 +571,70 @@ def _registry_transports(manifest: dict) -> list[str]:
     return out
 
 
+# Namespace-vs-source mismatch (ATL-159). The registry's namespace-verification
+# model ties a reverse-DNS name to proof of ownership: `com.example/*` may only
+# be published by whoever passes a DNS/HTTP challenge on example.com, while
+# `io.github.*` is verified by GitHub login. A manifest consumed OUTSIDE the
+# official registry (vendored, mirrored, self-hosted) never went through that
+# check, so a name squatting a domain the publisher does not control is
+# statically visible when neither the repository nor any remote lives anywhere
+# near the claimed domain. Forge namespaces are account-verified, not
+# domain-verified - a remote on any host is consistent with them - so they are
+# skipped entirely; and a forge-hosted repository whose OWNER matches the
+# domain's registrable label (com.example + github.com/example, the normal
+# open-source layout) counts as matching. Fail-closed: no derivable domain or
+# no comparable source URL derives nothing.
+_FORGE_NAMESPACE_PREFIXES = ("io.github.", "com.github.", "io.gitlab.", "com.gitlab.")
+_FORGE_REPO_HOSTS = ("github.com", "gitlab.com", "bitbucket.org", "codeberg.org")
+
+
+def _namespace_domain(name: str) -> str:
+    """The DNS domain a reverse-DNS registry name claims ('com.example/x' ->
+    'example.com'), or '' when it is not domain-based (a forge namespace, or
+    no dot-separated prefix)."""
+    prefix = str(name).split("/")[0].strip().lower()
+    if not prefix or "." not in prefix:
+        return ""
+    if prefix.startswith(_FORGE_NAMESPACE_PREFIXES):
+        return ""
+    return ".".join(reversed(prefix.split(".")))
+
+
+def _manifest_source_urls(manifest: dict) -> list[str]:
+    """The manifest's declared source URLs: repository.url plus remotes[].url."""
+    urls: list[str] = []
+    repo = manifest.get("repository")
+    if isinstance(repo, dict) and repo.get("url"):
+        urls.append(str(repo["url"]))
+    elif isinstance(repo, str) and repo:
+        urls.append(repo)
+    for remote in manifest.get("remotes") or []:
+        if isinstance(remote, dict) and remote.get("url"):
+            urls.append(str(remote["url"]))
+    return urls
+
+
+def _url_matches_namespace(url: str, domain: str) -> bool:
+    """True iff a source URL is consistent with the claimed namespace domain:
+    its host is the domain (or a sub/super-domain of it), or it is a forge repo
+    whose owner equals the domain's registrable label."""
+    try:
+        parts = urlsplit(url if "://" in url else f"https://{url}")
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower().removeprefix("www.")
+    if not host:
+        return False
+    if host == domain or host.endswith("." + domain) or domain.endswith("." + host):
+        return True
+    if host in _FORGE_REPO_HOSTS:
+        owner = next((seg for seg in parts.path.split("/") if seg), "").lower()
+        labels = domain.split(".")
+        if owner and len(labels) >= 2 and owner == labels[-2]:
+            return True
+    return False
+
+
 def _looks_like_registry_manifest(data) -> bool:
     """A server.json is an MCP registry manifest if its `$schema` names the MCP
     registry, or it has a name plus at least one package/remote. Fails closed so
@@ -519,8 +674,18 @@ def registry_component_from_manifest(data, source: str) -> Component | None:
         if isinstance(p, dict)
         and str(p.get("version", "")).strip().lower() in ("", "latest")
     }) if isinstance(data.get("packages"), list) else []
+    # Namespace-vs-source mismatch: derived only when the name claims a DNS
+    # domain AND the manifest declares at least one comparable source URL.
+    ns_domain = _namespace_domain(name)
+    source_urls = _manifest_source_urls(data)
+    ns_mismatch = bool(
+        ns_domain and source_urls
+        and not any(_url_matches_namespace(u, ns_domain) for u in source_urls)
+    )
     attrs: dict = {
         "_registry_name": name,
+        "_namespace_domain": ns_domain,
+        "_namespace_mismatch": ns_mismatch,
         "_hardcoded_secret_vars": hardcoded,
         "_has_hardcoded_secret": bool(hardcoded),
         "_unmarked_secret_vars": unmarked,

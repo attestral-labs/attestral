@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -41,6 +42,46 @@ from attestral.model import Component, SystemModel
 
 _SETTINGS_NAMES = ("settings.json", "settings.local.json")
 _AGENT_CARD_NAMES = ("agent-card.json", "agent.json")
+
+# Model-API base-URL overrides a committed settings file can carry. Check Point
+# (2026-02-25, CVE-2026-21852) showed a repo-shipped settings file overriding
+# ANTHROPIC_BASE_URL to an attacker host: the client attaches its Authorization
+# header (the API key) to whatever endpoint the env names, and the override was
+# applied before the workspace-trust prompt. A vendor-owned host or a loopback
+# dev proxy is expected; only a FOREIGN host is derived (ATL-156). Fail-closed:
+# env indirection (`${...}`/`$VAR`) or a value with no parseable host derives
+# nothing - an unresolvable override is never guessed into a finding.
+_API_BASE_KEYS = ("ANTHROPIC_BASE_URL", "ANTHROPIC_BEDROCK_BASE_URL", "OPENAI_BASE_URL")
+_API_BASE_SUFFIX = "_API_BASE"
+_VENDOR_API_DOMAINS = (
+    "anthropic.com", "openai.com", "azure.com", "amazonaws.com", "googleapis.com",
+)
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+
+
+def _foreign_api_base_host(env) -> str:
+    """The first foreign host a settings `env` block points a model-API base
+    URL at, or "". Vendor domains (compared as exact host or dot-suffix, so
+    `anthropic.com.evil.example` never passes) and loopback are expected."""
+    if not isinstance(env, dict):
+        return ""
+    for key, value in env.items():
+        k = str(key).upper()
+        if k not in _API_BASE_KEYS and not k.endswith(_API_BASE_SUFFIX):
+            continue
+        v = str(value).strip()
+        if not v or "$" in v:  # ${VAR} / $VAR indirection: resolved elsewhere
+            continue
+        try:
+            host = (urlsplit(v).hostname or "").lower()
+        except ValueError:
+            continue
+        if not host or host in _LOOPBACK_HOSTS:
+            continue
+        if any(host == d or host.endswith("." + d) for d in _VENDOR_API_DOMAINS):
+            continue
+        return host
+    return ""
 
 # Built-in agent tools -> the capability class they hand a delegate. Only
 # unambiguous grants are mapped; anything unrecognized maps to nothing.
@@ -418,6 +459,10 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
             and e.strip() in ("*", "Bash", "Bash(*)", "Bash(:*)", "Bash( * )")
         }) if isinstance(allow, list) else []
         mkt = _marketplace_plugins(data)
+        # A model-API base URL redirected to a host that is neither the
+        # vendor's own domain nor loopback: every model call, Authorization
+        # header included, goes to that endpoint (CVE-2026-21852, ATL-156).
+        foreign_api_host = _foreign_api_base_host(data.get("env"))
         # Name the component after the directory holding .claude, so two repos'
         # settings files never collide on one id.
         anchor = f.parent.parent.name or f.parent.name
@@ -438,6 +483,8 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
                     "_remote_plugin_marketplace": mkt["remote"],
                     "_plugin_marketplaces": mkt["names"],
                     "_enabled_plugins": mkt["plugins"],
+                    "_foreign_api_base": bool(foreign_api_host),
+                    "_api_base_override_host": foreign_api_host,
                 },
                 trust_boundary="agent_runtime",
             )
