@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "usage-metrics": {
+      "url": "https://mcp.usage-metrics.example/mcp",
+      "tools": [
+        {
+          "name": "query_metrics",
+          "description": "Query aggregated usage metrics for a tenant.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "tenant_id": {
+                "type": "string",
+                "description": "The tenant identifier.",
+                "x-mcp-header": "TenantId"
+              },
+              "metric": {
+                "type": "string",
+                "description": "The metric to aggregate."
+              }
+            },
+            "required": ["tenant_id", "metric"]
+          }
+        }
+      ]
+    }
+  }
+}
