@@ -289,7 +289,7 @@ img{max-width:100%;height:auto}
         <h1 style="margin:18px 0 20px">Security review for systems that act.</h1>
         <p class="lede muted">An AI agent isn&rsquo;t a program you scan line by line. It&rsquo;s a system that <em>reaches</em>: across tools, across trust boundaries, straight into your cloud. Attestral builds a living model of the whole thing and reviews the architecture, from the first design sketch to whatever&rsquo;s running at 2am. Below is the entire pipeline, one stage at a time, as a living diagram. Scroll, and watch it build itself.</p>
         <div class="metaline">
-          <span><b>250</b> checks</span><span class="dot">&middot;</span>
+          <span><b>254</b> checks</span><span class="dot">&middot;</span>
           <span><b>MCP</b> + agent + cloud</span><span class="dot">&middot;</span>
           <span><b>OWASP</b> Agentic &amp; LLM Top&nbsp;10</span><span class="dot">&middot;</span>
           <span><b>MITRE</b> ATLAS</span>
@@ -325,7 +325,7 @@ img{max-width:100%;height:auto}
         </div>
         <div class="pstep" data-stage="2">
           <div class="num">Stage 03 / Rules</div>
-          <h2>250 checks sweep the graph.</h2>
+          <h2>254 checks sweep the graph.</h2>
           <p>No vibes, no maybes. Named, deterministic checks that either fire or don&rsquo;t, from unpinned installs to a lethal trifecta spanning three servers. Watch the scan pass through and the findings pop up where the relationships go wrong.</p>
           <div class="aside">Critical in seal red, high in amber. Each one links to a one-line fix.</div>
         </div>
@@ -403,7 +403,7 @@ img{max-width:100%;height:auto}
         <p class="muted">That&rsquo;s the moat, and it&rsquo;s stubbornly hard to copy by piling on rules: a per-resource linter has no system model to attest, and a pure-LLM reviewer has nothing deterministic to enforce. Attestral holds both ends, the reasoning and the proof.</p>
       </div>
       <div class="metrics reveal">
-        <div class="metric"><div class="num">250</div><div class="lbl">Checks</div><div class="sub">agent, MCP &amp; cloud</div></div>
+        <div class="metric"><div class="num">254</div><div class="lbl">Checks</div><div class="sub">agent, MCP &amp; cloud</div></div>
         <div class="metric"><div class="num">111</div><div class="lbl">Cloud controls</div><div class="sub">AWS &middot; Azure &middot; GCP &middot; K8s</div></div>
         <div class="metric"><div class="num">100s</div><div class="lbl">Real servers</div><div class="sub">standing regression corpus</div></div>
         <div class="metric"><div class="num">0</div><div class="lbl">Keys to start</div><div class="sub">ML &amp; LLM opt-in</div></div>
@@ -590,7 +590,7 @@ img{max-width:100%;height:auto}
   var HUD={
     ingest:{k:'reading',cls:'hud',html:'terraform &middot; kubernetes &middot; mcp configs &middot; prompts'},
     model:{k:'system model',cls:'hud',html:'13 components &middot; 14 edges &middot; 3 trust boundaries'},
-    rules:{k:'deterministic rules',cls:'hud danger',html:'<b>250</b> checks swept &middot; <b>5</b> findings &middot; 1 lethal trifecta'},
+    rules:{k:'deterministic rules',cls:'hud danger',html:'<b>254</b> checks swept &middot; <b>5</b> findings &middot; 1 lethal trifecta'},
     blast:{k:'blast radius from secrets-manager',cls:'hud danger',html:'<ul class="bl" id="bl"></ul>'},
     ml:{k:'injection score (ml layer)',cls:'hud danger',html:'web-fetch description &nbsp; p=<b>0.94</b><div class="meter"><i id="mtr"></i></div><div class="tiers"><span class="on">heuristic</span><span>onnx</span><span>deberta</span></div>'},
     llm:{k:'llm cross-examination',cls:'hud',html:'elicitor proposes &#8594; judge disposes &nbsp; verdict: <b>upheld</b> (opt-in)'},
