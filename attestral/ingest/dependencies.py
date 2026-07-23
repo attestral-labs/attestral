@@ -46,6 +46,11 @@ _KNOWN_DEP_VULNS = (
     # CVE-2026-0621: ReDoS in the MCP TypeScript SDK's UriTemplate parser (CVSS
     # 8.7). Affected >=1.3.0 <1.25.2; patched in 1.25.2. (npm, scoped.)
     ("@modelcontextprotocol/sdk", (((1, 3, 0), (1, 25, 1)),), "CVE-2026-0621"),
+    # CVE-2026-30623: authenticated command injection in LiteLLM's MCP server
+    # creation/preview endpoints - a user-supplied stdio MCP config's command
+    # and args ran as the LiteLLM process. Patched in 1.83.7 (stdio launcher
+    # allowlist: npx/uvx/python/node/docker/deno).
+    ("litellm", (((0, 0, 0), (1, 83, 6)),), "CVE-2026-30623"),
 )
 
 _MANIFESTS = ("requirements.txt", "pyproject.toml", "package.json")
