@@ -2,9 +2,10 @@
 
 The deterministic rules score *structure* (a flag, a CIDR, a capability). This
 layer scores *language* - the natural-language surfaces an agent actually
-reads and can be steered by: MCP tool/server descriptions, and system-prompt /
-agent-instruction files. It emits `origin="ml"` findings for content that
-reads as prompt injection, a jailbreak, or tool poisoning.
+reads and can be steered by: MCP tool/server descriptions, system-prompt /
+agent-instruction files, and embedded MCP Apps HTML resource bodies (reduced
+to their agent-readable text first). It emits `origin="ml"` findings for
+content that reads as prompt injection, a jailbreak, or tool poisoning.
 
 The layer is TIERED so the very first `attestral scan --ml` is instant and
 needs no extra install, with two opt-in accuracy upgrades that share ONE model:
@@ -59,6 +60,7 @@ import os
 import re
 import urllib.parse
 from dataclasses import dataclass
+from html import unescape
 from typing import Callable, Iterator
 
 from attestral.model import Component, Finding, Severity, SystemModel
@@ -76,6 +78,13 @@ RULE_ID = "ATL-ML-001"
 # ATL-ML-001, distinguished only by rule_id.
 RULE_ID_FLEET = "ATL-ML-002"
 _FRAMEWORKS = ["OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051", "OWASP-ASI01:2026"]
+# An MCP Apps HTML body renders inside the agent host, so instruction-bearing
+# text in it is aimed at the agent, not the human: ATLAS's agent-clickbait and
+# tool-data-poisoning techniques. Appended per-surface, on top of _FRAMEWORKS.
+_FRAMEWORKS_UI = [
+    "MITRE ATLAS AML.T0100 AI Agent Clickbait",
+    "MITRE ATLAS AML.T0099 Tool Data Poisoning",
+]
 # Tool poisoning maps to the 2026 agentic codes (announced 2025-12-09) plus the
 # MCP-specific control: tool misuse, memory/context poisoning, and MCP03.
 _FRAMEWORKS_FLEET = _FRAMEWORKS + [
@@ -123,6 +132,9 @@ class TextSurface:
     label: str
     text: str
     component_type: str = ""
+    # Surface-specific citations appended to the shared _FRAMEWORKS on the
+    # finding (e.g. the ATLAS UI-body techniques). Tuple so the default is safe.
+    extra_frameworks: tuple[str, ...] = ()
 
 
 def gather_surfaces(model: SystemModel) -> list[TextSurface]:
@@ -151,6 +163,41 @@ def _collect_component_surfaces(c: Component, out: list[TextSurface]) -> None:
             out.append(
                 TextSurface(c.id, c.source, f"tool '{tname}' description", str(tdesc), c.type)
             )
+    # MCP Apps HTML resource bodies (issue #100): server-authored content
+    # rendered in the agent host, reduced to the text an agent can be steered
+    # by. The label deliberately does NOT start with "tool '", so UI bodies
+    # never join the ATL-ML-002 cross-tool reassembly pool.
+    for r in c.attr("_ui_resource_texts") or []:
+        if not isinstance(r, dict):
+            continue
+        text = _html_to_text(str(r.get("text", "")))
+        if text:
+            out.append(TextSurface(
+                c.id, c.source, f"app-UI resource '{r.get('uri', '')}' body",
+                text, c.type, extra_frameworks=tuple(_FRAMEWORKS_UI),
+            ))
+
+
+_HTML_COMMENT_RE = re.compile(r"<!--(.*?)-->", re.S)
+_HTML_CODE_RE = re.compile(r"<(script|style)\b[^>]*>.*?</\1\s*>", re.S | re.I)
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _html_to_text(markup: str) -> str:
+    """Reduce an MCP Apps HTML body to the text that can steer an agent.
+
+    Comment text is KEPT: a hidden channel the host never renders but the raw
+    resource carries, with zero overlap with benign rendered UI - exactly where
+    a poisoning payload hides. Script/style code is DROPPED: never rendered,
+    and code is the noisiest channel for phrase patterns. Tags are stripped, so
+    visually-hidden text (a display:none div) survives - hiding from the human
+    while steering the model IS the attack (ATLAS AML.T0100). Entities
+    unescape, so ``&#105;gnore`` folds back to ``ignore`` before scoring."""
+    comments = " ".join(m.group(1) for m in _HTML_COMMENT_RE.finditer(markup))
+    body = _HTML_COMMENT_RE.sub(" ", markup)
+    body = _HTML_CODE_RE.sub(" ", body)
+    body = _HTML_TAG_RE.sub(" ", body)
+    return " ".join(unescape(f"{body} {comments}").split())
 
 
 def _chunks(text: str, size: int, overlap: int) -> Iterator[str]:
@@ -215,7 +262,7 @@ def _finding(surface: TextSurface, prob: float, evidence: list[str] | None = Non
             "agent's system instructions or drive tool-call decisions."
         ),
         source=surface.source,
-        framework_refs=list(_FRAMEWORKS),
+        framework_refs=list(_FRAMEWORKS) + list(surface.extra_frameworks),
         origin="ml",
         confidence=_confidence(prob),
     )

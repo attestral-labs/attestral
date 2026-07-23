@@ -327,6 +327,33 @@ def _ui_metas(resources) -> list[dict]:
     return metas
 
 
+def _ui_resource_texts(resources) -> list[dict]:
+    """Embedded HTML bodies of a server's MCP Apps UI resources: the `text`
+    contents of any resource that is app-flavoured by mimeType
+    (`text/html;profile=mcp-app`) or carries a UI `_meta` block. A UI body is
+    server-authored content rendered in the agent host - a language surface an
+    agent reads and can be steered by, exactly like a tool description - so the
+    ML layer scores it (ATLAS AML.T0100 clickbait / AML.T0099 tool-data
+    poisoning). Fail-closed: anything not dict/str-shaped is skipped, and a
+    plain text/html resource with neither the profile nor a UI meta never
+    counts."""
+    out: list[dict] = []
+    items = resources if isinstance(resources, list) else (
+        list(resources.values()) if isinstance(resources, dict) else [])
+    for r in items:
+        if not isinstance(r, dict):
+            continue
+        mime = str(r.get("mimeType", ""))
+        has_ui_meta = isinstance(r.get("_meta"), dict) and any(
+            isinstance(r["_meta"].get(k), dict) for k in _UI_META_KEYS)
+        if "mcp-app" not in mime and not has_ui_meta:
+            continue
+        text = r.get("text")
+        if isinstance(text, str) and text.strip():
+            out.append({"uri": str(r.get("uri", "")), "text": text})
+    return out
+
+
 def _ui_connect_domain_union(metas: list[dict]) -> list[str]:
     """Union of `connectDomains` across a server's UI resources - the declared
     egress surface of its embedded UI (feeds _ui_external_connect and the
@@ -533,6 +560,12 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             sensitive = sorted(set(ui_perms) & set(_SENSITIVE_UI_PERMISSIONS))
             if sensitive:
                 attrs["_ui_sensitive_permissions"] = sensitive
+        # Embedded app-UI HTML bodies become ML language surfaces (issue #100):
+        # rendered-in-host content is as steerable a channel as a tool
+        # description, and a static config can carry it inline via `text`.
+        ui_texts = _ui_resource_texts(cfg.get("resources"))
+        if ui_texts:
+            attrs["_ui_resource_texts"] = ui_texts
         attrs["_capabilities"] = sorted(caps)
         # Egress allowlist (the declassifier ATL-202 recommends): only meaningful
         # on an egress-capable server, matched against the launch command and the
