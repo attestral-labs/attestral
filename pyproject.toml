@@ -47,7 +47,7 @@ sign = ["cryptography>=42"]
 onnx = ["onnxruntime>=1.17", "transformers>=4.44", "tokenizers>=0.19", "numpy>=1.24"]
 ml = ["transformers>=4.44", "torch>=2.2"]
 deberta = ["transformers>=4.44", "torch>=2.2"]  # alias: the same heavy DeBERTa/torch tier
-dev = ["pytest>=8.0", "ruff>=0.6"]
+dev = ["pytest>=8.0", "ruff>=0.15,<0.16"]  # 0.16.0 adds 187 new-rule hits repo-wide; unpin after a dedicated adoption pass
 
 [project.scripts]
 attestral = "attestral.cli:main"
