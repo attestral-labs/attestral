@@ -293,6 +293,122 @@ def _tool_names(tools) -> list[str]:
     return names
 
 
+# --- MCP Apps UI extension (ext-apps spec 2026-01-26, SEP-1865) --------------
+# A server may declare interactive UI resources: a resource whose `_meta`
+# carries the `io.modelcontextprotocol/ui` object with CSP-style fields.
+# `connectDomains` is egress the embedded UI is ALLOWED to perform (fetch/XHR
+# targets; spec default 'none'), `permissions` are sandbox grants (camera,
+# microphone, ...). Both are design-time declarations, so an over-broad CSP or
+# a sensitive grant is statically visible before the app ever renders. Feeds
+# the fleet-level combination rules via the `ui_egress` capability token: a UI
+# allowed to call external origins is an exfiltration channel that exists even
+# when the server process itself has none.
+_UI_META_KEYS = ("io.modelcontextprotocol/ui", "ui")  # bare `ui` = legacy form
+_SENSITIVE_UI_PERMISSIONS = (
+    "camera", "microphone", "geolocation", "clipboardWrite", "clipboard-write",
+)
+
+
+def _ui_metas(resources) -> list[dict]:
+    """Every UI extension object declared under a resource's `_meta` (the
+    spec'd `io.modelcontextprotocol/ui` key, or the bare legacy `ui` key).
+    Fail-closed: anything not dict-shaped is skipped, never guessed."""
+    metas: list[dict] = []
+    items = resources if isinstance(resources, list) else (
+        list(resources.values()) if isinstance(resources, dict) else [])
+    for r in items:
+        if not isinstance(r, dict) or not isinstance(r.get("_meta"), dict):
+            continue
+        for key in _UI_META_KEYS:
+            ui = r["_meta"].get(key)
+            if isinstance(ui, dict):
+                metas.append(ui)
+                break
+    return metas
+
+
+def _ui_connect_domain_union(metas: list[dict]) -> list[str]:
+    """Union of `connectDomains` across a server's UI resources - the declared
+    egress surface of its embedded UI (feeds _ui_external_connect and the
+    ui_egress capability token). The spec default 'none' derives nothing."""
+    domains: set[str] = set()
+    for ui in metas:
+        cd = ui.get("connectDomains")
+        entries = cd if isinstance(cd, list) else ([cd] if isinstance(cd, str) else [])
+        for d in entries:
+            if isinstance(d, str) and d.strip() and d.strip().lower() != "none":
+                domains.add(d.strip())
+    return sorted(domains)
+
+
+def _ui_permission_union(metas: list[dict]) -> list[str]:
+    """Union of declared UI sandbox `permissions` (dict keys or a plain list).
+    The sensitive subset (camera/microphone/geolocation/clipboard write) feeds
+    the deceptive-data-gathering risk chain: an agent-embedded UI holding a
+    hardware or clipboard grant collects data the user never gave the AGENT."""
+    perms: set[str] = set()
+    for ui in metas:
+        p = ui.get("permissions")
+        if isinstance(p, dict):
+            perms.update(str(k) for k in p)
+        elif isinstance(p, list):
+            perms.update(str(x) for x in p if isinstance(x, str))
+    return sorted(perms)
+
+
+def _origin_host(origin: str) -> str:
+    """Best-effort host of a CSP-style origin entry ('https://api.x.io:8443'
+    -> 'api.x.io'); '' when unparseable, so callers fail closed."""
+    try:
+        parts = urlsplit(origin if "://" in origin else f"https://{origin}")
+    except ValueError:
+        return ""
+    return (parts.hostname or "").lower()
+
+
+def _is_loopback_host(host: str) -> bool:
+    return host == "localhost" or host.startswith("127.") or host in ("::1", "0.0.0.0")
+
+
+def _ui_connects_externally(domains: list[str], server_url: str) -> bool:
+    """True when any declared connectDomains entry reaches beyond the server
+    itself: a wildcard, or an origin that is neither loopback nor the server's
+    own url host. With no server url to compare, an explicit non-loopback
+    origin still counts - declared egress is declared egress. Unparseable
+    entries derive nothing (fail closed)."""
+    own_host = _origin_host(server_url) if server_url else ""
+    for d in domains:
+        # A legitimate origin never contains '*'; any wildcard form ('*',
+        # '*.cdn.io', 'https://*.cdn.io') is an open egress grant.
+        if "*" in d:
+            return True
+        host = _origin_host(d)
+        if not host or _is_loopback_host(host):
+            continue
+        if own_host and host == own_host:
+            continue
+        return True
+    return False
+
+
+def _declared_extension_keys(cfg: dict, declared_caps: list[str]) -> list[str]:
+    """Keys of the server's declared extensions map (MCP 2026-07-28 RC,
+    SEP-2663) - accepted top-level or under `capabilities.extensions`. The
+    legacy `tasks` capability normalizes to `io.modelcontextprotocol/tasks` so
+    rules key on one canonical name. Feeds the agent-supply-chain chain: an
+    extension is server-declared behaviour the client opts into."""
+    keys: set[str] = set()
+    ext = cfg.get("extensions")
+    if isinstance(ext, dict):
+        keys.update(str(k) for k in ext)
+    declared = cfg.get("capabilities")
+    if isinstance(declared, dict) and isinstance(declared.get("extensions"), dict):
+        keys.update(str(k) for k in declared["extensions"])
+    if "tasks" in declared_caps:
+        keys.add("io.modelcontextprotocol/tasks")
+    return sorted(keys)
+
+
 def component_from_server(name: str, cfg, source: str) -> Component:
     """Build the mcp_server component (with every derived _attr) for one
     config entry. Shared by repo scans here and by scan --local, which also
@@ -398,6 +514,25 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         for cap, hints in _CAPABILITY_HINTS.items():
             if any(h in surface for h in hints):
                 caps.add(cap)
+        # MCP Apps UI surface (SEP-1865): CSP-style declarations on the
+        # server's UI resources. All fail-closed - absent or malformed input
+        # derives nothing. External connectDomains add the `ui_egress`
+        # capability token so the model-level combo rules see the embedded
+        # UI as an outbound channel, exactly like network/messaging; the
+        # token deliberately joins NO other capability-group logic.
+        ui_metas = _ui_metas(cfg.get("resources"))
+        ui_domains = _ui_connect_domain_union(ui_metas)
+        if ui_domains:
+            attrs["_ui_connect_domains"] = ui_domains
+            if _ui_connects_externally(ui_domains, str(attrs["url"])):
+                attrs["_ui_external_connect"] = True
+                caps.add("ui_egress")
+        ui_perms = _ui_permission_union(ui_metas)
+        if ui_perms:
+            attrs["_ui_permissions"] = ui_perms
+            sensitive = sorted(set(ui_perms) & set(_SENSITIVE_UI_PERMISSIONS))
+            if sensitive:
+                attrs["_ui_sensitive_permissions"] = sensitive
         attrs["_capabilities"] = sorted(caps)
         # Egress allowlist (the declassifier ATL-202 recommends): only meaningful
         # on an egress-capable server, matched against the launch command and the
@@ -433,6 +568,12 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             caps_declared = []
         if caps_declared:
             attrs["_declared_capabilities"] = caps_declared
+        # Standardized extensions map (SEP-2663): declared, opt-in extension
+        # behaviour (e.g. io.modelcontextprotocol/tasks = durable server-side
+        # task state an agent polls across sessions). Set only when declared.
+        ext_keys = _declared_extension_keys(cfg, caps_declared)
+        if ext_keys:
+            attrs["_declared_extensions"] = ext_keys
         # Identity-propagation gap: a data-access server (database / memory /
         # saas_data) whose env holds a secret reaches the store through ONE
         # static service identity, so every agent caller looks the same
