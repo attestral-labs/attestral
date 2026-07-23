@@ -850,6 +850,42 @@ rules:
     recommendation: Publish under a namespace you can prove ownership of - the domain your remotes and repository actually live on, or your `io.github.*` account namespace - and treat a manifest whose claimed domain is unrelated to every declared source as an impersonation attempt until the publisher is verified.
     frameworks: ["OWASP-ASI04:2026", "MCP Registry Namespace Verification", "CWE-829", "NIST SR-4"]
 
+  # --- MCP Apps UI wave: the ext-apps extension (SEP-1865, spec 2026-01-26)
+  # --- lets a server ship interactive HTML the host renders in a sandboxed
+  # --- iframe. Its CSP-style declarations (connectDomains, permissions) and
+  # --- the SEP-2663 extensions map are design-time facts derived by the
+  # --- ingester, so an over-broad grant is visible before the app renders.
+  # --- Fixtures: examples/mcp-apps-ui/, examples/mcp-apps-ui-fleet/.
+
+  - id: ATL-160
+    title: App UI declares external connect domains
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _ui_external_connect: true } }
+    description: The server's embedded app UI declares connectDomains reaching beyond its own origin - a wildcard or an external host - so the host must grant that iframe standing fetch/XHR/WebSocket egress, where the ext-apps spec (2026-01-26) defaults connect-src to 'none'. Tool results flow into the rendered UI over the host bridge, so this is an exfiltration channel that exists even when the server process itself has no network capability at all.
+    recommendation: Pin connectDomains to the specific first-party origins the app genuinely calls - never a wildcard - or remove the field entirely to keep the spec's default-deny posture, and re-review the app whenever a new origin is added.
+    frameworks: ["OWASP-ASI09:2026", "OWASP-ASI02:2026", "MCP ext-apps 2026-01-26", "CWE-942", "NIST SC-7"]
+
+  - id: ATL-161
+    title: App UI requests sensor or clipboard permissions
+    severity: medium
+    target: mcp_server
+    match: { attr_list_any_of: { _ui_sensitive_permissions: ["camera", "microphone", "geolocation", "clipboardWrite", "clipboard-write"] } }
+    description: The server's embedded app UI asks the host sandbox for camera, microphone, geolocation, or clipboard-write access, so server-authored code rendered in the agent host can capture hardware input, track location, or plant clipboard content - data the user handed to the app surface, never to the agent, and a grant most hosts surface once and remember.
+    recommendation: Drop the sensitive permission from the UI declaration unless it is the app's core function; if it truly is, scope it to the one resource that needs it and make the host prompt per use rather than remember the grant.
+    frameworks: ["OWASP-ASI09:2026", "MCP ext-apps 2026-01-26", "CWE-250", "NIST AC-6"]
+
+  - id: ATL-162
+    title: Tasks extension negotiated while tool calls are auto-approved
+    severity: medium
+    target: mcp_server
+    match:
+      attr_list_contains: { _declared_extensions: "io.modelcontextprotocol/tasks" }
+      attr_equals: { _auto_approve: true }
+    description: The server negotiates the background-tasks extension (SEP-2663) and the client config auto-approves its tool calls, so long-running work starts, runs, and finishes with zero human checkpoints - autonomous execution nobody is watching, where a single injected instruction becomes a task that keeps working after the user walks away.
+    recommendation: Gate task-creating tools behind explicit human approval - remove this server from the auto-approve list, or allowlist only synchronous read-only tools so a background task can never start unattended.
+    frameworks: ["OWASP-ASI02:2026", "MCP SEP-2663", "NIST AC-6(9)"]
+
   - id: ATL-151
     title: Secret hard-coded in an agent-instruction file
     severity: high
@@ -930,6 +966,18 @@ rules:
     description: The fleet contains a server that ingests untrusted external content (web/fetch, SaaS data, or memory) and a server that can execute commands, so injected content flowing from source to sink becomes indirect-injection-to-code-execution. The source and sink servers are named in the finding, and the flow is recorded as taint edges in the model.
     recommendation: Break the path - keep untrusted-input tools and execution tools in separate agent sessions, or interpose a validation/allowlist step so retrieved content can never drive the executor.
     frameworks: ["OWASP-ASI02:2026", "OWASP LLM01 Prompt Injection", "Agentic-SoK 2026 R3", "Agentic-SoK 2026 R6", "MITRE ATLAS AML.T0051"]
+
+  # ATL-202's egress side is tool traffic (network/messaging servers). An MCP
+  # App's iframe is a second, quieter egress side: its CSP connectDomains are
+  # origins the UI itself may call, which no review of tool traffic ever sees.
+  - id: ATL-220
+    title: Fleet pairs private data with an app-UI egress channel
+    severity: high
+    target: model
+    match: { model_capability_combo: [["filesystem", "database", "saas_data", "memory"], ["ui_egress"]] }
+    description: One server in the fleet reads private data (files, databases, SaaS, or persistent memory) and a different server ships an app UI whose CSP allows external connect origins, so tool results that flow into the rendered iframe can be posted to the domains that UI declared. The private-data server and the UI-declaring server are different servers, so only the assembled system model sees the pairing - an egress review of tool traffic misses a UI iframe's own connect origins entirely.
+    recommendation: Split the fleet so the private-data server and the UI-declaring server never share an agent session, or pin the app's connectDomains back to 'none' or specific first-party origins so the iframe cannot carry data out.
+    frameworks: ["OWASP-ASI02:2026", "OWASP-ASI09:2026", "OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051", "NIST SC-7"]
 
   # --- Cross-server tool shadowing wave: the attack surface created by
   # --- running several MCP servers side by side. Anchored to SAFE-MCP

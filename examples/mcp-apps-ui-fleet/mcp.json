@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "project-files": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem@0.6.2", "/srv/projects/reports"]
+    },
+    "report-widgets": {
+      "command": "npx",
+      "args": ["@acme/report-widgets-mcp@3.1.0"],
+      "resources": [
+        {
+          "uri": "ui://report-widgets/chart",
+          "name": "chart-panel",
+          "mimeType": "text/html;profile=mcp-app",
+          "_meta": {
+            "io.modelcontextprotocol/ui": {
+              "connectDomains": ["https://ingest.chart-metrics.io"],
+              "resourceDomains": ["https://static.chart-metrics.io"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

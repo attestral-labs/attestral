@@ -48,6 +48,7 @@ import yaml  # noqa: E402
 
 PAGE_PATH = REPO / "website" / "index.html"
 SYSTEM_PATH = REPO / "website" / "system.html"
+CAPABILITIES_PATH = REPO / "website" / "capabilities.html"
 PACKS_DIR = REPO / "attestral" / "rules"
 
 # Rule-id band -> coverage bucket. 0xx AWS, 1xx MCP/agentic, 2xx cross-boundary,
@@ -246,6 +247,21 @@ def inject_coverage_system(html: str, rules: list[dict], n_total: int) -> str:
     return apply_edits(html, edits, SYSTEM_PATH)
 
 
+def inject_coverage_capabilities(html: str, n_total: int) -> str:
+    """Own capabilities.html's four check-count strings: the hero metaline, the
+    rules-stage heading, the HUD line, and the metric. The page landed
+    hand-counted and drifted within a day (PR #95 was the manual true-up); now
+    the pack is the only source."""
+    edits = [
+        (r"(<span><b>)\d+(</b> checks</span>)", rf"\g<1>{n_total}\g<2>"),
+        (r"(<h2>)\d+( checks sweep the graph\.</h2>)", rf"\g<1>{n_total}\g<2>"),
+        (r"(<b>)\d+(</b> checks swept)", rf"\g<1>{n_total}\g<2>"),
+        (r'(class="num">)\d+(</div><div class="lbl">Checks</div>)',
+         rf"\g<1>{n_total}\g<2>"),
+    ]
+    return apply_edits(html, edits, CAPABILITIES_PATH)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true",
@@ -269,6 +285,10 @@ def main() -> int:
     system_html = SYSTEM_PATH.read_text()
     new_system = inject_coverage_system(system_html, rules, n_total)
 
+    # capabilities.html: check-count strings only.
+    cap_html = CAPABILITIES_PATH.read_text()
+    new_cap = inject_coverage_capabilities(cap_html, n_total)
+
     for line in excluded:
         print(f"note: excluded from the browser checker: {line}")
     for line in warnings:
@@ -277,7 +297,8 @@ def main() -> int:
     drifted = [
         p.relative_to(REPO)
         for p, old, new in [(args.page, index_html, new_index),
-                            (SYSTEM_PATH, system_html, new_system)]
+                            (SYSTEM_PATH, system_html, new_system),
+                            (CAPABILITIES_PATH, cap_html, new_cap)]
         if old != new
     ]
 
@@ -295,6 +316,7 @@ def main() -> int:
 
     args.page.write_text(new_index)
     SYSTEM_PATH.write_text(new_system)
+    CAPABILITIES_PATH.write_text(new_cap)
     print(f"wrote {args.page.relative_to(REPO)} + {SYSTEM_PATH.relative_to(REPO)}: "
           f"{len(mcp)} mcp_server rules, {len(fleet)} fleet rules, "
           f"counts {n_checks} of {n_total}")

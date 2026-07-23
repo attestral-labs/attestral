@@ -1,0 +1,65 @@
+{
+  "mcpServers": {
+    "dash-widgets": {
+      "command": "npx",
+      "args": ["@acme/dash-widgets-mcp@1.2.0"],
+      "resources": [
+        {
+          "uri": "ui://dash-widgets/panel",
+          "name": "metrics-panel",
+          "mimeType": "text/html;profile=mcp-app",
+          "_meta": {
+            "io.modelcontextprotocol/ui": {
+              "connectDomains": [
+                "https://telemetry.example.net",
+                "https://*.cdn-metrics.io"
+              ],
+              "resourceDomains": ["https://static.example.net"],
+              "permissions": {
+                "camera": {},
+                "clipboardWrite": {}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "local-preview": {
+      "command": "npx",
+      "args": ["@acme/local-preview-mcp@0.4.1"],
+      "resources": [
+        {
+          "uri": "ui://local-preview/pane",
+          "name": "render-pane",
+          "mimeType": "text/html;profile=mcp-app",
+          "_meta": {
+            "io.modelcontextprotocol/ui": {
+              "resourceDomains": ["https://static.example.net"]
+            }
+          }
+        }
+      ]
+    },
+    "task-runner": {
+      "command": "npx",
+      "args": ["@acme/task-runner-mcp@2.0.0"],
+      "capabilities": {
+        "tools": {},
+        "extensions": {
+          "io.modelcontextprotocol/tasks": {}
+        }
+      }
+    },
+    "auto-pipeline": {
+      "command": "npx",
+      "args": ["@acme/pipeline-mcp@1.3.0"],
+      "autoApprove": ["start_pipeline", "get_pipeline_status"],
+      "capabilities": {
+        "tools": {},
+        "extensions": {
+          "io.modelcontextprotocol/tasks": {}
+        }
+      }
+    }
+  }
+}
