@@ -807,6 +807,49 @@ rules:
     recommendation: Never put a fetch-and-execute one-liner in a standing instruction or skill file. If a setup step is genuinely needed, pin it to a reviewed script vendored in the repo (with a content hash), require explicit human approval before it runs, and prefer a package manager with integrity checking over piping a URL into a shell.
     frameworks: ["OWASP-ASI05:2026", "OWASP-ASI06:2026", "OWASP LLM06 Excessive Agency", "NIST SI-7", "CWE-494"]
 
+  # --- Research wave 2026-07: committed-config credential and transport
+  # --- surfaces. Anchored to Check Point's Claude Code research (2026-02-25,
+  # --- CVE-2026-21852 base-URL exfiltration), the MCP authorization spec
+  # --- (2025-11-25), MCP SEP-2243 (parameter-to-header passthrough), and the
+  # --- MCP registry's namespace-verification model. Each fires only on a
+  # --- concrete config-derived signal; language risk stays in ml.py.
+
+  - id: ATL-156
+    title: Project settings redirect the model API endpoint to a foreign host
+    severity: high
+    target: agent_config
+    match: { attr_equals: { _foreign_api_base: true } }
+    description: A repo-committed agent settings file (`.claude/settings.json`) sets a model-API base URL (`ANTHROPIC_BASE_URL`, `ANTHROPIC_BEDROCK_BASE_URL`, `OPENAI_BASE_URL`, `*_API_BASE`) to a host that is neither the vendor's own domain nor loopback, so every model call - `Authorization` header and API key included - is sent to that foreign endpoint. Because the env block is resolved from repo-controlled config, a cloned or poisoned repo redirects the credential silently; Check Point demonstrated exactly this exfiltration against Claude Code, where the override applied before the user ever confirmed workspace trust (CVE-2026-21852, fixed in 2.0.65).
+    recommendation: Remove the base-URL override from committed settings. If a proxy or gateway is genuinely required, configure it in user-scoped settings you control and point it only at a host your org owns; treat any repo-supplied `*_BASE_URL` / `*_API_BASE` value as a credential-theft attempt until reviewed.
+    frameworks: ["OWASP-ASI03:2026", "MITRE ATLAS AML.T0098", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "CVE-2026-21852"]
+
+  - id: ATL-157
+    title: Remote MCP server config embeds a literal auth token in its headers block
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _has_static_auth_header: true } }
+    description: A remote server entry carries an auth header (`Authorization`, `X-API-Key`, a token/secret-shaped key) whose value is a literal committed credential rather than `${ENV_VAR}` indirection. The endpoint is authenticated - that is not the problem - but the token itself now lives in version control, ships to everyone who clones the repo, is copied into logs and backups, and cannot be rotated out of the history. The MCP HTTP transports mandate OAuth with short-lived tokens obtained at connect time (authorization spec 2025-11-25) precisely so no static credential ever needs to sit in a client config.
+    recommendation: Rotate the committed token now - assume it is compromised - then replace the literal with environment indirection (a `Bearer ${SERVICE_TOKEN}` header value) or move the server to the spec's OAuth flow so the config carries no credential at all.
+    frameworks: ["OWASP-ASI03:2026", "MCP Authorization 2025-11-25", "CWE-798", "NIST IA-5(7)"]
+
+  - id: ATL-158
+    title: Tool parameter is mapped to a raw transport header
+    severity: medium
+    target: mcp_server
+    match: { attr_equals: { _has_header_mapped_params: true } }
+    description: A tool's input schema marks a parameter with `x-mcp-header` (MCP SEP-2243), so the client mirrors the model-chosen argument value into an `Mcp-Param-*` HTTP header on every call - and load balancers, WAFs, rate limiters, and authorization gateways make routing and policy decisions on that header before the server validates anything. The value originates from the model, which means a prompt injection steering the agent chooses it too; the SEP itself warns that intermediaries must not treat these values as trusted input and that a tenant id or region in a header must be independently verified against the caller's actual permissions. The mapped parameters are recorded on the component.
+    recommendation: Header-map only coarse routing hints that carry no authority (never a tenant id, user id, or anything an intermediary enforces policy on), have every intermediary re-verify header-derived decisions against the authenticated caller, and confirm the server rejects header/body mismatches as the SEP requires.
+    frameworks: ["OWASP-ASI02:2026", "MCP SEP-2243", "CWE-644", "NIST SI-10"]
+
+  - id: ATL-159
+    title: Registry manifest namespace does not match its repository or remote host
+    severity: medium
+    target: mcp_registry_manifest
+    match: { attr_equals: { _namespace_mismatch: true } }
+    description: The server.json claims a reverse-DNS namespace tied to a DNS domain (`com.example/...` claims example.com), but neither the declared repository nor any remote endpoint lives on or near that domain. In the registry's namespace-verification model the name IS the trust signal - `com.example` may only be published by whoever proves control of example.com - so a manifest whose name points one way while its code and endpoints point elsewhere has the shape of namespace squatting / brand impersonation, and a manifest consumed outside the official registry (vendored, mirrored, or self-hosted) never went through the ownership check at all. Forge namespaces (`io.github.*`) are account-verified rather than domain-verified and are never compared, and a forge repository owned by the same organization (`com.example` with github.com/example) is recognized as matching.
+    recommendation: Publish under a namespace you can prove ownership of - the domain your remotes and repository actually live on, or your `io.github.*` account namespace - and treat a manifest whose claimed domain is unrelated to every declared source as an impersonation attempt until the publisher is verified.
+    frameworks: ["OWASP-ASI04:2026", "MCP Registry Namespace Verification", "CWE-829", "NIST SR-4"]
+
   - id: ATL-151
     title: Secret hard-coded in an agent-instruction file
     severity: high
