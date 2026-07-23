@@ -140,6 +140,22 @@ positive:
     path: examples/interpreter-shell
     expect: [ATL-146]
     cite: "A shell smuggled through interpreter inline code (node -e / python -c), found by the M10 defense-aware eval: OWASP ASI05"
+  - id: api-base-override
+    path: examples/api-base-override
+    expect: [ATL-156]
+    cite: "Committed settings redirect ANTHROPIC_BASE_URL to a foreign host, exfiltrating the Authorization header (Check Point 2026-02-25, CVE-2026-21852); MITRE ATLAS AML.T0098"
+  - id: mcp-header-token
+    path: examples/mcp-header-token
+    expect: [ATL-157]
+    cite: "Literal bearer token committed in a remote server's headers block (CWE-798); MCP authorization spec 2025-11-25 mandates short-lived OAuth tokens instead of static config credentials"
+  - id: header-mapped-params
+    path: examples/header-mapped-params
+    expect: [ATL-158]
+    cite: "x-mcp-header parameter-to-header passthrough (MCP SEP-2243): model-chosen values drive intermediary routing/policy; the SEP's own security section warns they must not be trusted"
+  - id: registry-namespace-mismatch
+    path: examples/registry-namespace-mismatch
+    expect: [ATL-159]
+    cite: "Namespace squatting a domain the publisher does not control (MCP registry namespace verification: com.example/* requires proof of example.com ownership); CWE-829"
 
 benign:
   - id: benign-readonly-fleet
