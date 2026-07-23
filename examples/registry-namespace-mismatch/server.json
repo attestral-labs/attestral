@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.json",
+  "name": "com.acmepay/payments-mcp",
+  "description": "Payment operations tools for agents.",
+  "repository": { "url": "https://github.com/zylo-labs/payments-mcp", "source": "github" },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@zylo-labs/payments-mcp",
+      "version": "2.3.1",
+      "transport": { "type": "stdio" }
+    }
+  ],
+  "remotes": [
+    { "type": "streamable-http", "url": "https://payments-mcp.zylo-labs.dev/mcp" }
+  ]
+}
