@@ -452,6 +452,235 @@ img{max-width:100%;height:auto}
   capBtns.forEach(function(b){b.addEventListener('click',function(){selectCap(b.getAttribute('data-cap'));});});
   var cIO=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){selectCap('scan');cIO.disconnect();}});},{threshold:.3});
   cIO.observe(document.getElementById('caps'));
+  /* ===================== 2D pipeline (stratified trust-boundary diagram) ===================== */
+  var stage=document.getElementById('stage'),hud=document.getElementById('hud'),stagetag=document.getElementById('stagetag');
+  var svg=document.getElementById('diagram');
+  var SVGNS='http://www.w3.org/2000/svg';
+  function el(t,a,p){var e=document.createElementNS(SVGNS,t);if(a)for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;}
+  function diamond(cx,cy,r){return cx+','+(cy-r)+' '+(cx+r)+','+cy+' '+cx+','+(cy+r)+' '+(cx-r)+','+cy;}
+  function hex(cx,cy,r){var p=[];for(var i=0;i<6;i++){var a=Math.PI/180*(60*i-30);p.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1));}return p.join(' ');}
+
+  // form encodes trust boundary (gem=agent tool, hex=cluster, block=cloud, core=the agent); colour is reserved for state
+  var NODES=[
+    {id:'agent',label:'agent',bd:'agent',x:280,y:150,hub:true,form:'core'},
+    {id:'fs',label:'fs-reader',bd:'agent',x:92,y:152,form:'gem'},
+    {id:'web',label:'web-fetch',bd:'agent',x:186,y:152,form:'gem'},
+    {id:'slack',label:'slack-post',bd:'agent',x:374,y:152,form:'gem'},
+    {id:'retr',label:'retriever',bd:'agent',x:468,y:152,form:'gem'},
+    {id:'gw',label:'gateway',bd:'cluster',x:180,y:370,form:'hex'},
+    {id:'queue',label:'queue',bd:'cluster',x:280,y:370,form:'hex'},
+    {id:'k8s',label:'k8s-api',bd:'cluster',x:380,y:370,form:'hex'},
+    {id:'s3',label:'s3',bd:'cloud',x:92,y:588,form:'block'},
+    {id:'iam',label:'iam',bd:'cloud',x:186,y:588,form:'block'},
+    {id:'secrets',label:'secrets-manager',bd:'cloud',x:280,y:588,form:'block'},
+    {id:'rds',label:'rds',bd:'cloud',x:374,y:588,form:'block'},
+    {id:'lambda',label:'lambda',bd:'cloud',x:468,y:588,form:'block'}
+  ];
+  var EDGES=[['agent','fs'],['agent','web'],['agent','slack'],['agent','retr'],['agent','gw'],['retr','k8s'],['gw','queue'],['gw','k8s'],['k8s','s3'],['k8s','secrets'],['gw','iam'],['gw','rds'],['queue','lambda'],['lambda','s3']];
+  var IDX={};NODES.forEach(function(n){IDX[n.id]=n;});
+  var FINDINGS=[{id:'web',sev:'crit'},{id:'secrets',sev:'crit'},{id:'gw',sev:'high'},{id:'k8s',sev:'high'},{id:'lambda',sev:'med'}];
+  var TRI=['fs','web','slack'],TRI_EDGES=[0,1,2],ALLOW_EDGES=[0,3,4,5,6];
+  var STAGES=['ingest','model','rules','blast','ml','llm','waivers','evidence','runtime'];
+  var TAGS=['01 Ingest','02 Model','03 Rules','04 Blast radius','05 Language','06 Cross-examine','07 Waivers','08 Evidence','09 Runtime'];
+  var LANES=[{name:'agent runtime',y:54,h:196},{name:'cluster',y:272,h:196},{name:'cloud',y:490,h:196}];
+  var CH=[['main.tf',70],['deploy.yaml',205],['.mcp.json',345],['system.prompt',478]];
+
+  var edgeEls=[],pinEls=[],trafficEls=[],ringEls=[],pulseEls=[],flowEls=[],ingDots=[];
+  var scanLine=null,scanFill=null,beamRect=null,denyDot=null,denyTag=null,denyT=0;
+  var blast={active:false,t:0,reached:{},ranked:[],maxD:1};
+
+  var built=false;
+  try{ if(svg){buildSVG();built=true;stage.classList.add('ready');} }catch(err){ stage.classList.add('failed'); }
+
+  function buildSVG(){
+    svg.setAttribute('viewBox','0 0 560 740');svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    var gLane=el('g',{},svg);
+    LANES.forEach(function(L){ el('rect',{x:24,y:L.y,width:512,height:L.h,rx:14,'class':'d-laneband'},gLane);
+      el('text',{x:40,y:L.y+22,'class':'d-lanelabel'},gLane).textContent=L.name; });
+    var gEdge=el('g',{id:'edges'},svg);
+    edgeEls=EDGES.map(function(e){var a=IDX[e[0]],b=IDX[e[1]];return el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,'class':'d-edge'},gEdge);});
+    var gNode=el('g',{id:'nodes'},svg);
+    NODES.forEach(function(n){var g=el('g',{'class':'d-node'+(n.hub?' hub':''),id:'nd-'+n.id},gNode);
+      if(n.form==='core'){ el('rect',{x:n.x-24,y:n.y-24,width:48,height:48,rx:9,'class':'d-shape'},g);
+        el('path',{d:'M'+(n.x-10)+' '+(n.y+8)+'L'+n.x+' '+(n.y-11)+'L'+(n.x+10)+' '+(n.y+8),'class':'d-hubmark'},g);
+        el('line',{x1:n.x-5.5,y1:n.y+1,x2:n.x+5.5,y2:n.y+1,'class':'d-hubmark'},g); }
+      else if(n.form==='gem'){ el('polygon',{points:diamond(n.x,n.y,17),'class':'d-shape'},g); }
+      else if(n.form==='hex'){ el('polygon',{points:hex(n.x,n.y,21),'class':'d-shape'},g); }
+      else { el('rect',{x:n.x-19,y:n.y-15,width:38,height:30,rx:5,'class':'d-shape'},g); }
+      var ly=n.hub?n.y+42:(n.bd==='cloud'?n.y+34:n.y+31);
+      el('text',{x:n.x,y:ly,'class':'d-nlabel'},g).textContent=n.label;
+    });
+    var gA=el('g',{id:'anno'},svg);
+    // ingest chips + inflow
+    var gi=el('g',{id:'anno-ingest','class':'d-anno'},gA);
+    CH.forEach(function(c){var w=c[0].length*6.6+16,x=c[1]-w/2;var cg=el('g',{'class':'d-chip'},gi);
+      el('line',{x1:c[1],y1:40,x2:280,y2:118,stroke:'var(--rule)','stroke-width':1,'stroke-dasharray':'3 4'},cg);
+      el('rect',{x:x,y:18,width:w,height:22,rx:5},cg);
+      el('text',{x:c[1],y:33,'text-anchor':'middle'},cg).textContent=c[0];});
+    ingDots=CH.map(function(c){return el('circle',{cx:c[1],cy:30,r:2.4,'class':'d-dot'},gi);});
+    // rules scan
+    var gr=el('g',{id:'anno-rules','class':'d-anno'},gA);
+    scanFill=el('rect',{x:24,y:54,width:512,height:0,'class':'d-scanfill'},gr);
+    scanLine=el('line',{x1:24,y1:54,x2:536,y2:54,'class':'d-scan'},gr);
+    // pins (persistent group, toggled per node)
+    var gp=el('g',{id:'pins'},gA);
+    pinEls=FINDINGS.map(function(f){var n=IDX[f.id];var g=el('g',{'class':'d-pin '+f.sev},gp);
+      el('line',{x1:n.x,y1:n.y-20,x2:n.x,y2:n.y-40,'class':'d-pinstem'},g);
+      el('polygon',{points:diamond(n.x,n.y-46,6.5),'class':'d-pinhead'},g);return {g:g,f:f};});
+    // blast rings
+    var gb=el('g',{id:'anno-blast','class':'d-anno'},gA);
+    ringEls=[0,1,2].map(function(){return el('circle',{cx:IDX.secrets.x,cy:IDX.secrets.y,r:0,'class':'d-ring'},gb);});
+    // ml beam
+    var gm=el('g',{id:'anno-ml','class':'d-anno'},gA);
+    beamRect=el('rect',{x:150,y:130,width:262,height:44,rx:6,'class':'d-beam'},gm);
+    // llm cross-examination vignette
+    var gl=el('g',{id:'anno-llm','class':'d-anno'},gA);
+    el('text',{x:280,y:214,'class':'d-tag',fill:'var(--verify)'},gl).textContent='verdict: upheld';
+    el('rect',{x:170,y:236,width:44,height:44,rx:8,'class':'d-glyph ink'},gl);
+    el('text',{x:192,y:300,'class':'d-glyphlabel'},gl).textContent='elicitor';
+    el('polygon',{points:hex(368,258,22),'class':'d-glyph'},gl);
+    el('text',{x:368,y:300,'class':'d-glyphlabel'},gl).textContent='judge';
+    pulseEls=[0,1,2,3,4,5].map(function(){return el('circle',{cx:192,cy:258,r:3,'class':'d-dot',opacity:0},gl);});
+    // waiver slip
+    var gw=el('g',{id:'anno-waivers','class':'d-anno'},gA);
+    el('rect',{x:IDX.gw.x+16,y:IDX.gw.y-42,width:104,height:22,rx:5,fill:'var(--card)',stroke:'var(--muted)','stroke-width':1,'stroke-dasharray':'4 3'},gw);
+    el('text',{x:IDX.gw.x+68,y:IDX.gw.y-27,'class':'d-tag',fill:'var(--muted)'},gw).textContent='WAIVED · exp 90d';
+    el('line',{x1:IDX.gw.x+16,y1:IDX.gw.y-20,x2:IDX.gw.x+4,y2:IDX.gw.y-14,stroke:'var(--muted)','stroke-width':1},gw);
+    // evidence chain
+    var ge=el('g',{id:'anno-evidence','class':'d-anno'},gA);
+    var shas=['9f0','a1b','c08','2b3'];
+    for(var i=0;i<4;i++){var bx=138+i*78;
+      el('rect',{x:bx,y:332,width:58,height:58,rx:7,'class':'d-block'},ge);
+      el('text',{x:bx+29,y:410,'class':'d-blocklabel'},ge).textContent='sha:'+shas[i]+'…';
+      if(i<3)el('line',{x1:bx+58,y1:361,x2:bx+78,y2:361,'class':'d-link'},ge);}
+    el('rect',{x:448,y:349,width:60,height:24,rx:5,'class':'d-seal'},ge);
+    el('text',{x:478,y:365,'class':'d-sealtext'},ge).textContent='SEALED';
+    // runtime gate + external + permitted flow + deny
+    var gt=el('g',{id:'anno-runtime','class':'d-anno'},gA);
+    el('text',{x:506,y:44,'class':'d-extlabel','text-anchor':'middle'},gt).textContent='#external';
+    el('line',{x1:IDX.slack.x,y1:IDX.slack.y-12,x2:502,y2:52,stroke:'var(--muted)','stroke-width':1,'stroke-dasharray':'3 4',opacity:0.5},gt);
+    el('line',{x1:450,y1:70,x2:474,y2:98,'class':'d-gate'},gt);
+    flowEls=ALLOW_EDGES.map(function(){return el('circle',{cx:0,cy:0,r:3,fill:'var(--verify)',opacity:0},gt);});
+    denyDot=el('circle',{cx:IDX.slack.x,cy:IDX.slack.y-12,r:4,fill:'var(--seal)',opacity:0},gt);
+    denyTag=el('text',{x:452,y:120,'class':'d-tag',fill:'var(--seal)'},gt);denyTag.textContent='DENY';
+    // ambient traffic pool (model)
+    var gtr=el('g',{id:'traffic'},gA);
+    trafficEls=EDGES.map(function(){return el('circle',{cx:0,cy:0,r:2.6,'class':'d-dot',opacity:0},gtr);});
+  }
+
+  /* ---- HUD ---- */
+  var HUD={
+    ingest:{k:'reading',cls:'hud',html:'terraform &middot; kubernetes &middot; mcp configs &middot; prompts'},
+    model:{k:'system model',cls:'hud',html:'13 components &middot; 14 edges &middot; 3 trust boundaries'},
+    rules:{k:'deterministic rules',cls:'hud danger',html:'<b>250</b> checks swept &middot; <b>5</b> findings &middot; 1 lethal trifecta'},
+    blast:{k:'blast radius from secrets-manager',cls:'hud danger',html:'<ul class="bl" id="bl"></ul>'},
+    ml:{k:'injection score (ml layer)',cls:'hud danger',html:'web-fetch description &nbsp; p=<b>0.94</b><div class="meter"><i id="mtr"></i></div><div class="tiers"><span class="on">heuristic</span><span>onnx</span><span>deberta</span></div>'},
+    llm:{k:'llm cross-examination',cls:'hud',html:'elicitor proposes &#8594; judge disposes &nbsp; verdict: <b>upheld</b> (opt-in)'},
+    waivers:{k:'waiver',cls:'hud',html:'gateway:iam &middot; <b>documented</b>, expires in 90d, still in the chain'},
+    evidence:{k:'evidence chain',cls:'hud good',html:'4 blocks &middot; SHA-256 linked &middot; head <span class="ok">SEALED</span> &middot; tamper-evident'},
+    runtime:{k:'compile &#8594; drift',cls:'hud good',html:'<span class="ok">1,203 OK</span> &middot; <b>1 DENY</b> (slack-post &#8594; #external, not in policy)'}
+  };
+  function setHUD(s){var d=HUD[s];hud.className=d.cls;hud.innerHTML='<span class="hk">'+d.k+'</span>'+d.html;}
+
+  /* ---- state helpers ---- */
+  var cur='ingest';
+  function annoOn(id){var g=document.getElementById('anno-'+id);if(g)g.classList.add('on');}
+  function clearAnno(){['ingest','rules','blast','ml','llm','waivers','evidence','runtime'].forEach(function(id){var g=document.getElementById('anno-'+id);if(g)g.classList.remove('on');});}
+  function clsNodes(){NODES.forEach(function(n){document.getElementById('nd-'+n.id).setAttribute('class','d-node'+(n.hub?' hub':''));});}
+  function addCls(id,c){var g=document.getElementById('nd-'+id);g.setAttribute('class',g.getAttribute('class')+' '+c);}
+  function clsEdges(){edgeEls.forEach(function(e){e.setAttribute('class','d-edge');});}
+  function pinsVis(on){pinEls.forEach(function(p){p.g.classList.toggle('vis',!!on);});}
+
+  function startBlast(){var s=IDX.secrets;
+    blast={active:true,t:0,reached:{secrets:true},ranked:[],maxD:1};
+    blast.ranked=NODES.filter(function(n){return n.id!=='secrets';}).map(function(n){return {id:n.id,d:Math.sqrt((n.x-s.x)*(n.x-s.x)+(n.y-s.y)*(n.y-s.y))};}).sort(function(a,b){return a.d-b.d;});
+    blast.maxD=blast.ranked[blast.ranked.length-1].d;
+    addCls('secrets','crit');
+    var list=document.getElementById('bl');
+    if(list){list.innerHTML='';
+      var l0=document.createElement('li');l0.className='hit';l0.innerHTML='<span class="rn">0</span> secrets-manager <span class="bd">source</span>';list.appendChild(l0);
+      blast.ranked.forEach(function(r,idx){var n=IDX[r.id];var li=document.createElement('li');li.id='bl-'+r.id;li.innerHTML='<span class="rn">'+(idx+1)+'</span> '+n.label+' <span class="bd">'+n.bd+'</span>';list.appendChild(li);});}
+    if(reduce){blast.ranked.forEach(function(r){addCls(r.id,'crit');var li=document.getElementById('bl-'+r.id);if(li)li.classList.add('hit');});}
+  }
+
+  function applyStage(s){
+    cur=s;var i=STAGES.indexOf(s);
+    stagetag.innerHTML='<b>'+TAGS[i].slice(0,2)+'</b> &nbsp;'+TAGS[i].slice(3);
+    setHUD(s);
+    if(!built)return;
+    svg.setAttribute('data-stage',s);
+    svg.classList.toggle('focus',s==='llm'||s==='evidence');
+    clsNodes();clsEdges();clearAnno();pinsVis(false);
+    scanFill.setAttribute('height',0);scanLine.setAttribute('y1',54);scanLine.setAttribute('y2',54);
+    denyT=reduce?1:0;
+    if(s==='ingest'){ annoOn('ingest');NODES.forEach(function(n){addCls(n.id,'dim');}); }
+    else if(s==='rules'){ annoOn('rules');
+      FINDINGS.forEach(function(f){addCls(f.id,f.sev);});
+      TRI.forEach(function(id){if(FINDINGS.every(function(f){return f.id!==id;}))addCls(id,'crit');});
+      TRI_EDGES.forEach(function(ei){edgeEls[ei].classList.add('tri');});
+      if(reduce)pinsVis(true); }
+    else if(s==='blast'){ annoOn('blast');startBlast(); }
+    else if(s==='ml'){ annoOn('ml');addCls('web','lit');addCls('slack','lit');
+      var mtr=document.getElementById('mtr');if(mtr){mtr.style.width=reduce?'94%':'0';if(!reduce)setTimeout(function(){mtr.style.width='94%';},130);} }
+    else if(s==='llm'){ annoOn('llm'); }
+    else if(s==='waivers'){ annoOn('waivers');addCls('gw','waived');
+      EDGES.forEach(function(e,ei){if(e[0]==='gw'||e[1]==='gw')edgeEls[ei].classList.add('dim');}); }
+    else if(s==='evidence'){ annoOn('evidence'); }
+    else if(s==='runtime'){ annoOn('runtime');
+      edgeEls.forEach(function(e,ei){e.classList.add(ALLOW_EDGES.indexOf(ei)>=0?'allow':'dim');});
+      NODES.forEach(function(n){var ok=ALLOW_EDGES.some(function(ei){return EDGES[ei][0]===n.id||EDGES[ei][1]===n.id;});if(ok)addCls(n.id,'allow');else if(!n.hub)addCls(n.id,'dim');}); }
+  }
+
+  /* ---- rail + scroll wiring ---- */
+  var rail=document.getElementById('rail'),railBtns=[];
+  STAGES.forEach(function(s,i){var b=document.createElement('button');b.type='button';b.setAttribute('aria-label','Stage '+(i+1)+': '+s);
+    b.addEventListener('click',function(){var t=document.querySelector('.pstep[data-stage="'+i+'"]');if(t)t.scrollIntoView({behavior:'smooth',block:'center'});});rail.appendChild(b);railBtns.push(b);});
+  function markRail(i){railBtns.forEach(function(b,j){b.setAttribute('aria-current',j===i?'true':'false');});}
+  var steps=document.querySelectorAll('.pstep');
+  var sIO=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var i=+e.target.getAttribute('data-stage');applyStage(STAGES[i]);markRail(i);}});},{rootMargin:'-45% 0px -45% 0px',threshold:0});
+  steps.forEach(function(st){sIO.observe(st);});
+
+  /* ---- animation ---- */
+  function edgePos(i,ph){var a=IDX[EDGES[i][0]],b=IDX[EDGES[i][1]];return {x:a.x+(b.x-a.x)*ph,y:a.y+(b.y-a.y)*ph};}
+  var clock=0;
+  function frame(){
+    clock++;
+    if(built){
+      // ambient traffic (model only; runtime uses its own green flow)
+      if(cur==='model'&&!reduce){ for(var t=0;t<EDGES.length;t++){var ph=((clock*0.004)+(t*0.09))%1;var p=edgePos(t,ph);trafficEls[t].setAttribute('cx',p.x);trafficEls[t].setAttribute('cy',p.y);trafficEls[t].setAttribute('opacity',0.8);} }
+      else { for(var t2=0;t2<trafficEls.length;t2++)trafficEls[t2].setAttribute('opacity',0); }
+      // ingest inflow
+      if(cur==='ingest'&&!reduce){ ingDots.forEach(function(d,k){var ph=((clock*0.011)+(k*0.25))%1;d.setAttribute('cx',CH[k][1]+(280-CH[k][1])*ph);d.setAttribute('cy',30+(118-30)*ph);d.setAttribute('opacity',0.75);}); }
+      else ingDots.forEach(function(d){d.setAttribute('opacity',0);});
+      // rules scan sweep
+      if(cur==='rules'){ if(reduce){pinsVis(true);} else {
+        var sy=54+((clock*2.6)%760);var yy=Math.min(sy,686);
+        scanLine.setAttribute('y1',yy);scanLine.setAttribute('y2',yy);scanFill.setAttribute('height',Math.max(0,yy-54));
+        pinEls.forEach(function(p){if(yy>=IDX[p.f.id].y-46)p.g.classList.add('vis');}); } }
+      // blast wave
+      if(cur==='blast'&&blast.active&&!reduce){ blast.t+=2.7;var rad=blast.t;
+        ringEls.forEach(function(r,k){var rr=rad-k*42;r.setAttribute('r',Math.max(0,rr));r.setAttribute('opacity',rr>0?Math.max(0,0.5*(1-rr/(blast.maxD+80))):0);});
+        blast.ranked.forEach(function(rk){if(!blast.reached[rk.id]&&rad>=rk.d){blast.reached[rk.id]=true;addCls(rk.id,'crit');var li=document.getElementById('bl-'+rk.id);if(li)li.classList.add('hit');}});
+        if(rad>blast.maxD+90)blast.active=false; }
+      // ml beam
+      if(cur==='ml'&&!reduce){ beamRect.setAttribute('y',130+Math.sin(clock*0.06)*6); }
+      // llm pulses elicitor<->judge
+      if(cur==='llm'&&!reduce){ var A={x:214,y:258},B={x:346,y:258};
+        pulseEls.forEach(function(d,k){var ph=((clock*0.011)+(k/pulseEls.length))%1;var dir=(k%2===0)?ph:(1-ph);
+          d.setAttribute('cx',A.x+(B.x-A.x)*dir);d.setAttribute('cy',A.y+(B.y-A.y)*dir-Math.sin(dir*Math.PI)*9);d.setAttribute('fill','var(--seal)');d.setAttribute('opacity',0.9);}); }
+      else pulseEls.forEach(function(d){d.setAttribute('opacity',0);});
+      // runtime: permitted green flow + one denied outbound event
+      if(cur==='runtime'){
+        ALLOW_EDGES.forEach(function(ei,k){var ph=reduce?0.5:(((clock*0.005)+(k*0.17))%1);var p=edgePos(ei,ph);flowEls[k].setAttribute('cx',p.x);flowEls[k].setAttribute('cy',p.y);flowEls[k].setAttribute('opacity',0.9);});
+        if(!reduce&&denyT<1)denyT+=0.018;if(denyT>1)denyT=1;
+        var s=IDX.slack,gx=458,gy=78;denyDot.setAttribute('cx',s.x+(gx-s.x)*denyT);denyDot.setAttribute('cy',(s.y-12)+(gy-(s.y-12))*denyT);denyDot.setAttribute('opacity',denyT>0.02?1:0);
+      } else { flowEls.forEach(function(d){d.setAttribute('opacity',0);});denyDot.setAttribute('opacity',0); }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  applyStage('ingest');markRail(0);
+  if(built)requestAnimationFrame(frame);
   })();
 </script>
 </body>
