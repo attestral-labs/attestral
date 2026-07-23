@@ -155,7 +155,7 @@ flowchart TB
 | Layer | What it does | Reproducible? | Cost |
 |---|---|---|---|
 | **L1 Deterministic** | 258 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
-| **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
+| **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts, embedded MCP Apps HTML bodies) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
 | **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
 
 Every finding carries its `origin`, so the deterministic core is never silently mixed with model reasoning. That separation is what makes the review audit-grade.
@@ -173,8 +173,9 @@ A raised HIGH ships with the entry → pivot → impact path that justifies it, 
 ## The sophistication layers (optional)
 
 ```bash
-# ML prompt-injection scan of agentic text surfaces (MCP tool/server descriptions and
-# system-prompt files). Hits are tagged origin: ml and flow into the same evidence chain.
+# ML prompt-injection scan of agentic text surfaces (MCP tool/server descriptions,
+# system-prompt files, embedded MCP Apps HTML bodies). Hits are tagged origin: ml
+# and flow into the same evidence chain.
 # Three tiers, chosen with --ml-engine (or ATTESTRAL_ML_ENGINE); default is auto:
 #   heuristic  zero-dependency, instant, ships in core  -> attestral scan --ml (no extra install)
 #   onnx       model-grade DeBERTa via onnxruntime, no torch, ~276 MB   <- recommended

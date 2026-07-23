@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **ML layer scores MCP Apps HTML resource bodies (all tiers).** An embedded
+  `text/html;profile=mcp-app` resource body is server-authored content rendered in the agent
+  host - a language surface like a tool description. The ingester now exposes embedded UI
+  bodies (`_ui_resource_texts`, fail-closed: only app-flavoured or UI-meta resources with a
+  string `text` count), and ml.py reduces each to its agent-readable text before scoring:
+  tags stripped so visually-hidden text survives (hiding from the human while steering the
+  model is the attack), HTML comments kept (a zero-render channel where payloads hide),
+  script/style code dropped, entities unescaped so `&#105;gnore` folds back. UI-body findings
+  carry MITRE ATLAS AML.T0100 (AI Agent Clickbait) and AML.T0099 (Tool Data Poisoning) refs
+  and never join the ATL-ML-002 reassembly pool. Fixture `examples/mcp-app-html-injection`
+  (hidden-div payload fires, benign pane stays clean). No pack-rule change: the risk is in
+  the words, so it lives in the ML layer.
 - **MCP Apps UI wave (ATL-160..162, ATL-220).** The ingester now parses the MCP Apps surface
   (ext-apps 2026-01-26 / SEP-1865 `_meta` ui metadata: connectDomains, permissions) and the
   2026-07-28 RC extensions map (SEP-2663 tasks). **ATL-160** (high): an app UI declares external
