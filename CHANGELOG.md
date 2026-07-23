@@ -7,6 +7,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Research wave 2026-07 (ATL-156..159) + 2026 CVE DB refresh.** Four deterministic agentic
+  checks grounded in spring/summer 2026 research. **ATL-156** (high): a repo-committed agent
+  settings file redirects the model API endpoint (`ANTHROPIC_BASE_URL` / `*_API_BASE`) to a
+  foreign host - the committed key-exfiltration channel behind CVE-2026-21852 (Check Point,
+  2026-02-25); vendor domains and loopback never fire. **ATL-157** (high): a remote MCP server
+  config embeds a literal auth token in its `headers` block where the spec now mandates OAuth
+   2.1 - `${ENV}` indirection never fires, and the ATL-109 OAuth-awareness is preserved.
+  **ATL-158** (medium): a tool `inputSchema` property carries the SEP-2243 `x-mcp-header`
+  mapping, letting model-controlled arguments become transport headers. **ATL-159** (medium):
+  a registry manifest's reverse-DNS namespace matches neither its repository nor any remote
+  host (squat signal; forge namespaces and same-org layouts never fire). Known-CVE launch DB
+  gains mobile-mcp <= 0.0.49 (CVE-2026-35394) and litellm < 1.83.7 (CVE-2026-30623).
+
+### Added
 - **Supply-chain / standing-instruction rule wave (ATL-153, ATL-154, ATL-155).** Three creative,
   low-false-positive agentic checks. **ATL-153** (medium): an MCP server pinned to a pre-release or
   rolling channel (`@beta`, `@rc`, `@next`, `@canary`, `@nightly`, ...) rather than an immutable
