@@ -164,6 +164,11 @@ positive:
     path: examples/mcp-apps-ui-fleet
     expect: [ATL-160, ATL-220]
     cite: "Cross-server pairing of a private-data server with a DIFFERENT server's app-UI connect origins - the lethal-trifecta egress side carried by an iframe's CSP, visible only in the assembled fleet model (ext-apps 2026-01-26; Backslash July 2026)"
+  - id: writable-mcp-config
+    path: examples/writable-mcp-config
+    world_writable: [.mcp.json]
+    expect: [ATL-163]
+    cite: "CVE-2026-30615 (Windsurf): a prompt injection gained persistence by rewriting a world-writable MCP config to auto-register a malicious stdio server; CWE-732; OWASP ASI05. The fixture's two servers are deliberately boring so the file-permission finding is the only signal."
 
 benign:
   - id: benign-readonly-fleet
