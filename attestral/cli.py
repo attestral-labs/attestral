@@ -1250,8 +1250,12 @@ def validate(path: str, output: str | None, fail_on_proof: bool, remediate: bool
               help="Ed25519 public key (PEM) to check the attestation's signature against (--verify).")
 @click.option("-o", "--output", default="attestation.json",
               help="Attestation bundle file (default: attestation.json).")
+@click.option("--log", "log_path", type=click.Path(), default=None, metavar="LOG",
+              help="Append the attestation to an append-only transparency log at LOG "
+                   "(with --verify: check the log's history and this bundle's inclusion).")
 def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key: str | None,
-           signer: str, do_verify: bool, public_key: str | None, output: str) -> None:
+           signer: str, do_verify: bool, public_key: str | None, output: str,
+           log_path: str | None) -> None:
     """Produce or verify a signed conformance attestation for PATH.
 
     An attestation binds, in one DSSE-signed in-toto Statement: the reviewed
@@ -1287,6 +1291,32 @@ def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key:
                            f"({'drift ' + rules if runtime.get('driftRules') else 'no drift'})")
             if public_key is None:
                 click.echo("  (signature not checked; pass --public-key to verify authenticity)")
+            if log_path:
+                from attestral.translog import (
+                    bundle_digest, find_entry, inclusion_proof, read_log,
+                    verify_inclusion, verify_log,
+                )
+                try:
+                    entries = read_log(log_path)
+                    lok, lfail = verify_log(entries)
+                except ValueError as exc:
+                    lok, lfail = False, [str(exc)]
+                if not lok:
+                    click.echo(f"transparency log FAILED - {lfail[0]}", err=True)
+                    sys.exit(1)
+                entry = find_entry(entries, bundle_digest(bundle))
+                if entry is None:
+                    click.echo("transparency log FAILED - this attestation is not in "
+                               f"{log_path}", err=True)
+                    sys.exit(1)
+                proof = inclusion_proof(entries, entry["index"])
+                if not verify_inclusion(entry["bundle_sha256"], proof):
+                    click.echo("transparency log FAILED - inclusion proof does not verify",
+                               err=True)
+                    sys.exit(1)
+                click.echo(f"  transparency log: entry #{entry['index']} of {len(entries)} "
+                           f"· history CONSISTENT · inclusion VERIFIED · "
+                           f"root {proof['root'][:16]}…")
             sys.exit(0)
         click.echo(f"attestation FAILED - first failing step: {failures[0]}", err=True)
         click.echo(f"  all failing steps: {', '.join(failures)}", err=True)
@@ -1306,6 +1336,19 @@ def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key:
     bundle = build_bundle(path, events=events, private_pem=private_pem,
                           signer=signer, generated_at=now)
     Path(output).write_text(json.dumps(bundle, indent=2))
+
+    if log_path:
+        from attestral.translog import append_bundle
+        try:
+            entry = append_bundle(log_path, bundle, logged_at=now)
+        except ValueError as exc:
+            click.echo(f"transparency log FAILED - {exc}", err=True)
+            sys.exit(1)
+        click.echo(f"logged: entry #{entry['index']} · log size {entry['size']} · "
+                   f"root {entry['root'][:16]}…")
+        click.echo("  the log proves append-only history, not distributed witness: "
+                   "publish the head root somewhere you do not control (a commit, "
+                   "Sigstore Rekor) so a rewrite has an external copy to contradict.")
 
     pred = bundle["statement"]["predicate"]
     subject_digest = bundle["statement"]["subject"][0]["digest"]["sha256"]

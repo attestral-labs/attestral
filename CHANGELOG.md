@@ -46,6 +46,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   and never join the ATL-ML-002 reassembly pool. Fixture `examples/mcp-app-html-injection`
   (hidden-div payload fires, benign pane stays clean). No pack-rule change: the risk is in
   the words, so it lives in the ML layer.
+- **Attestation transparency log (`attest --log`, issue #79).** One attestation proves one
+  moment; the log makes conformance monitorable over time. New zero-dep `attestral/translog.py`:
+  an RFC 6962 Merkle tree (the Certificate Transparency / Rekor construction) over attestation
+  bundles, stored as one JSONL file with a checkpoint per append - editing any past entry breaks
+  every later recorded root, and appending to a history that no longer recomputes is refused.
+  `attest --verify --log` proves history consistency plus this bundle's inclusion, with a
+  portable inclusion proof verifiable without the log file. Honest boundary printed in the CLI:
+  a self-hosted file proves append-only history, not distributed witness - publish the head root
+  externally (a commit, Sigstore Rekor; the leaf is a plain SHA-256 of the DSSE bundle) so a
+  rewrite has a copy to contradict.
 - **MCP Apps UI wave (ATL-160..162, ATL-220).** The ingester now parses the MCP Apps surface
   (ext-apps 2026-01-26 / SEP-1865 `_meta` ui metadata: connectDomains, permissions) and the
   2026-07-28 RC extensions map (SEP-2663 tasks). **ATL-160** (high): an app UI declares external
