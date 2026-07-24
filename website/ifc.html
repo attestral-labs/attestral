@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The information-flow lattice - Attestral</title>
+<meta name="description" content="How Attestral turns the lethal trifecta from a heuristic into a formal information-flow property: confidentiality and integrity labels on every tool surface, declassifiers and endorsers that discharge the finding, and why ATL-217 is precise where ATL-202/207 are the smoke alarm.">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --code-bg:#E9EBE6;
+    --seal-tint:rgba(150,34,46,.06); --verify-tint:rgba(31,106,74,.09);
+    --display:'Libre Caslon Text',Georgia,serif;
+    --body:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --code-bg:#232B1E;
+      --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+    --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+    --term-bg:#0B0E08; --code-bg:#232B1E;
+    --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+  }
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)}
+  a:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .wordmark svg .p{fill:var(--seal)}
+  .wordmark svg .k{stroke:var(--paper)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--ink);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
+
+  /* review-layers sub-nav */
+  .layernav{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;font-family:var(--mono);font-size:.8rem;padding:13px 0;border-bottom:1px solid var(--rule)}
+  .layernav>span{color:var(--muted);letter-spacing:.09em;text-transform:uppercase;font-size:.66rem}
+  .layernav a{color:var(--ink);text-decoration:none}
+  .layernav a:hover{color:var(--seal)}
+  .layernav a[aria-current="page"]{color:var(--seal)}
+
+  /* Article */
+  article{max-width:760px;margin:0 auto;padding:56px 0 40px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);display:flex;align-items:center;gap:.6rem}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--seal)}
+  article h1{font-family:var(--display);font-weight:400;font-size:clamp(2.1rem,5vw,3rem);line-height:1.12;margin:16px 0 14px;text-wrap:balance}
+  .standfirst{color:var(--muted);font-size:1.15rem;max-width:56ch;margin-bottom:26px;text-wrap:pretty}
+  .meta{font-family:var(--mono);font-size:.73rem;color:var(--muted);letter-spacing:.03em;display:flex;gap:22px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  section{padding:44px 0;border-bottom:1px solid var(--rule)}
+  section:last-of-type{border-bottom:none}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,3.4vw,1.9rem);line-height:1.16;margin:8px 0 14px;text-wrap:balance}
+  h3{font-size:1.02rem;font-weight:600;margin:24px 0 6px}
+  p{margin:0 0 14px;max-width:66ch;text-wrap:pretty}
+  p:last-child{margin-bottom:0}
+  .lede{font-size:1.1rem}
+  em{font-style:italic}
+  strong{font-weight:600}
+  code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:2px}
+
+  .pull{font-family:var(--display);font-size:1.35rem;line-height:1.36;border-left:3px solid var(--seal);padding:2px 0 2px 20px;margin:22px 0;max-width:60ch;text-wrap:pretty}
+
+  /* Diagram figure */
+  figure{margin:20px 0 6px}
+  .diagram{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:20px;overflow-x:auto}
+  .diagram svg{display:block;width:100%;height:auto;min-width:460px;overflow:visible}
+  figcaption{font-size:.88rem;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--rule);max-width:70ch;text-wrap:pretty}
+  figcaption b{color:var(--ink);font-weight:600}
+
+  /* SVG shared */
+  svg text{font-family:var(--mono);fill:var(--ink)}
+  .t-mut{fill:var(--muted)} .t-seal{fill:var(--seal)} .t-verify{fill:var(--verify)}
+  .tok{fill:var(--card);stroke:var(--rule)}
+  .chip{fill:var(--seal-tint);stroke:color-mix(in srgb,var(--seal) 40%,transparent)}
+  .gate{fill:var(--verify-tint);stroke:color-mix(in srgb,var(--verify) 45%,transparent)}
+  .stroke-rule{stroke:var(--rule)} .stroke-ink{stroke:var(--ink)} .stroke-seal{stroke:var(--seal)}
+  .stroke-verify{stroke:var(--verify)}
+  .fill-seal{fill:var(--seal)} .fill-verify{fill:var(--verify)}
+
+  /* good/bad split */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0;max-width:66ch}
+  .split>div{border:1px solid var(--rule);border-radius:2px;padding:14px 16px;background:var(--card)}
+  .split h4{margin:0 0 6px;font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+  .split h4.bad{color:var(--seal)} .split h4.good{color:var(--verify)}
+  .split p{font-size:.92rem;margin:0;color:var(--muted)}
+  @media(max-width:600px){.split{grid-template-columns:1fr}}
+  .mtable{border-collapse:collapse;margin:20px 0;font-size:.88rem;max-width:66ch}
+  .mtable th{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:8px 18px 8px 0}
+  .mtable td{border-top:1px solid var(--rule);padding:9px 18px 9px 0;vertical-align:top}
+  .mtable td.n{font-family:var(--mono);font-size:.84rem;white-space:nowrap}
+
+  /* Terminal */
+  pre{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:16px 18px;overflow-x:auto;margin:18px 0;border-radius:2px;max-width:66ch}
+  pre .c{color:#8FA398} pre .s{color:#E5697A} pre .g{color:#7CC7A1}
+
+  footer{border-top:1px solid var(--rule);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+  .refs{font-family:var(--mono);font-size:.8rem;line-height:1.95;margin:8px 0 0}
+  .refs a{text-decoration:none} .refs a:hover{text-decoration:underline}
+  @media(prefers-reduced-motion:no-preference){a,figure{transition:border-color .15s}}
+  ::selection{background:var(--seal);color:var(--paper)}
+  [id]{scroll-margin-top:24px}
+</style>
+<script>
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect class="p" x="8" y="8" width="84" height="84" rx="18"/><g class="k" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="pipeline.html">Pipeline</a>
+      <a href="capabilities.html">Capabilities</a>
+      <a href="system.html">System</a>
+      <a href="index.html#how" aria-current="page">Review layers</a>
+      <a href="index.html#start">Get started</a>
+      <a href="proof.html">Proof</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">&#9790;</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="layernav" aria-label="Review layers">
+    <span>Review layers</span>
+    <a href="deterministic.html">1 &#183; Deterministic</a>
+    <a href="ml-deberta.html">2 &#183; ML classifier</a>
+    <a href="judge.html">3 &#183; LLM judge</a>
+  </nav>
+</div>
+
+<div class="wrap">
+<article>
+
+  <p class="eyebrow">Field notes / The information-flow lattice</p>
+  <h1>The finding you can actually close</h1>
+  <p class="standfirst">The lethal trifecta is a heuristic: capabilities co-occurring in one agent session. A reviewer who knows the information-flow literature discounts that. This page is the layer that answers them: labels, a lattice, and a violation that discharges when you apply the fix.</p>
+  <div class="meta">
+    <span>Finding: ATL-217</span>
+    <span>Layer: L1 deterministic</span>
+    <span>Module: attestral/ifc.py</span>
+    <span>Lineage: Denning 1976</span>
+  </div>
+
+  <section>
+    <p class="lede">Attestral's headline finding is the lethal trifecta: an agent whose tools can read private data and reach an outbound channel, so one injected instruction anywhere in its inputs can exfiltrate what it sees. As shipped in <code>ATL-202</code>, that finding is a <em>heuristic</em>: named capability groups co-occurring in one session. It is the right smoke alarm, and it is also exactly the shape of claim a security reviewer is trained to push back on. "These capabilities co-occur" is a correlation, not a property.</p>
+    <p>The information-flow lattice answers that reviewer. It attaches confidentiality and integrity labels to every tool surface, and states the violation as the classic lattice property, with the named label path in the finding text. Same flow, different epistemic standing: <code>ATL-217</code> is defensible and citable, not a severity with an opinion.</p>
+    <p class="pull">The heuristic is the smoke alarm. The lattice is the instrument. The difference shows the moment you apply a fix: the instrument respects it, the alarm keeps ringing.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The labels</p>
+    <h2>Two dimensions, straight from Denning</h2>
+    <p>Every tool surface in the system model gets two labels, derived from the same capability classes the fleet rules use. The dimensions are the classic ones from Denning's 1976 lattice model, specialized to an agent's tool fleet:</p>
+    <table class="mtable">
+      <tr><th>Dimension</th><th>Source</th><th>Sink</th></tr>
+      <tr>
+        <td class="n">Confidentiality</td>
+        <td><strong>High</strong>: reads secret data &#183; <code>filesystem</code>, <code>database</code>, <code>saas_data</code>, <code>memory</code></td>
+        <td><strong>Low</strong>: lets data leave the boundary &#183; <code>network</code>, <code>messaging</code></td>
+      </tr>
+      <tr>
+        <td class="n">Integrity</td>
+        <td><strong>Low</strong>: ingests attacker-influenceable content &#183; <code>network</code>, <code>saas_data</code>, <code>memory</code></td>
+        <td><strong>High</strong>: performs a trust-critical action &#183; <code>shell</code></td>
+      </tr>
+    </table>
+    <p>A violation is a flow that crosses the lattice the wrong way with no mitigation on the path: high-confidentiality data reaching a low sink, or low-integrity input reaching a high sink.</p>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 720 250" role="img" aria-label="Two lattice flows. Confidentiality: a high source flows to a low egress sink unless a declassifier gate breaks the flow. Integrity: a low source flows to a high trust-critical sink unless an endorser gate breaks the flow.">
+          <text x="0" y="16" font-size="11" class="t-mut" letter-spacing="1.5">CONFIDENTIALITY</text>
+          <rect class="chip" x="0" y="30" width="200" height="52" rx="2"/>
+          <text x="14" y="51" font-size="12">high source</text>
+          <text x="14" y="70" font-size="10.5" class="t-mut">filesystem &#183; database &#183; saas &#183; memory</text>
+          <line class="stroke-seal" x1="200" y1="56" x2="282" y2="56" stroke-width="1.5"/>
+          <rect class="gate" x="282" y="34" width="156" height="44" rx="2" stroke-dasharray="5 4"/>
+          <text x="298" y="52" font-size="11" class="t-verify">declassifier</text>
+          <text x="298" y="68" font-size="10" class="t-mut">egress allowlist</text>
+          <line class="stroke-seal" x1="438" y1="56" x2="514" y2="56" stroke-width="1.5"/>
+          <path class="fill-seal" d="M514,56 l-9,-4.5 v9 z"/>
+          <rect class="chip" x="518" y="30" width="182" height="52" rx="2"/>
+          <text x="532" y="51" font-size="12">low egress sink</text>
+          <text x="532" y="70" font-size="10.5" class="t-mut">network &#183; messaging</text>
+
+          <text x="0" y="146" font-size="11" class="t-mut" letter-spacing="1.5">INTEGRITY</text>
+          <rect class="chip" x="0" y="160" width="200" height="52" rx="2"/>
+          <text x="14" y="181" font-size="12">low source</text>
+          <text x="14" y="200" font-size="10.5" class="t-mut">network &#183; saas &#183; memory</text>
+          <line class="stroke-seal" x1="200" y1="186" x2="282" y2="186" stroke-width="1.5"/>
+          <rect class="gate" x="282" y="164" width="156" height="44" rx="2" stroke-dasharray="5 4"/>
+          <text x="298" y="182" font-size="11" class="t-verify">endorser</text>
+          <text x="298" y="198" font-size="10" class="t-mut">human approval on the sink</text>
+          <line class="stroke-seal" x1="438" y1="186" x2="514" y2="186" stroke-width="1.5"/>
+          <path class="fill-seal" d="M514,186 l-9,-4.5 v9 z"/>
+          <rect class="chip" x="518" y="160" width="182" height="52" rx="2"/>
+          <text x="532" y="181" font-size="12">high sink</text>
+          <text x="532" y="200" font-size="10.5" class="t-mut">shell / execution</text>
+        </svg>
+      </div>
+      <figcaption><b>The two flows ATL-217 checks.</b> Each dashed box is a modeled mitigation that breaks its flow when present. The mitigations are dimension-specific, which is what a lattice is for: an egress allowlist declassifies the confidentiality flow but does nothing for integrity, and a human-approval gate endorses the integrity flow but does nothing for confidentiality.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">The violations</p>
+    <h2>A property with a named path</h2>
+    <p>Two lattice properties, each stated with the actual component names on the path. A <strong>confidentiality violation</strong>: a high source can reach a low egress sink with no declassifier, so confidential data can leave the boundary. That is the lethal trifecta, stated as a property. An <strong>integrity violation</strong>: a low source can reach a high sink with no endorser, so untrusted input can drive a trust-critical action. That is indirect-injection-to-execution, stated as a property.</p>
+    <p>On the landing page's demo fixture, both fire alongside the heuristics:</p>
+<pre><code>$ attestral scan examples/vulnerable-agent
+<span class="c">6 components &#183; 17 findings &#183; 4 critical &#183; 13 high</span>
+  <span class="s">ATL-202</span>  Tool fleet forms an exfiltration chain (lethal trifecta)
+  <span class="s">ATL-207</span>  Unsafe data flow - untrusted input can reach a sensitive action
+  <span class="s">ATL-217</span>  Information-flow lattice violation across the tool fleet  <span class="c">(model:ifc)</span>
+    <span class="c">fix: Interpose a declassifier (validation, allowlist, or human approval)
+    between the labelled source and sink so the flow is broken...</span></code></pre>
+    <p>The finding text names the labels and the components. From that same scan, verbatim: <em>"High-confidentiality source(s) [filesystem, jira] can reach low-confidentiality egress sink(s) [web] with no declassifier on the path, so confidential data can leave the boundary. Low-integrity source(s) [jira, web] can reach high-integrity sink(s) [deploy, shell] with no endorser on the path, so untrusted input can drive a trust-critical action."</em> A reviewer can check every word of that against the config. Nothing in it is an opinion.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The payoff</p>
+    <h2>Apply the fix, and the finding clears</h2>
+    <p>A <strong>declassifier</strong> (confidentiality) or an <strong>endorser</strong> (integrity) is a modeled mitigation that breaks the flow. Attestral detects one of each, derived by the ingester from the launch configuration, and both are exactly the fixes the heuristic rules already recommend.</p>
+    <h3>The declassifier: an egress allowlist</h3>
+    <p>Constrain the outbound tool to a destination allowlist (<code>--allowed-hosts</code> and kin, matched conservatively: an egress-scoped token, never a bare <code>--allow</code>). Data can now only leave to known hosts, so the confidentiality flow is broken:</p>
+<pre><code>$ attestral scan examples/ifc-declassified   <span class="c"># postgres + fetch --allowed-hosts</span>
+<span class="c">2 components &#183; 3 findings &#183; 1 critical &#183; 1 high &#183; 1 medium</span>
+  <span class="s">ATL-202</span>  Tool fleet forms an exfiltration chain (lethal trifecta)
+  <span class="g">ATL-217 does not fire: the egress sink is allowlist-declassified</span></code></pre>
+    <h3>The endorser: human approval on the sink</h3>
+    <p>Gate the trust-critical tool behind explicit human approval (<code>--require-approval</code> and kin, the positive inverse of the auto-approve signal). An injected command cannot run uninterrupted, so the integrity flow is broken:</p>
+<pre><code>$ attestral scan examples/ifc-endorsed   <span class="c"># fetch + shell runner --require-approval</span>
+<span class="c">2 components &#183; 4 findings &#183; 1 critical &#183; 3 high</span>
+  <span class="s">ATL-203</span>  Tool fleet combines shell execution with outbound network reach
+  <span class="s">ATL-207</span>  Unsafe data flow - untrusted input can reach a sensitive action
+  <span class="g">ATL-217 does not fire: the trust-critical sink is approval-endorsed</span></code></pre>
+    <div class="split">
+      <div>
+        <h4 class="bad">The alarm keeps ringing</h4>
+        <p>ATL-202/203/207 still fire in both fixtures. They score raw capability co-occurrence and do not model mitigations. That is by design: the smoke alarm should be hard to silence.</p>
+      </div>
+      <div>
+        <h4 class="good">The instrument respects the fix</h4>
+        <p>ATL-217 discharges the half whose mitigation is in place, and only that half. Apply the allowlist and confidentiality clears; integrity still fires if the flow exists, because an allowlisted fetch tool still ingests untrusted content.</p>
+      </div>
+    </div>
+    <p>That asymmetry is the whole argument for having both. A finding you can close changes behavior: the fix is concrete, and the scanner visibly credits it. A finding that fires forever gets muted.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Honest limits</p>
+    <h2>What the lattice does not claim yet</h2>
+    <p>Two limits, stated plainly. First, a declassifier or endorser is currently detected fleet-wide by capability, not proven to sit on the specific source-to-sink path; tightening that to a per-path check is the next refinement. Second, the modeled endorser is a human-approval gate on the sink. An input-validation endorser, a sanitizer the untrusted content passes through, is not modeled yet.</p>
+    <p>Neither limit weakens the direction of error: both can only make ATL-217 fire when a stricter analysis might clear it, never stay silent when a violation exists.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Where it sits</p>
+    <h2>Pure structure, offline, always on</h2>
+    <p><code>attestral/ifc.py</code> computes <code>violations(model)</code> over the system model: pure structure, no network, no model download. The engine evaluates it behind the <code>model_ifc_violation</code> matcher as <code>ATL-217</code>, in the always-on deterministic layer alongside the attack-path and fleet reasoning. It composes the delegation hop the same way the capability rules do, so a code-defined agent's flows are covered exactly like a config-defined fleet.</p>
+<pre><code>$ pip install attestral
+$ attestral scan examples/ifc-declassified
+$ attestral explain ATL-217</code></pre>
+    <p class="refs">
+      Denning, <a href="https://dl.acm.org/doi/10.1145/360051.360056">"A Lattice Model of Secure Information Flow"</a> (CACM, 1976)<br>
+      Cited frameworks on the finding: OWASP-ASI02/ASI03:2026 &#183; OWASP LLM01 &#183; NIST AC-4, SC-7<br>
+      Related systems: FIDES &#183; CaMeL &#183; the <a href="deterministic.html">deterministic layer</a> field notes
+    </p>
+  </section>
+
+</article>
+</div>
+
+<footer>
+  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> &#183; An Attestral Labs project &#183; &#169; 2026 &#183; Apache 2.0</div>
+</footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, KEY='attestral-theme';
+    var mq=window.matchMedia('(prefers-color-scheme: dark)');
+    var btn=document.getElementById('themeToggle');
+    function active(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}
+    function paint(){if(btn)btn.textContent=active()==='dark'?'☀':'☾';}
+    if(btn)btn.addEventListener('click',function(){
+      var next=active()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      try{localStorage.setItem(KEY,next);}catch(e){}
+      paint();
+    });
+    mq.addEventListener('change',paint);
+    paint();
+  })();
+</script>
+
+</body>
+</html>
