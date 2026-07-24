@@ -264,6 +264,13 @@ The SHA-256 chain is **tamper-evident**: edit any past finding and every later h
 
 `attestral attest` is the capstone: it binds, into one DSSE-signed [in-toto](https://in-toto.io) Statement, the reviewed design (model hash), the review chain head, a digest and severity summary of the findings, the hash of **both** compiled policies (mcp-guard **and** Cedar), and, with `--runtime`, a digest of the runtime events plus the drift verdict (CONFORM, or the list of DRF ids). `attestral attest --verify` recomputes every one of those digests offline from the supplied design, re-runs drift on the supplied events, and checks the signature, so any tamper - a changed design, a swapped policy, a doctored event stream - makes verification **FAIL**, and names the failing step. The structure and every hash recompute run with zero dependencies; only the signature step needs the `attestral[sign]` extra, so an unsigned attestation (all digests still bound) is produced with no install.
 
+One attestation proves one moment. `attestral attest --log conformance.log` makes conformance **monitorable over time**: each attestation is appended to an append-only transparency log (an RFC 6962 Merkle tree, one JSONL file, zero dependencies), every append records the tree root it produced, and `attest --verify --log` proves both that the bundle is in the log (a portable inclusion proof, verifiable without the log file) and that the recorded history is internally consistent - editing any past entry breaks every later checkpoint. A deployment gains an auditable answer to "did this system stay conformant, and when did it drift?" The honest boundary is stated in the output: a self-hosted file proves append-only history, not distributed witness, so publish the head root somewhere you do not control (a commit, Sigstore Rekor - the leaf is a plain SHA-256 of the DSSE bundle, exactly what Rekor logs) and a rewrite has an external copy to contradict.
+
+```bash
+attestral attest . --log conformance.log            # attest and append to the log
+attestral attest . --verify --log conformance.log   # verify bundle + history + inclusion
+```
+
 This is a **tamper-evident, signature-based conformance attestation, not a formal or mathematical proof of security** - the same class of artifact as SLSA's Verification Summary Attestation. It proves exactly one thing: the runtime observed matches the design that was reviewed and the policies compiled from it. It does **not** prove the design is safe, the rule pack is complete, or that no vulnerability exists; a clean attestation over a weak design is still a weak design. The novel contribution is that a third party - an auditor, a platform, another agent - can verify offline, without trusting the runtime or the scanner, that the running system is the one reviewed and that drift (including DRF-008) either did not occur or is recorded honestly in the signed verdict. See [docs/attestation.md](docs/attestation.md) for the full shape and the copyable flagship sequence.
 
 ### The loop in one picture
@@ -275,7 +282,7 @@ flowchart LR
     A --> F["attestral fix<br/><b>compile-the-fix</b>"]
     A --> C["attestral compile<br/><b>enforce</b><br/>+ --verify: prove policy properties"]
     C --> D["attestral drift<br/><b>detect</b>"]
-    D --> AT["attestral attest<br/><b>signed conformance attestation</b>"]
+    D --> AT["attestral attest<br/><b>signed conformance attestation</b><br/>+ --log: append-only transparency log"]
     AT -->|"verify offline"| B
     D -->|"design changed?<br/>re-attest"| A
     A --> V["attestral validate<br/><b>show the path is reachable</b><br/>+ proof-of-exploit per path (gated)"]

@@ -169,3 +169,31 @@ comparison run with **no dependencies**. Only `sign_statement` and
 lazy-imported with a clear install hint. `attestral attest` with no `--key` emits
 the full unsigned bundle - all digests bound, verifiable for integrity, with
 authenticity reported as unproven until a `--public-key` is supplied.
+
+## Transparency log (`--log`)
+
+One attestation proves one moment; the transparency log makes conformance
+monitorable over time. `attestral attest PATH --log conformance.log` appends
+the bundle to an append-only log: an RFC 6962 Merkle tree (leaf =
+`H(0x00 || bundle-sha256)`, node = `H(0x01 || l || r)` - the Certificate
+Transparency / Rekor construction) stored as one JSONL file, one entry per
+line, each recording the tree root its append produced. A checkpoint per
+entry means editing any past entry breaks every later recorded root, and the
+log refuses to append to a history that no longer recomputes.
+
+`attestral attest PATH --verify --log conformance.log` then proves three
+things after the bundle itself verifies: the log's recorded history is
+internally consistent, this bundle is in it, and the inclusion proof
+recomputes to the head root. The inclusion proof is portable - `(bundle,
+index, size, proof, root)` verifies with `attestral.translog.verify_inclusion`
+alone, no log file needed - so an auditor can check one entry without holding
+the whole record.
+
+The honest boundary, printed in the CLI output: a self-hosted single file
+proves append-only internal consistency, **not distributed witness**.
+Truncating the log back to an earlier checkpoint is undetectable from the
+file alone. Publish the head root somewhere you do not control - a commit, a
+ticket, Sigstore Rekor (the leaf is a plain SHA-256 of the DSSE bundle,
+exactly what Rekor logs) - and a rewrite has an external copy to contradict.
+Zero dependencies throughout: hashing is stdlib `hashlib`, and nothing here
+needs the `attestral[sign]` extra.
