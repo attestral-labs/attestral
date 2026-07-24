@@ -6,6 +6,13 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Changed
+- **ATL-128 extended to the allowlist vector (issue #99).** `enabledMcpjsonServers` - a committed
+  allowlist of project MCP servers - now trips the same pre-enable check as
+  `enableAllProjectMcpServers`: the named servers launch without per-server consent for anyone
+  who clones, and the allowlist pins names, not launch targets (Check Point, CVE-2026-21852
+  advisory). Retitled "Repo settings pre-enable project MCP servers".
+
 ### Added
 - **ATL-163: MCP config file writable by other users (CVE-2026-30615 class).** `ingest_mcp`
   now checks each config file for world-write (`o+w` on the file or its parent directory,
