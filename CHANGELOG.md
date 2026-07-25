@@ -7,6 +7,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Detector label model: weak supervision, upgraded (issue #111).** New `training/labelmodel.py`
+  decomposes Attestral's heuristic into independent labeling functions that each vote injection /
+  benign / abstain (one per injection family, two structurally orthogonal channels for hidden
+  unicode and decode/de-obfuscation-revealed payloads, and two benign voters), then combines them
+  with a Snorkel-style label model that weights each by its estimated accuracy (learned from a
+  gold set, or unsupervised from the LFs' agreement). On the deepset gold set it dominates the
+  single hard-band labeler `label.py` ships with - coverage 1.000 vs 0.983, precision 1.000 vs
+  1.000, recall 0.144 vs 0.114 - minting more true-positive labels at equal precision, a strictly
+  better training set for the flywheel (#81). Zero-dependency; `tests/test_labelmodel.py` covers
+  the labeling functions, the accuracy fit (gold and unsupervised), the probability combination,
+  and the gold comparison's precision-preservation guarantee.
 - **Continuous multi-slice ML eval + regression gate (issue #112).** New
   `evaluation/eval_slices.py` scores a given engine or model across all five labeled slices at
   once (deepset, paraphrase, obfuscation, multilingual, over-defense) and prints one matrix, so
