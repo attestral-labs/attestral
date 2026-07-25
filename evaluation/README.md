@@ -92,3 +92,19 @@ threshold) against a vendored independent labeled set
 surface ingested from a directory of real MCP repos. Published numbers and
 methodology: [`ml-precision-recall.md`](./ml-precision-recall.md). The heuristic
 tier's precision/recall floors are enforced in CI by `tests/test_ml_eval.py`.
+
+Because the ML tier is now trainable on our own data (the weak-supervision loop
+in `training/`), a retrain can lift one failure mode while quietly regressing
+another. `eval_slices` scores a given engine or model across all five labeled
+slices at once (deepset, paraphrase, obfuscation, multilingual, over-defense)
+and can freeze a baseline and fail on any regression:
+
+```bash
+python -m evaluation.eval_slices --engine heuristic                       # the matrix
+python -m evaluation.eval_slices --engine deberta --model ./my-finetune   # score a fine-tune
+python -m evaluation.eval_slices --engine deberta --check base.json        # gate a retrain
+```
+
+The committed `data/ml-slice-baseline.json` is the heuristic tier's frozen
+matrix; `tests/test_eval_slices.py` gates it in CI, so a pattern-bank change
+that regresses any slice fails until the baseline is deliberately re-frozen.

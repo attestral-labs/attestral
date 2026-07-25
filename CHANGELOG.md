@@ -7,6 +7,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Continuous multi-slice ML eval + regression gate (issue #112).** New
+  `evaluation/eval_slices.py` scores a given engine or model across all five labeled slices at
+  once (deepset, paraphrase, obfuscation, multilingual, over-defense) and prints one matrix, so
+  a retrain that lifts one failure mode while regressing another (for example, paraphrase recall
+  up but over-defense false positives up too) is caught instead of shipping unnoticed. `--baseline`
+  freezes the current numbers and `--check` fails on any regression beyond a tolerance, mirroring
+  the ecosystem regression gate. Works on the shipped tiers and on a fine-tuned `--model` dir, so
+  the weak-supervision loop (#81) can gate its own retrains. The committed
+  `evaluation/data/ml-slice-baseline.json` is the deterministic heuristic tier's frozen matrix,
+  enforced in CI by `tests/test_eval_slices.py`.
 - **Rules-as-labeler: the weak-supervision loop is real (issue #81).** New `training/label.py`
   turns the deterministic heuristic detector into a free, high-precision labeling function
   (Snorkel-style): it walks a corpus of MCP repos, gathers every text surface Attestral scores

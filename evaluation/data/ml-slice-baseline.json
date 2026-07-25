@@ -1,0 +1,37 @@
+{
+  "deepset": {
+    "recall": 0.1483,
+    "fp_rate": 0.005,
+    "n_pos": 263,
+    "n_neg": 399,
+    "false_positives": 2
+  },
+  "paraphrase": {
+    "recall": 0.0,
+    "fp_rate": 0.0,
+    "n_pos": 15,
+    "n_neg": 12,
+    "false_positives": 0
+  },
+  "obfuscation": {
+    "recall": 0.9231,
+    "fp_rate": 0.0,
+    "n_pos": 39,
+    "n_neg": 14,
+    "false_positives": 0
+  },
+  "multilingual": {
+    "recall": 1.0,
+    "fp_rate": 0.0,
+    "n_pos": 15,
+    "n_neg": 7,
+    "false_positives": 0
+  },
+  "over_defense": {
+    "recall": null,
+    "fp_rate": 0.0,
+    "n_pos": 0,
+    "n_neg": 32,
+    "false_positives": 0
+  }
+}
