@@ -66,6 +66,49 @@ ATTESTRAL_ML_MODEL=yourorg/attestral-injection-v1 attestral scan ./my-agent --ml
 
 ---
 
+## The flywheel: label a corpus with the rules (`label.py`)
+
+Hand-labeling tens of thousands of MCP surfaces is the cost that stops most
+teams before Tier 2. Attestral removes it: the deterministic heuristic detector
+is a free, high-precision labeling function, so it can weak-label a whole corpus
+for you, Snorkel-style.
+
+```bash
+python label.py --corpus /path/to/many/mcp/repos --out data \
+  --max-neg-ratio 3 --positives ../evaluation/data/deepset-prompt-injections.jsonl
+```
+
+It walks the corpus, gathers every text surface Attestral would score (tool and
+server descriptions, instruction and agent files), scores each with
+`attestral.ml.heuristic_score`, and buckets by confidence:
+
+- **score >= 0.90** -> weak **positive** (`label 1`)
+- **score <= 0.05** -> weak **negative** (`label 0`)
+- **in between** -> **abstain**, written to `review.jsonl` with its score,
+  matched categories, and source path
+
+It writes `train.jsonl` and `eval.jsonl` (deduped, and split by a hash of the
+text so a near-duplicate can never straddle the split and inflate your eval),
+ready for `finetune.py`.
+
+The abstain queue is the point, not leftover. Weak labels inherit the labeler's
+blind spots, so the uncertain middle is exactly where a human adds the most
+signal. A run over a real corpus of MCP servers surfaced benign skill and
+instruction files that trip the heuristic's tool-poisoning and homoglyph
+patterns, precisely the over-defense cases worth labeling by hand. With
+`--model <dir>` the labeler also mines rows where a trained model already
+disagrees with the heuristic and routes those to the queue too, the highest
+value labels of all.
+
+The real corpus is mostly benign, so it yields the **negative** class and the
+hard negatives cheaply (the asset only you have). Fold public injection corpora
+in for the positive class with `--positives`, and keep the deterministic layer
+as the audit ground truth: this mints *training* labels, never findings. The
+fine-tune then generalizes past the heuristic's exact patterns, and that gain is
+what `evaluate.py` measures on `../evaluation/data/paraphrase-injections.jsonl`.
+
+---
+
 ## The training data
 
 `finetune.py` reads JSON Lines, one example per line:

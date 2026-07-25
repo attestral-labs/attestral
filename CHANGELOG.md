@@ -6,7 +6,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
-### Changed
+### Added
+- **Rules-as-labeler: the weak-supervision loop is real (issue #81).** New `training/label.py`
+  turns the deterministic heuristic detector into a free, high-precision labeling function
+  (Snorkel-style): it walks a corpus of MCP repos, gathers every text surface Attestral scores
+  (tool/server descriptions, instruction and agent files), weak-labels each by heuristic
+  confidence (>=0.90 positive, <=0.05 negative, the uncertain middle routed to a `review.jsonl`
+  queue with provenance), dedupes, and hash-splits into `train.jsonl` / `eval.jsonl` for
+  `finetune.py`. The abstain queue is the point: it surfaces the highest-value examples for a
+  human to label, and `--model` additionally mines rows where a trained model already disagrees
+  with the heuristic. Dogfooded over a real corpus of MCP servers (1,315 unique surfaces, 17
+  native positives, 178 to the review queue). The deterministic layer stays the audit ground
+  truth; this mints training labels only, never findings. `tests/test_weak_labels.py` covers the
+  label bands, dedup, split disjointness, negative capping, and end-to-end labeling.
 - **ATL-128 extended to the allowlist vector (issue #99).** `enabledMcpjsonServers` - a committed
   allowlist of project MCP servers - now trips the same pre-enable check as
   `enableAllProjectMcpServers`: the named servers launch without per-server consent for anyone
