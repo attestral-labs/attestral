@@ -91,15 +91,20 @@ def main() -> None:
         logging_steps=25,
     )
 
-    trainer = Trainer(
+    # transformers >= 5 renamed the Trainer's `tokenizer` argument to
+    # `processing_class`; support both so this runs on either major version.
+    trainer_kwargs = dict(
         model=model,
         args=targs,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        tokenizer=tok,
         data_collator=DataCollatorWithPadding(tok),
         compute_metrics=metrics,
     )
+    try:
+        trainer = Trainer(**trainer_kwargs, processing_class=tok)
+    except TypeError:
+        trainer = Trainer(**trainer_kwargs, tokenizer=tok)
     trainer.train()
     print("eval:", trainer.evaluate())
     trainer.save_model(args.out)
