@@ -1183,12 +1183,12 @@ rules:
     frameworks: ["OWASP-ASI03:2026", "OWASP-MCP MCP02:2025", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
 
   - id: ATL-128
-    title: Repo settings auto-enable all project MCP servers
+    title: Repo settings pre-enable project MCP servers
     severity: high
     target: agent_config
     match: { attr_equals: { _auto_enable_project_mcp: true } }
-    description: With every project-declared MCP server auto-enabled, any server a repo lists in its .mcp.json starts without per-server consent, so a cloned or poisoned repo can launch an attacker-controlled server as a full-privilege local process the moment the workspace opens (CVE-2026-21852).
-    recommendation: Leave project MCP servers opt-in; approve each server explicitly on first use and pin the trusted ones with an allowlist (allowedMcpServers) rather than enabling all of them at once.
+    description: The committed settings pre-enable project MCP servers - either `enableAllProjectMcpServers` or a checked-in `enabledMcpjsonServers` allowlist - so the named servers launch without per-server consent for anyone who clones the repo, and because the allowlist pins only server names, a poisoned .mcp.json can swap the launch target behind an allowlisted name (CVE-2026-21852).
+    recommendation: Leave project MCP servers opt-in; approve each server explicitly on first use and pin the trusted ones with an allowlist (allowedMcpServers) rather than enabling all of them at once - and make the pin bind the server's target (command or URL), not just its name.
     frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP09:2025", "OWASP-MCP MCP02:2025", "NIST CM-7"]
 
   - id: ATL-129

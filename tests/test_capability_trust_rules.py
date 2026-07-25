@@ -75,7 +75,8 @@ def test_auto_enable_project_mcp_fires_atl128():
 
 def test_trust_flags_surfaced_on_component():
     model = build_model(TRUST)
-    cfg = next(iter(model.by_type("agent_config")))
+    cfgs = {c.name: c for c in model.by_type("agent_config")}
+    cfg = cfgs["settings.json"]
     assert cfg.attr("_bypass_permissions") is True
     assert cfg.attr("_auto_enable_project_mcp") is True
 
@@ -92,3 +93,60 @@ def test_default_settings_do_not_fire(tmp_path):
     assert cfg.attr("_auto_enable_project_mcp") is False
     ids = {f.rule_id for f in RuleEngine().evaluate(model)}
     assert "ATL-127" not in ids and "ATL-128" not in ids
+
+
+# --- ATL-128 allowlist vector: enabledMcpjsonServers ----------------------
+# Check Point (Feb 2026, same CVE-2026-21852 write-up): a committed
+# enabledMcpjsonServers allowlist pre-enables the named project servers, and
+# it pins only names, so a poisoned .mcp.json can swap the launch target.
+
+def test_enabled_mcpjson_allowlist_fires_atl128(tmp_path):
+    d = tmp_path / ".claude"
+    d.mkdir()
+    (d / "settings.json").write_text(
+        '{"enabledMcpjsonServers": ["deploy-helper", "github"]}'
+    )
+    model = ingest_agent_config(tmp_path, SystemModel())
+    cfg = next(iter(model.by_type("agent_config")))
+    assert cfg.attr("_auto_enable_project_mcp") is True
+    assert cfg.attr("_enabled_mcpjson_servers") == ["deploy-helper", "github"]
+    assert "ATL-128" in {f.rule_id for f in RuleEngine().evaluate(model)}
+
+
+def test_fixture_allowlist_settings_file_fires_atl128():
+    model = build_model(TRUST)
+    cfgs = {c.name: c for c in model.by_type("agent_config")}
+    local = cfgs["settings.local.json"]
+    assert local.attr("_auto_enable_project_mcp") is True
+    assert local.attr("_enabled_mcpjson_servers") == ["deploy-helper"]
+
+
+def test_empty_mcpjson_allowlist_does_not_fire(tmp_path):
+    d = tmp_path / ".claude"
+    d.mkdir()
+    (d / "settings.json").write_text('{"enabledMcpjsonServers": []}')
+    model = ingest_agent_config(tmp_path, SystemModel())
+    cfg = next(iter(model.by_type("agent_config")))
+    assert cfg.attr("_auto_enable_project_mcp") is False
+    assert cfg.attr("_enabled_mcpjson_servers") == []
+    assert "ATL-128" not in {f.rule_id for f in RuleEngine().evaluate(model)}
+
+
+def test_non_list_mcpjson_shapes_do_not_fire(tmp_path):
+    # Fail closed on every shape that is not a non-empty list of strings.
+    for shape in (
+        '{"deploy-helper": true}',   # dict
+        '"all"',                     # string
+        '[1, 2]',                    # list of non-strings
+        'true',                      # bare boolean
+    ):
+        d = tmp_path / ".claude"
+        d.mkdir(exist_ok=True)
+        (d / "settings.json").write_text(
+            '{"enabledMcpjsonServers": ' + shape + '}'
+        )
+        model = ingest_agent_config(tmp_path, SystemModel())
+        cfg = next(iter(model.by_type("agent_config")))
+        assert cfg.attr("_auto_enable_project_mcp") is False, shape
+        assert cfg.attr("_enabled_mcpjson_servers") == [], shape
+        assert "ATL-128" not in {f.rule_id for f in RuleEngine().evaluate(model)}, shape

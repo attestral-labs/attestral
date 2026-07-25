@@ -417,6 +417,20 @@ def _marketplace_plugins(data: dict) -> dict:
     return {"names": sorted(set(names)), "remote": remote, "plugins": sorted(set(plugins))}
 
 
+def _enabled_mcpjson_servers(data: dict) -> list[str]:
+    """Server names a committed `enabledMcpjsonServers` allowlist pre-enables.
+
+    Check Point (Feb 2026, same CVE-2026-21852 write-up): the allowlist skips
+    per-server consent for the named entries, and it pins only names - a
+    poisoned .mcp.json can swap the launch target behind an allowlisted name.
+    Fail closed: anything other than a non-empty list of strings yields [].
+    """
+    v = data.get("enabledMcpjsonServers")
+    if isinstance(v, list) and v and all(isinstance(s, str) for s in v):
+        return sorted(set(v))
+    return []
+
+
 def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
     p = Path(path)
     if p.is_file():
@@ -443,12 +457,16 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
         cmds = _hook_commands(data.get("hooks"))
         # Workspace-trust switches a committed settings file can carry: a
         # permission mode that skips the approval prompt so tool calls run
-        # unattended, and a flag that auto-enables every project-declared MCP
-        # server (starting an attacker-controlled one from a cloned repo).
+        # unattended, and settings that pre-enable project-declared MCP
+        # servers (starting an attacker-controlled one from a cloned repo) -
+        # either the enable-all boolean or an enabledMcpjsonServers allowlist.
         perms = data.get("permissions")
         mode = perms.get("defaultMode") if isinstance(perms, dict) else None
         bypass = mode in ("bypassPermissions", "bypass")
-        auto_enable_mcp = data.get("enableAllProjectMcpServers") is True
+        mcpjson_servers = _enabled_mcpjson_servers(data)
+        auto_enable_mcp = (
+            data.get("enableAllProjectMcpServers") is True or bool(mcpjson_servers)
+        )
         # An `allow` entry that grants a code-execution tool with no argument
         # scope: `Bash(*)`, bare `Bash`, or `*` (everything). A committed
         # settings file with this pre-approves arbitrary command execution for
@@ -477,6 +495,7 @@ def ingest_agent_config(path: str | Path, model: SystemModel) -> SystemModel:
                     "_hook_commands": cmds,
                     "_bypass_permissions": bypass,
                     "_auto_enable_project_mcp": auto_enable_mcp,
+                    "_enabled_mcpjson_servers": mcpjson_servers,
                     "_permissive_allow": bool(permissive),
                     "_permissive_allow_entries": permissive,
                     "_declares_plugin_marketplace": bool(mkt["names"] or mkt["plugins"]),
