@@ -107,6 +107,30 @@ as the audit ground truth: this mints *training* labels, never findings. The
 fine-tune then generalizes past the heuristic's exact patterns, and that gain is
 what `evaluate.py` measures on `../evaluation/data/paraphrase-injections.jsonl`.
 
+### A better labeler: the detector label model (`labelmodel.py`)
+
+`label.py` uses one labeling function, the aggregate heuristic score, with a
+single hard band. Attestral's heuristic is really several independent detectors,
+and combining them mints better labels. `labelmodel.py` decomposes the stack
+into labeling functions that each vote +1 / -1 / 0 (injection / benign /
+abstain): one per injection family (override, exfiltration, jailbreak, tool
+poisoning, control tags), two structurally orthogonal channels (hidden unicode,
+and payloads revealed only after decode or de-obfuscation), and two benign
+voters. A Snorkel-style label model weights each by its estimated accuracy
+(learned from a gold set, or unsupervised from the LFs' agreement) and combines
+them into one probability, so a precise LF counts for more than a noisy one and
+the positive detectors and benign voters partition the work.
+
+```bash
+python labelmodel.py --data ../evaluation/data/deepset-prompt-injections.jsonl
+```
+
+On the deepset gold set (662 rows) the label model dominates the single heuristic
+band it replaces: **coverage 1.000 vs 0.983, precision 1.000 vs 1.000, recall
+0.144 vs 0.114** - it labels every row, at equal precision, and mints more
+true-positive labels. That gap widens on a corpus with obfuscation or
+tool-poisoning, where the LFs that are silent on deepset earn their weight.
+
 ---
 
 ## The training data
