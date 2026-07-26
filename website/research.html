@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The compositional risk in one of three MCP servers - Attestral research</title>
+<meta name="description" content="Per-file scanners read one config at a time. Attestral builds a system model of each MCP server - its tools, the data and networks they reach, the trust boundaries they cross - and reasons about the architecture. Across 390 popular servers, one in three assembles the lethal trifecta: a compositional risk that only exists in the graph, and that a per-file scanner structurally cannot see.">
+<link rel="canonical" href="https://attestral.vercel.app/research.html">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Attestral">
+<meta property="og:title" content="One in three popular MCP servers ships the lethal trifecta - a risk no per-file scanner can see.">
+<meta property="og:description" content="We don't lint configs. We build a system model of each MCP server and reason about the architecture. Across 390 of the most popular servers, one in three assembles the lethal trifecta - a compositional risk that only exists in the graph.">
+<meta property="og:url" content="https://attestral.vercel.app/research.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="One in three popular MCP servers ships the lethal trifecta - a risk no per-file scanner can see.">
+<meta name="twitter:description" content="We don't lint configs. We build a system model of each server and reason about the architecture. Across 390 popular MCP servers, one in three assembles the lethal trifecta.">
+<meta property="og:image" content="https://attestral.vercel.app/assets/og.png">
+<meta name="twitter:image" content="https://attestral.vercel.app/assets/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --code-bg:#E9EBE6; --amber:#8A5A12;
+    --seal-tint:rgba(150,34,46,.06); --verify-tint:rgba(31,106,74,.09);
+    --display:'Libre Caslon Text',Georgia,serif;
+    --body:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --code-bg:#232B1E; --amber:#C79A4A;
+      --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+    --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+    --term-bg:#0B0E08; --code-bg:#232B1E; --amber:#C79A4A;
+    --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+  }
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)}
+  a:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .wordmark svg .p{fill:var(--seal)}
+  .wordmark svg .k{stroke:var(--paper)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--ink);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
+
+  article{max-width:760px;margin:0 auto;padding:56px 0 40px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);display:flex;align-items:center;gap:.6rem}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--seal)}
+  article h1{font-family:var(--display);font-weight:400;font-size:clamp(2.1rem,5vw,3.1rem);line-height:1.1;margin:16px 0 14px;text-wrap:balance}
+  article h1 .hl{color:var(--seal);font-style:italic}
+  .standfirst{color:var(--muted);font-size:1.18rem;max-width:58ch;margin-bottom:26px;text-wrap:pretty}
+  .meta{font-family:var(--mono);font-size:.73rem;color:var(--muted);letter-spacing:.03em;display:flex;gap:22px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .meta b{color:var(--ink);font-weight:600}
+  section{padding:44px 0;border-bottom:1px solid var(--rule)}
+  section:last-of-type{border-bottom:none}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,3.4vw,1.95rem);line-height:1.16;margin:8px 0 14px;text-wrap:balance}
+  h3{font-size:1.02rem;font-weight:600;margin:24px 0 6px}
+  p{margin:0 0 14px;max-width:66ch;text-wrap:pretty}
+  p:last-child{margin-bottom:0}
+  .lede{font-size:1.1rem}
+  em{font-style:italic}
+  strong{font-weight:600}
+  code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:2px}
+
+  .pull{font-family:var(--display);font-size:1.4rem;line-height:1.34;border-left:3px solid var(--seal);padding:2px 0 2px 20px;margin:24px 0;max-width:58ch;text-wrap:pretty}
+  .pull .em{color:var(--seal);font-style:italic}
+
+  /* figure strip */
+  .figs{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:2px;overflow:hidden;margin:24px 0}
+  .figs .f{background:var(--card);padding:16px 16px 18px}
+  .figs .n{font-family:var(--display);font-size:clamp(1.7rem,4vw,2.5rem);line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .figs .f.crit .n{color:var(--seal)}
+  .figs .k{font-family:var(--mono);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:8px;line-height:1.4}
+  @media(max-width:640px){.figs{grid-template-columns:repeat(2,1fr)}}
+
+  .mtable{border-collapse:collapse;margin:22px 0;font-size:.9rem;width:100%;max-width:66ch}
+  .mtable th{font-family:var(--mono);font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:8px 16px 8px 0}
+  .mtable th.r,.mtable td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .mtable td{border-top:1px solid var(--rule);padding:9px 16px 9px 0;vertical-align:top}
+  .mtable td.n{font-family:var(--mono);font-size:.82rem;white-space:nowrap}
+  .mtable tr.hot td{color:var(--ink)}
+  .mtable tr.hot td.r{color:var(--seal);font-weight:600}
+  .mtable tr.cool td.r{color:var(--verify);font-weight:600}
+  .tablewrap{overflow-x:auto}
+
+  pre{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:16px 18px;overflow-x:auto;margin:18px 0;border-radius:2px}
+  pre .c{color:#8FA398} pre .s{color:#E5697A} pre .g{color:#7CC7A1} pre .w{color:#D6A85A}
+
+  .callout{border-left:3px solid var(--verify);background:var(--verify-tint);padding:14px 18px;border-radius:0 2px 2px 0;margin:22px 0;max-width:66ch}
+  .callout.warn{border-left-color:var(--amber);background:color-mix(in srgb,var(--amber) 10%,var(--card))}
+  .callout .lab{font-family:var(--mono);font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--verify);margin-bottom:6px}
+  .callout.warn .lab{color:var(--amber)}
+  .callout p{margin:0;font-size:.96rem}
+
+  .flow{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch;margin:20px 0;max-width:66ch}
+  .flow .card{border:1px solid var(--rule);border-radius:2px;padding:13px 15px;background:var(--card)}
+  .flow .fk{font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .flow .fn{font-family:var(--mono);font-size:.82rem;color:var(--ink);margin-top:6px}
+  .flow .fd{font-size:.86rem;color:var(--muted);margin-top:6px}
+  .flow .join{display:flex;align-items:center;justify-content:center;font-family:var(--mono);color:var(--seal);font-size:1.1rem}
+  @media(max-width:600px){.flow{grid-template-columns:1fr}.flow .join{padding:2px 0}}
+
+  .ledger{display:flex;flex-direction:column;gap:8px;margin:20px 0;max-width:66ch}
+  .ledger .row{border:1px solid var(--rule);border-left:3px solid var(--rule);border-radius:2px;padding:12px 15px;background:var(--card)}
+  .ledger .rid{font-family:var(--mono);font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .ledger .stamp{font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule);border-radius:2px;padding:1px 6px;color:var(--amber)}
+  .ledger .struck{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--rule)}
+  .ledger .why b{color:var(--ink)}
+  .ledger .why{font-size:.92rem;color:var(--muted)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0;max-width:66ch}
+  .grid2>div{border:1px solid var(--rule);border-radius:2px;padding:14px 16px;background:var(--card)}
+  .grid2 .pn{font-family:var(--mono);font-size:.7rem;color:var(--seal)}
+  .grid2 h4{font-family:var(--display);font-weight:400;font-size:1.06rem;margin:5px 0 5px}
+  .grid2 p{font-size:.9rem;color:var(--muted);margin:0}
+  @media(max-width:600px){.grid2{grid-template-columns:1fr}}
+
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+  .btn{display:inline-block;font-family:var(--body);font-size:.92rem;font-weight:500;text-decoration:none;padding:10px 18px;border-radius:2px;border:1px solid var(--seal);color:var(--seal)}
+  .btn.primary{background:var(--seal);color:var(--paper)}
+  .btn:hover{opacity:.9}
+
+  footer{border-top:1px solid var(--rule);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+  ::selection{background:var(--seal);color:var(--paper)}
+  [id]{scroll-margin-top:24px}
+</style>
+<script>
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect class="p" x="8" y="8" width="84" height="84" rx="18"/><g class="k" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="research.html" aria-current="page">Research</a>
+      <a href="pipeline.html">Pipeline</a>
+      <a href="capabilities.html">Capabilities</a>
+      <a href="system.html">System</a>
+      <a href="index.html#how">Review layers</a>
+      <a href="proof.html">Proof</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">&#9790;</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+
+  <p class="eyebrow">Research / MCP ecosystem review</p>
+  <h1>One in three popular MCP servers ships the lethal trifecta. The risk isn't in any file, it's in the <span class="hl">graph.</span></h1>
+  <p class="standfirst">A per-file scanner reads one config at a time, and at that altitude these servers look fine. We do something different: we build a system model of each one, its tools, the data and networks they reach, the trust boundaries they cross, and review the architecture. That is where the one-in-three finding lives, across 390 of the most popular open-source MCP servers, and it is what a per-file scanner structurally cannot produce.</p>
+  <div class="meta">
+    <span><b>390</b> servers modeled</span>
+    <span><b>&ge; 200</b> stars each</span>
+    <span><b>pinned</b> commits</span>
+    <span>system model, not a linter</span>
+    <span>reproducible harness</span>
+  </div>
+
+  <section>
+    <h2>The unit of analysis nobody scans</h2>
+    <p class="lede">Almost nobody attacks an MCP server's source code. They attack what users actually run: the <code>mcpServers</code> block a README tells you to paste into Claude Desktop, Cursor, or VS Code. That block decides which packages auto-install at launch, which secrets sit in the environment, what the server can reach, and what else is live in the same agent session.</p>
+    <p>So that is what we modeled. 390 public MCP server repositories, each with at least 200 GitHub stars, cloned at a pinned commit and run through <a href="https://github.com/attestral-labs/attestral">attestral</a>, an open-source design-review tool for agentic systems. It does not lint files in isolation. It builds a system model of each server, the components, the edges between them, and the trust boundaries they cross, and reasons about what an injection could actually reach. Nothing was executed, no endpoint was contacted, no secret was read.</p>
+    <p>389 scanned cleanly, 387 distinct repositories after removing two that GitHub enumerated under both an old and a renamed slug. <strong>233 distinct repos shipped a configuration concrete enough to model.</strong> Those 233 are the denominator for every percentage here, so nothing is inflated by repos that had nothing to scan, and nothing is counted twice.</p>
+  </section>
+
+  <section>
+    <h2>The headline: one in three</h2>
+    <div class="figs">
+      <div class="f"><div class="n">390</div><div class="k">repositories reviewed, pinned commits</div></div>
+      <div class="f"><div class="n">233</div><div class="k">shipped a modelable config, the denominator</div></div>
+      <div class="f crit"><div class="n">32.6%</div><div class="k">assemble the lethal trifecta</div></div>
+      <div class="f"><div class="n">100%</div><div class="k">of trifecta findings reproduce on re-scan</div></div>
+    </div>
+    <p><strong>76 of 233 modelable configurations, 32.6%,</strong> assemble the lethal trifecta: private-data access, untrusted-input exposure, and an outbound channel, co-resident in one agent session. An agent that can read your data, ingest attacker-influenced content, and send anything out needs exactly one indirect prompt injection to become an exfiltration pipeline. No component is individually broken. The composition is the vulnerability.</p>
+    <p>Three things make the number worth taking seriously.</p>
+    <h3>It is stable across corpus size</h3>
+    <p>At 222 repositories the rate was 32.7%. At 390, 32.6%. Growing the corpus by three quarters moved the needle a tenth of a point. This is what the ecosystem looks like, not what one sample looks like.</p>
+    <h3>Every finding reproduces</h3>
+    <p>We re-scanned every trifecta finding from clean clones and got identical results, then hand-audited the tier of repositories that commit their configuration as files. All of them reproduce deterministically. There is no run-to-run noise in the headline.</p>
+    <h3>The flagship is a real deployed fleet, verified by hand</h3>
+    <p>The single named example, held for coordinated disclosure, is not a statistical abstraction. It is one popular server whose committed MCP config and committed sub-agent combine into a live trifecta, confirmed by reading the two files.</p>
+    <div class="callout">
+      <div class="lab">One caveat, stated plainly</div>
+      <p>The 32.6% counts <em>documented</em> configurations, and a minority assemble the trifecta only by combining several documented example blocks that nobody deploys together. Those stay in the aggregate but are never presented as single fleets. The per-fleet examples we stand on individually, like the flagship, are verified from the committed files, not inferred from a count.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What else the sweep found</h2>
+    <p>Across the 233 modelable configurations, the per-server patterns are loud. Read the next section before you trust any single row of this table.</p>
+    <div class="tablewrap">
+    <table class="mtable">
+      <thead><tr><th>Pattern</th><th class="r">Share</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr class="hot"><td>Lethal trifecta (composition)</td><td class="r">32.6%</td><td>One injection away from exfiltration</td></tr>
+        <tr><td>Auto-installing installer (<code>npx -y</code> / <code>uvx</code>)</td><td class="r">30.0%</td><td>Every launch is a supply-chain event</td></tr>
+        <tr><td>Secrets handed to the process via env</td><td class="r">25.8%</td><td>Tokens sit where tool output can echo them</td></tr>
+        <tr><td>Toxic flow: untrusted input reaches an action</td><td class="r">16.7%</td><td>The injection has somewhere to go</td></tr>
+        <tr><td>Shell plus outbound network in one fleet</td><td class="r">15.0%</td><td>Code execution with an exit</td></tr>
+        <tr><td>Mutable <code>@latest</code> / <code>:latest</code> pin</td><td class="r">15.0%</td><td>Tomorrow's server is not the one you audited</td></tr>
+        <tr><td>Plaintext <code>http://</code> transport</td><td class="r">9.4%</td><td>Credentials and tool traffic in the clear</td></tr>
+        <tr class="cool"><td>Remote endpoint genuinely unauthenticated</td><td class="r">0.9%</td><td>See the next section</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>By category, database-backed servers were the worst slice (14 of 14 modelable configs had findings), followed by browser and web-automation servers (93%) and search servers (92%). The servers most useful to an agent are the ones that combine data access with reach.</p>
+  </section>
+
+  <section>
+    <h2>The number that fell from 48% to under 1%</h2>
+    <p class="lede">The most instructive finding in this study is one we deleted.</p>
+    <p>Early sweeps reported that nearly half of remote MCP endpoints shipped "without authentication." That number was wrong, and the way it was wrong matters. The MCP spec mandates OAuth 2.1 for HTTP transports. The token is negotiated interactively at connect time, so a spec-compliant hosted endpoint never has a credential in its static config. A scanner that reads "no token in the file" as "no auth" is manufacturing alarms out of correct behavior.</p>
+    <p>We fixed the rule to fire only on genuinely exposed endpoints: non-loopback, plaintext <code>http://</code>, no declared credential. The rate across the corpus fell to <strong>0.9%. Two repos out of 233.</strong></p>
+    <div class="callout warn">
+      <div class="lab">We found this, so we fixed it</div>
+      <p>Every loud per-server number deserves this treatment. A token in an env var is standard practice worth a footnote, not a headline. <code>cmd /c npx</code> on Windows is a launcher idiom, not a shell exposure. We publish the false positives we killed alongside the findings we kept, because a scanner that will not show you its noise floor should not be trusted with its signal.</p>
+    </div>
+    <div class="ledger">
+      <div class="row">
+        <div class="rid">ATL-109 &times;5 <span class="stamp">false positive</span></div>
+        <div class="why"><span class="struck">"Five hosted servers expose a remote endpoint with no authentication."</span><br><b>Reality: OAuth.</b> Five well-known hosted endpoints require OAuth 2.1; the token is obtained interactively and never appears in static config. "No token in the file" means compliant, not open.</div>
+      </div>
+      <div class="row">
+        <div class="rid">ATL-202 <span class="stamp">merge artifact</span></div>
+        <div class="why"><span class="struck">"A large cloud vendor documents a lethal trifecta."</span><br><b>Reality: a stitched graph.</b> One monorepo documents 132 separate example configs; modeling them as one fleet manufactures a trifecta across servers never deployed together. On the committed config there is none.</div>
+      </div>
+      <div class="row">
+        <div class="rid">ATL-103 <span class="stamp">idiom, not shell</span></div>
+        <div class="why"><span class="struck">"This server exposes a shell."</span><br><b>Reality: the Windows launcher.</b> <code>"command":"cmd","args":["/c","npx",...]</code> is how Windows starts an npm package, not a shell-exposing server.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why the signal and the noise trade places</h2>
+    <p class="lede">Notice the shape of what survived scrutiny and what did not.</p>
+    <p>Everything that dissolved was a property of a single component: this endpoint's auth, this installer's pin, this env var. Single-component facts have single-component explanations, and most turn out to be fine in context.</p>
+    <p>The finding that survived is a property of a <em>relationship</em>: a tool over here reads private data, a tool over there talks to the internet, and untrusted content can travel between them. No single file contains that finding. It only exists in the graph of the whole session, which is why per-file scanners, however many rules they carry, structurally cannot see it.</p>
+    <p class="pull">In the agentic era the loud, per-component alarms are mostly noise. The <span class="em">quiet, cross-component compositions</span> are where the risk lives.</p>
+    <p>That is the bet behind attestral: build the system model first (components, edges, trust boundaries), then review the architecture. The trifecta check is not a rule that matches a string. It is a query over the graph. The <a href="ifc.html">information-flow field notes</a> show how the same finding becomes a formal property you can discharge.</p>
+    <h3>The one that survived, anonymized</h3>
+    <p>Two files, both committed to a popular server's repository, combine into one agent session that can read private data, ingest untrusted input, and reach an outbound channel.</p>
+    <div class="flow">
+      <div class="card">
+        <div class="fk">Untrusted input + exit</div>
+        <div class="fn">.mcp.json</div>
+        <div class="fd">A server profile enables an outbound web-browsing tool, which both fetches attacker-influenced content and provides a channel out.</div>
+      </div>
+      <div class="join">&plus;</div>
+      <div class="card">
+        <div class="fk">Code execution + private data</div>
+        <div class="fn">.claude/agents/ sub-agent</div>
+        <div class="fd">A committed sub-agent carrying <code>tools: Bash, Read, Glob, Grep</code>, shell and filesystem access, in the same session.</div>
+      </div>
+    </div>
+    <pre><span class="c"># one indirect prompt injection is enough</span>
+web content (untrusted)
+   <span class="s">&rarr;</span> the web-browsing tool ingests it into the session
+   <span class="s">&rarr;</span> injected instruction reaches Bash + Read   <span class="c"># private data + code exec</span>
+   <span class="s">&rarr;</span> result leaves over the outbound tool        <span class="c"># exfiltration</span>
+<span class="s">ATL-202</span> lethal trifecta   <span class="c">(edges: ATL-203 shell+network, ATL-207 toxic flow)</span></pre>
+    <p>Verified live against the current commit. This is a configuration default, not an exploited vulnerability; nothing was run and no secret was read. The maintainers were notified with a fix and a response window before this example was written down. It will be named in a follow-up once that window closes.</p>
+  </section>
+
+  <section>
+    <h2>What to actually do</h2>
+    <p>Four defaults close almost everything above.</p>
+    <div class="grid2">
+      <div><div class="pn">01</div><h4>Pin the installer</h4><p>Exact versions, no <code>-y</code>. An install should be a deliberate act, not a side effect of launching your editor.</p></div>
+      <div><div class="pn">02</div><h4>Keep secrets out of the pasted block</h4><p>Reference a secret manager or OS keychain. Anything inline eventually transits model context.</p></div>
+      <div><div class="pn">03</div><h4>Authenticate and encrypt every remote endpoint</h4><p>OAuth per the MCP spec, TLS only. The 0.9% that are genuinely open are trivially findable.</p></div>
+      <div><div class="pn">04</div><h4>Never co-locate the trifecta</h4><p>Private data, untrusted input, and an outbound channel in one session need a human checkpoint. This is the one a linter cannot decide for you.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Check your own machine</h2>
+    <p>The scanner is open source (Apache 2.0), runs locally, and needs no API key.</p>
+    <pre>pip install attestral
+attestral scan --local     <span class="c"># audits the MCP servers configured on this machine</span>
+attestral scan &lt;path&gt;      <span class="c"># reviews a repo's agent + cloud design</span></pre>
+    <p><code>--local</code> reads the MCP configs your clients already have installed (Claude Desktop, Cursor, VS Code, Windsurf) and tells you if you are running the trifecta right now.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/attestral-labs/attestral">&#9733; Star on GitHub</a>
+      <a class="btn" href="capabilities.html">See the full pipeline</a>
+      <a class="btn" href="playground.html">Paste your own config</a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Method, honestly</h2>
+    <p>The whole point of a security claim is that someone can falsify it. So the harness, the pinned target list, and the per-repo output are reproducible: clone each target at its recorded commit, run the published CLI, and you get the same findings.</p>
+    <ul style="max-width:66ch;color:var(--muted);font-size:.96rem;line-height:1.7;padding-left:1.1rem">
+      <li>Corpus: 390 targets, at least 200 stars, hand-curated anchors plus API enumeration, every URL verified. One repo failed to clone; two were enumerated under both an old and renamed slug and are deduplicated everywhere (no rate moves more than 0.3 points). One deliberately vulnerable training repo is a known-positive harness anchor; removing it too gives 32.3%, still one in three.</li>
+      <li>Every finding is a configuration default, not an exploited vulnerability. Nothing was run; no endpoint was contacted; no secret was read.</li>
+      <li>Percentages are computed over the 233 distinct repos with a modelable config. Repos with no scannable surface are excluded from both numerator and denominator.</li>
+      <li>ML-based injection scoring ran but is excluded from every headline number; heuristic tiers flag benign instructional text too often to headline without review.</li>
+      <li>Withdrawn findings are documented, not deleted. Honesty by elimination is the method, not a disclaimer.</li>
+    </ul>
+  </section>
+
+</article>
+</div>
+
+<footer>
+  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> &#183; An Attestral Labs project &#183; &#169; 2026 &#183; Apache 2.0</div>
+</footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, KEY='attestral-theme';
+    var mq=window.matchMedia('(prefers-color-scheme: dark)');
+    var btn=document.getElementById('themeToggle');
+    function active(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}
+    function paint(){if(btn)btn.textContent=active()==='dark'?'☀':'☾';}
+    if(btn)btn.addEventListener('click',function(){
+      var next=active()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      try{localStorage.setItem(KEY,next);}catch(e){}
+      paint();
+    });
+    mq.addEventListener('change',paint);
+    paint();
+  })();
+</script>
+
+</body>
+</html>
