@@ -581,15 +581,14 @@
   <div class="wrap nav">
     <a class="wordmark" href="#"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
     <nav class="nav-links" aria-label="Main">
+      <a href="research.html">Research</a>
       <a href="pipeline.html">Pipeline</a>
       <a href="capabilities.html">Capabilities</a>
       <a href="system.html">System</a>
       <a href="#how">Review layers</a>
-      <a href="#start">Get started</a>
       <a href="proof.html">Proof</a>
       <a href="playground.html">Playground</a>
       <a href="docs.html">Docs</a>
-      <a href="architecture.html">Architecture</a>
       <a href="https://github.com/attestral-labs/attestral">GitHub</a>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
     </nav>
@@ -857,8 +856,10 @@
         </table>
       </div>
       <p class="section-lede" style="margin-top:18px">The headline is the compositional one. The <b>lethal trifecta</b> and toxic-flow hits are fleet-level: they exist only once you model several servers, and in one case a committed sub-agent, together. That is the finding no config-by-config scanner produces, and it showed up in nearly a quarter of the configs that had enough to model.</p>
+      <p class="section-lede" style="margin-top:10px">We have since widened this to <b>390 servers</b>, and the compositional rate held at <b>one in three</b>. Two per-server numbers above were corrected on the way: the no-auth rate was an OAuth false positive and fell to under 1% once the check became OAuth-aware, and monorepo README merges can manufacture a false "fleet." The trifecta survived every correction.</p>
       <div class="cta-row" style="margin-top:22px">
-        <a class="btn primary" href="https://github.com/attestral-labs/attestral/blob/main/evaluation/real-world.md">The full aggregate write-up</a>
+        <a class="btn primary" href="research.html">Read the 390-server study</a>
+        <a class="btn" href="https://github.com/attestral-labs/attestral/blob/main/evaluation/real-world.md">The 33-server aggregate write-up</a>
       </div>
       <p class="demo-cap" style="margin-top:14px">A named per-repo gallery, one screenshot of a genuine trifecta in a project you recognize, publishes as a second wave, after each maintainer has been given a responsible-disclosure window. We would rather be fair to maintainers than fast to a headline.</p>
     </div>
