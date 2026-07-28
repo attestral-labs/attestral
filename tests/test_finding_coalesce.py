@@ -84,3 +84,38 @@ def test_two_different_flows_do_not_coalesce():
     out = render_scan(model, findings, "t", color=False)
     assert "one exfiltration flow" not in out   # different sink sets, two separate issues
     assert "CRITICAL (2)" in out
+
+
+def _dup(src: str) -> Finding:
+    # A dead-end finding (no reachability) so it is NOT flow-coalesced; the same
+    # rule + component + title as its siblings, differing only by source file.
+    return Finding(rule_id="ATL-ML-001", title="Prompt-injection text detected",
+                   severity=Severity.MEDIUM, component_id="agent_instruction.AGENTS",
+                   description="", recommendation="fix", source=src)
+
+
+def test_identical_copies_across_sources_collapse_to_one_line():
+    model = SystemModel()
+    model.add(Component(id="agent_instruction.AGENTS", type="system_prompt",
+                        name="AGENTS", source="AGENTS.md"))
+    findings = [_dup(f"translations/{lang}/AGENTS.md") for lang in ("fa", "km", "kn", "te")]
+    out = render_scan(model, findings, "monorepo", color=False)
+    # one rendered block, not four; the header shows the distinct-vs-raw split
+    assert "MEDIUM (1 issues · 4 findings)" in out
+    assert "4 identical copies" in out
+    assert "translations/fa/AGENTS.md" in out          # a few sources are named
+    assert out.count("run: attestral explain ATL-ML-001") == 1  # rendered once
+
+
+def test_same_rule_different_components_stay_separate():
+    # Two servers each carrying the same rule are two real findings, not a copy.
+    model = SystemModel()
+    for i in ("a", "b"):
+        model.add(Component(id=f"mcp_server.{i}", type="mcp_server", name=i, source=f"{i}.json"))
+    findings = [
+        Finding("ATL-105", "Unpinned installer", Severity.MEDIUM, "mcp_server.a", "", "fix", source="a.json"),
+        Finding("ATL-105", "Unpinned installer", Severity.MEDIUM, "mcp_server.b", "", "fix", source="b.json"),
+    ]
+    out = render_scan(model, findings, "t", color=False)
+    assert "identical copies" not in out               # different components never collapse
+    assert "MEDIUM (2)" in out

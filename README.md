@@ -176,12 +176,14 @@ A raised HIGH ships with the entry → pivot → impact path that justifies it, 
 # ML prompt-injection scan of agentic text surfaces (MCP tool/server descriptions,
 # system-prompt files, embedded MCP Apps HTML bodies). Hits are tagged origin: ml
 # and flow into the same evidence chain.
-# Three tiers, chosen with --ml-engine (or ATTESTRAL_ML_ENGINE); default is auto:
-#   heuristic  zero-dependency, instant, ships in core  -> attestral scan --ml (no extra install)
-#   onnx       model-grade DeBERTa via onnxruntime, no torch, ~276 MB   <- recommended
+# The zero-dep heuristic tier runs on EVERY scan by default (no flag, no install);
+# --ml opts into the model-grade tiers. Three tiers:
+#   heuristic  zero-dependency, instant, ships in core     <- the default, always on
+#   onnx       model-grade DeBERTa via onnxruntime, no torch, ~276 MB   <- recommended upgrade
 #   deberta    heaviest, fine-tunable, pulls torch (~700 MB+)
-# `auto` precedence: onnx -> deberta -> heuristic. A missing extra is never an error.
-attestral scan ./my-project --ml                          # zero-install heuristic tier
+# `--ml` selects engine `auto` (precedence onnx -> deberta -> heuristic); a missing
+# extra is never an error, it just falls back. `--no-ml` turns the layer off entirely.
+attestral scan ./my-project                               # heuristic tier already included
 pip install "attestral[onnx]"                             # add the light, accurate ONNX tier
 attestral scan ./my-project --ml --ml-engine onnx         # weights auto-download once, offline after
 # custom or air-gapped model? run scripts/export_onnx.py, then set ATTESTRAL_ML_MODEL=/path

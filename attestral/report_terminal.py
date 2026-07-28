@@ -117,11 +117,55 @@ _NOT_READ_NOTE = (
 )
 
 
+_AGENT_FAMILY = _SURFACE_FAMILIES[0][0]  # "agent / MCP surface"
+
+
 def _family_of(component_type: str) -> str | None:
     for label, prefixes in _SURFACE_FAMILIES:
         if any(component_type.startswith(p) for p in prefixes):
             return label
     return None
+
+
+def clean_scan_category(model: "SystemModel") -> str:
+    """Classify a finding-free scan by how much was actually in scope, so a clean
+    result is never mistaken for a clean bill of health. A skeptic who runs
+    `scan --local` with one server installed must not read "Clean scan" as "I am
+    safe" when the tool simply had almost nothing to review.
+
+    Returns:
+      "empty" - nothing was in scope to review at all;
+      "thin"  - a single agent/MCP surface and nothing else, too little for the
+                cross-surface composition checks (lethal trifecta, toxic flow) to
+                fire, so a clean result under-tests;
+      "clean" - a substantial surface was reviewed and came back clean.
+    """
+    n_total = len(model.components)
+    if n_total == 0:
+        return "empty"
+    n_agentic = sum(1 for c in model.components if _family_of(c.type) == _AGENT_FAMILY)
+    if n_agentic == n_total and n_agentic < 2:
+        return "thin"
+    return "clean"
+
+
+# The honest clean-scan verdicts, keyed by clean_scan_category. "thin"/"empty"
+# never use the reassuring green: they are the whole point of the distinction.
+_CLEAN_VERDICTS = {
+    "clean": "No findings. Clean scan.",
+    "thin": (
+        "No findings, but only one agent/MCP surface was in scope. The "
+        "cross-surface checks that catch the lethal trifecta and toxic flows "
+        "need at least two connected surfaces to fire, so this means nothing "
+        "risky in the little that was reviewed, not that your setup is safe. "
+        "Point Attestral at a full config or a repo to exercise them."
+    ),
+    "empty": (
+        "Nothing was in scope to review here. Attestral found no MCP servers, "
+        "agent configs, Terraform, or Kubernetes at this path, so this is not a "
+        "clean bill of health, only an empty one."
+    ),
+}
 
 
 def render_discovery(model: "SystemModel", target: str, *, color: bool | None = None) -> str:
@@ -229,10 +273,29 @@ def _flow_signature(f: "Finding") -> tuple | None:
     return ("injection-reach", sinks) if sinks else None
 
 
-def _finding_lines(f: "Finding", sev: str, color: bool) -> list[str]:
-    """The individual render block for one finding."""
+def _dup_signature(f: "Finding") -> tuple:
+    """Identity of a pure visual duplicate: same rule, same component, same title
+    render to a byte-identical line. A doc translated into 50 languages, or a
+    config copied across a monorepo, produces the same finding once per copy;
+    those collapse to a single line with a count. Distinct components never
+    collapse, so two servers each carrying the same rule stay two findings."""
+    return (f.rule_id, f.component_id, f.title)
+
+
+def _finding_lines(f: "Finding", sev: str, color: bool,
+                   dup: list["Finding"] | None = None) -> list[str]:
+    """The individual render block for one finding. When `dup` holds two or more
+    byte-identical copies (same rule, component, title across near-identical
+    source files), the block renders once and names the copy count and a few of
+    the source paths. Every copy still exists in the evidence chain; only the
+    display collapses."""
     out = [f"  {_paint(f.rule_id, _SEV_COLOR[sev], color)}  {_bold(f.title, color)}  "
            f"({_dim(f.component_id, color)}){_tag(f)}"]
+    if dup and len(dup) >= 2:
+        srcs = list(dict.fromkeys(m.source for m in dup if m.source))
+        shown = ", ".join(srcs[:3]) + (f", +{len(srcs) - 3} more" if len(srcs) > 3 else "")
+        out.append(f"    {_dim('seen:', color)} {len(dup)} identical copies"
+                   + (f" across {shown}" if shown else ""))
     if f.reachability:
         note = f.reachability
         if f.reachability_role:
@@ -309,8 +372,13 @@ def render_scan(
         lines.append(paths_block)
 
     if not active and not waived:
+        category = clean_scan_category(model)
+        # Genuine clean is the calm cyan; a thin or empty surface is amber, so it
+        # never reads as a clean bill of health to someone who just had little to
+        # review. Waived-only scans still count as having reviewed something.
+        tone = _SEV_COLOR["low"] if category == "clean" else _SEV_COLOR["medium"]
         lines.append("")
-        lines.append(_paint("No findings. Clean scan.", _SEV_COLOR["low"], color))
+        lines.append(_paint(_CLEAN_VERDICTS[category], tone, color))
         return "\n".join(lines)
 
     by_sev: dict[str, list["Finding"]] = {s: [] for s in _SEV_ORDER}
@@ -333,7 +401,16 @@ def render_scan(
                 clusters.setdefault(k, []).append(f)
         coalesced = {k: v for k, v in clusters.items() if len(v) >= 2}
         merged = sum(len(v) for v in coalesced.values())
-        distinct = (len(group) - merged) + len(coalesced)
+        # Second collapse pass: byte-identical duplicates among the findings not
+        # already folded into a flow cluster (a monorepo's copied config, a doc
+        # translated many times) render once with a count instead of N times.
+        dups: dict[tuple, list] = {}
+        for f in group:
+            if _flow_signature(f) not in coalesced:
+                dups.setdefault(_dup_signature(f), []).append(f)
+        dup_groups = {k: v for k, v in dups.items() if len(v) >= 2}
+        dup_merged = sum(len(v) for v in dup_groups.values())
+        distinct = (len(group) - merged - dup_merged) + len(coalesced) + len(dup_groups)
 
         lines.append("")
         head = (f"{sev.upper()} ({distinct} issues · {len(group)} findings)"
@@ -341,6 +418,7 @@ def render_scan(
         lines.append(_paint(head, _SEV_COLOR[sev], color))
 
         rendered_keys: set[tuple] = set()
+        rendered_dups: set[tuple] = set()
         for f in group:
             k = _flow_signature(f)
             if k in coalesced:
@@ -348,6 +426,13 @@ def render_scan(
                     continue
                 rendered_keys.add(k)
                 lines.extend(_cluster_lines(coalesced[k], sev, color))
+                continue
+            dk = _dup_signature(f)
+            if dk in dup_groups:
+                if dk in rendered_dups:
+                    continue
+                rendered_dups.add(dk)
+                lines.extend(_finding_lines(f, sev, color, dup=dup_groups[dk]))
             else:
                 lines.extend(_finding_lines(f, sev, color))
 

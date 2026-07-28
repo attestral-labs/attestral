@@ -52,7 +52,12 @@ def render_pr_summary(
     introduced. This is the light PR artifact; the full audit report and
     evidence chain come from `attestral scan -o`."""
     from attestral.paths import all_attack_paths
-    from attestral.report_terminal import _NOT_READ_NOTE, _family_of
+    from attestral.report_terminal import (
+        _CLEAN_VERDICTS,
+        _NOT_READ_NOTE,
+        _family_of,
+        clean_scan_category,
+    )
 
     active = [f for f in findings if not f.waived]
     waived = [f for f in findings if f.waived]
@@ -71,7 +76,10 @@ def render_pr_summary(
     lines = ["## Attestral design review", ""]
     noun = "finding" if len(active) == 1 else "findings"
     if not active:
-        verdict = "No new findings." if net_new else "Clean scan."
+        # A baseline-gated run reports only what the change introduced, so the
+        # full-surface scope caveat does not apply; a full scan states its scope
+        # honestly, so a thin or empty review is never read as a clean bill.
+        verdict = "No new findings." if net_new else _CLEAN_VERDICTS[clean_scan_category(model)]
     elif net_new:
         verdict = f"**{len(active)}** net-new {noun} introduced by this change: {breakdown}."
     else:
