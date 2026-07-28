@@ -6,6 +6,22 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Changed
+- **A clean scan now states how much was in scope, so it is never mistaken for a clean
+  bill of health.** A finding-free scan of a thin surface (for example `scan --local` with a
+  single MCP server installed) previously printed "No findings. Clean scan." in reassuring
+  green, which a reader could read as "I am safe" when the tool simply had almost nothing to
+  review. The verdict is now scope-aware: an empty scope says nothing was in scope to review,
+  a single agent/MCP surface says the cross-surface composition checks (lethal trifecta, toxic
+  flow) could not fire and points you at a fuller target, and only a substantial reviewed
+  surface keeps the confident "Clean scan." The same honest verdict is used in the PR/job
+  summary. `report_terminal.clean_scan_category` is the single source of truth.
+- **Byte-identical duplicate findings collapse in the report.** A config copied across a
+  monorepo, or a doc translated into many languages, produced the same finding once per copy
+  (same rule, same component, same title), so a scan could show one issue several times. Those
+  now render once with a copy count and a few of the source paths, alongside the existing
+  reachability-flow coalescing. Display only: every copy stays in the evidence chain.
+
 ### Added
 - **Detector label model: weak supervision, upgraded (issue #111).** New `training/labelmodel.py`
   decomposes Attestral's heuristic into independent labeling functions that each vote injection /

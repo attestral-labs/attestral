@@ -23,7 +23,7 @@ One-liner: *"The security scanner built for the agentic era, and it covers your 
 - **Ingest** (`attestral/ingest/`): `terraform.py`, `kubernetes.py`, `mcp.py`, `prompts.py`. `scan.py::build_model` runs all four and seeds trust boundaries (`cloud`, `cluster`, `agent_runtime`). `local_config.py` discovers installed MCP configs (Claude Desktop/Cursor/VS Code/Windsurf) for `scan --local`.
 - **Model** (`model.py`): `Component`(id/type/name/source/attributes/trust_boundary), `Edge`, `TrustBoundary`, `Finding`, `Severity` (critical=4…info=0). This is the shared vocabulary - everything keys off `component.type` and `component.attr(...)`.
 - **Rules** (`rules/engine.py` + `rules/core_rules.yaml`): deterministic, `origin="deterministic"`. Always runs.
-- **ML** (`ml.py`, `--ml`): prompt-injection scoring on *language* surfaces (MCP tool/server descriptions, system-prompt files). `origin="ml"`. Tiered, off by default.
+- **ML** (`ml.py`): prompt-injection scoring on *language* surfaces (MCP tool/server descriptions, system-prompt files). `origin="ml"`. Tiered: the zero-dep **heuristic tier runs by default** on every scan; `--ml` (or `--ml-engine`) opts into the heavier model-grade tiers (onnx/deberta).
 - **LLM** (`llm.py`, `--llm`) and **Judge** (`judge.py`, `--judge`): elicitation + LLM-as-judge cross-examination. Need `ANTHROPIC_API_KEY`.
 - **Waivers** (`waivers.py`): documented, expiring exceptions; a waived finding stays in the chain (never hidden), becomes a SARIF suppression.
 - **Output**: `report_terminal.py` (default, terminal-first), `evidence.py` (SHA-256 chain + markdown), `sarif.py`. **Terminal-first: nothing is written to disk unless `-o`/`--format` is passed.**

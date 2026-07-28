@@ -4,7 +4,7 @@ from click.testing import CliRunner
 from attestral.cli import main
 from attestral.evidence import render_pr_summary
 from attestral.ingest import build_model
-from attestral.model import Finding, Severity, SystemModel
+from attestral.model import Component, Finding, Severity, SystemModel
 from attestral.reachability import annotate_reachability
 from attestral.rules import RuleEngine
 
@@ -37,8 +37,29 @@ def test_summary_net_new_wording_and_singular():
 
 
 def test_summary_clean_scan():
-    assert "Clean scan." in render_pr_summary(SystemModel(), [], "t")
+    # A substantial, finding-free surface is a genuine clean scan.
+    model = SystemModel()
+    for i in range(2):
+        model.add(Component(id=f"s{i}", type="mcp_server", name=f"s{i}", source=f"s{i}.json"))
+    assert "Clean scan." in render_pr_summary(model, [], "t")
+    # A baseline-gated run reports only the delta, so no scope caveat applies.
     assert "No new findings." in render_pr_summary(SystemModel(), [], "t", net_new=True)
+
+
+def test_summary_empty_scope_is_not_a_clean_bill():
+    # An empty model reviewed nothing; it must not read as "Clean scan."
+    md = render_pr_summary(SystemModel(), [], "t")
+    assert "Clean scan." not in md
+    assert "not a clean bill of health" in md
+
+
+def test_summary_thin_surface_is_caveated():
+    # A single agent/MCP surface is too little for the composition checks to fire.
+    model = SystemModel()
+    model.add(Component(id="only", type="mcp_server", name="only", source="only.json"))
+    md = render_pr_summary(model, [], "t")
+    assert "Clean scan." not in md
+    assert "at least two connected surfaces" in md
 
 
 def test_summary_escapes_pipes_in_titles():
