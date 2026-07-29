@@ -42,9 +42,17 @@ def compile_policy(
     for f in findings:
         by_component.setdefault(f.component_id, []).append(f)
 
+    # Servers the attested design routes through a credential broker: an
+    # agentgateway route fronts them (matched by name). Recorded on each entry so
+    # the drift layer can catch a runtime call that bypassed the broker (DRF-011,
+    # CB4A TM-11) - the runtime complement to the static ATL-221.
+    brokered_names = {c.name for c in model.by_type("agentgateway_route")}
+
     servers: dict[str, dict] = {}
     for c in model.by_type("mcp_server"):
         entry: dict = {"allow": True, "constraints": {}, "attested_source": c.source}
+        if c.name in brokered_names:
+            entry["broker_required"] = True
         # The attested ambient capability envelope, emitted for every mcp_server
         # (present even when empty). Two uses: a re-attestation is checked as a
         # narrowing (attestral compile --against) - a server that later gains a

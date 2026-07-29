@@ -37,6 +37,7 @@ DRIFT_RULES = {
     "DRF-008": ("Unauthorized runtime capability / process spawn", Severity.CRITICAL),
     "DRF-009": ("Portable handle replayed by a different principal", Severity.CRITICAL),
     "DRF-010": ("Portable handle spent with unknown provenance", Severity.HIGH),
+    "DRF-011": ("Credential-brokered server reached without the broker (bypass)", Severity.CRITICAL),
 }
 
 # The concrete fix for the handle findings (DRF-009/010). MCP SEP-2567/2575
@@ -217,6 +218,22 @@ def _per_event(servers: dict, ev: dict, event_no: int) -> list[Finding]:
                     "reviewed design never authorized",
                     event_no,
                 ))
+
+    # DRF-011 - the runtime half of CB4A TM-11 (broker bypass). The attested
+    # design routes this server through a credential broker (compile marked it
+    # `broker_required`), but this invocation reports it reached the server
+    # WITHOUT the broker, so it used a credential directly and skipped the
+    # broker's policy, scoping, and audit. Fail-closed in the DRF-008 style: only
+    # an explicit `brokered: false` fires; an ABSENT `brokered` key is unknown
+    # telemetry and never fires, exactly as an absent `capabilities` key does.
+    if entry.get("broker_required") and ev.get("brokered") is False:
+        out.append(_mk(
+            "DRF-011", name,
+            f"server '{name}' is attested behind a credential broker, but this "
+            "call reached it directly (brokered=false) - the broker's auth, "
+            "scoping, and audit were bypassed",
+            event_no,
+        ))
     return out
 
 
