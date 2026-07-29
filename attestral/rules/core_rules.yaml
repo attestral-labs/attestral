@@ -932,6 +932,15 @@ rules:
     recommendation: Partition the store per tenant (a namespace or collection per user, or per-tenant credentials), or exchange the caller's own identity for a scoped, short-lived credential per request, so a query can only reach the caller's own vectors. One shared key gives every user the union of everyone's data.
     frameworks: ["OWASP LLM08 Vector and Embedding Weaknesses", "OWASP-ASI06:2026", "OWASP-ASI03:2026", "NIST AC-4", "NIST SC-4"]
 
+  - id: ATL-164
+    title: One MCP server concentrates standing credentials for many providers
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _credential_concentration: true } }
+    description: A single server's environment holds long-lived credentials for four or more distinct providers (LLM vendors, clouds, or SaaS APIs) at once, so this one process is a high-density credential target - compromise of it, by prompt injection, a supply-chain backdoor, or an SSRF, inherits every one of those keys in a single step. This is the architecture behind the March 2026 LiteLLM incident, where an AI gateway holding dozens of providers' keys turned one compromise into an estimated 500,000 leaked corporate identities. A credential broker (CB4A) exists precisely so an agent process never holds a reusable, agent-readable secret; concentrating many providers behind one is the blast-radius its threat model rates CRITICAL.
+    recommendation: Do not co-locate credentials for many providers in one process. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, narrowly scoped token per call so the process holds no reusable key, or at minimum split the providers across isolated processes so one compromise does not inherit them all. If this server is an LLM gateway, run it with per-request minted tokens, not a static key vault.
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
+
   - id: ATL-116
     title: Agent skill grants shell or unrestricted tool access
     severity: high

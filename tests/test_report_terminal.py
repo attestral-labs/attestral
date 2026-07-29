@@ -2,8 +2,13 @@
 import json
 
 from attestral.ingest.local_config import build_local_model
-from attestral.model import Component, SystemModel
-from attestral.report_terminal import clean_scan_category, render_fleet, render_scan
+from attestral.model import Component, Finding, Severity, SystemModel
+from attestral.report_terminal import (
+    clean_scan_category,
+    render_card,
+    render_fleet,
+    render_scan,
+)
 
 
 def _local_model(tmp_path, servers):
@@ -71,3 +76,51 @@ def test_clean_verdict_substantial_surface_is_a_clean_scan():
     text = render_scan(model, [], "repo", color=False)
     assert "No findings. Clean scan." in text
     assert clean_scan_category(model) == "clean"
+
+
+def _trifecta(cid="model"):
+    return Finding("ATL-202", "Tool fleet forms an exfiltration chain (lethal trifecta)",
+                   Severity.CRITICAL, cid, "d", "fix")
+
+
+def test_card_headlines_the_trifecta_and_carries_the_cta():
+    model = _servers(3)
+    card = render_card(model, [_trifecta()], "on this machine", color=False)
+    assert "LETHAL TRIFECTA" in card
+    assert "3 MCP/agent surfaces reviewed on this machine" in card
+    assert "1 critical" in card
+    assert "attestral scan --local" in card                 # the shareable CTA
+    assert "research.html" in card                          # drives to the study
+
+
+def test_card_is_honest_on_a_thin_surface_not_a_scare():
+    model = _servers(1)
+    card = render_card(model, [], "on this machine", color=False)
+    assert "LETHAL TRIFECTA" not in card
+    assert "thin result, not a clean bill of health" in card
+
+
+def test_card_gives_a_clean_machine_a_satisfying_result():
+    model = _servers(2)
+    card = render_card(model, [], "on this machine", color=False)
+    assert "No lethal trifecta, no toxic flow. Clean." in card
+
+
+def test_card_says_nothing_in_scope_when_empty():
+    card = render_card(SystemModel(), [], "on this machine", color=False)
+    assert "No agent or MCP surface found" in card
+    assert "LETHAL TRIFECTA" not in card
+
+
+def test_card_cli_flag_replaces_the_full_report(tmp_path):
+    (tmp_path / ".mcp.json").write_text(
+        '{"mcpServers": {"web": {"command": "uvx", "args": ["mcp-server-fetch"]},'
+        ' "ops": {"command": "bash", "args": ["-c", "x"]}}}'
+    )
+    from click.testing import CliRunner
+
+    from attestral.cli import main
+    r = CliRunner().invoke(main, ["scan", str(tmp_path), "--card"])
+    assert r.exit_code == 0, r.output
+    assert "agentic self-audit" in r.output
+    assert "no files written" not in r.output              # card is a clean artifact

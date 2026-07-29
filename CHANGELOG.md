@@ -6,6 +6,35 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **ATL-164: one MCP server concentrates standing credentials for many providers (CB4A TM-1).**
+  A single server whose environment holds long-lived keys for four or more distinct providers
+  (LLM vendors, clouds, SaaS APIs) is a high-density credential target: one compromise, by
+  injection, a supply-chain backdoor, or SSRF, inherits every key at once. This is the
+  architecture behind the March 2026 LiteLLM incident. New `mcp.py` signal
+  `_credential_providers` maps secret-shaped env vars to distinct vendor families and
+  `_credential_concentration` fires at 4+; the threshold is deliberately conservative so a
+  normal 2-3 service agent is never flagged (fewer false positives over more coverage). It keys
+  on provider *count*, not on any single secret, so it stays out of ATL-104's lane. Cites the
+  IETF Credential Broker for Agents draft (draft-hartman-credential-broker-4-agents-00, TM-1).
+  Fixture `examples/credential-concentration` (a 5-provider gateway fires, a single-provider
+  server is silent); `tests/test_credential_concentration.py`; benchmark case added, 0 FP held.
+  Pack 259 -> 260.
+- **External threat-labelled recall grows to 11 advisories (10/11, design-visible 10/10).**
+  Three CVEs already in the known-CVE dependency table gained a case in
+  `evaluation/external/cases.yaml`: litellm CVE-2026-30623, the langgraph redis checkpointer
+  CVE-2026-27022, and the MCP TypeScript SDK ReDoS CVE-2026-0621 (the last two off a
+  `package.json`, so ATL-145 is now exercised on npm manifests as well as pip). Each is a real
+  published advisory whose label is the threat, not our output, and each is verified to fire.
+  The set is the honest counterweight to the self-labelled 116/116 benchmark; full-set coverage
+  stays deliberately below 100% (one dependency CVE with no confirmable fixed version).
+- **`scan --card`: a compact, screenshot-ready self-audit.** One screen, one answer, does
+  this fleet assemble the lethal trifecta or not, built to be run and shared. Pairs with
+  `--local` to audit and post what your own machine runs. Honest by construction: it reuses
+  the clean-scan scope logic, so a single-server machine is told the cross-surface checks
+  could not fire (a thin result, not a clean bill of health) and a genuinely clean machine
+  gets a clean result rather than a manufactured scare. `report_terminal.render_card`.
+
 ### Changed
 - **A clean scan now states how much was in scope, so it is never mistaken for a clean
   bill of health.** A finding-free scan of a thin surface (for example `scan --local` with a

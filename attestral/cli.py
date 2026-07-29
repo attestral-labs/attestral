@@ -72,6 +72,10 @@ def main() -> None:
                    "Lets you adopt on a brownfield repo and gate CI on what a PR adds.")
 @click.option("--update-baseline", is_flag=True,
               help="Rewrite the --baseline file from the current scan (re-record).")
+@click.option("--card", is_flag=True,
+              help="Print a compact, screenshot-ready self-audit card instead of the "
+                   "full report: does this fleet assemble the lethal trifecta, yes or no. "
+                   "Pairs with --local to audit and share what your own machine runs.")
 @click.option("-q", "--quiet", is_flag=True,
               help="Suppress the per-finding detail; print only the summary and gate.")
 @click.pass_context
@@ -80,7 +84,8 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
          waivers_path: str | None, judge: bool, judge_model: str,
          judge_panel: int, judge_effort: str, judge_suppress: bool, ml: bool, no_ml: bool,
          ml_engine: str | None, ml_model: str | None, ml_revision: str | None, ml_threshold: float,
-         baseline_path: str | None, update_baseline: bool, aivss: bool, quiet: bool) -> None:
+         baseline_path: str | None, update_baseline: bool, aivss: bool, card: bool,
+         quiet: bool) -> None:
     """Scan PATH (Terraform, Kubernetes, MCP configs) and review its security design.
 
     Results print to the terminal. Report files are written only when you ask
@@ -222,20 +227,26 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
         or ctx.get_parameter_source("fmt").name != "DEFAULT"
     )
 
-    from attestral.report_terminal import gate_line, render_fleet, render_scan
-    if local and not quiet:
-        # A machine audit must show the surface it reviewed - "clean" with no
-        # visible inventory is unverifiable, and the inventory IS the answer
-        # to the question --local asks: what can my agents already reach?
-        fleet = render_fleet(model)
-        if fleet:
-            click.echo(fleet)
-            click.echo("")
-    body = render_scan(model, findings, path, quiet=quiet)
-    if body:
-        click.echo(body)
+    from attestral.report_terminal import gate_line, render_card, render_fleet, render_scan
+    if card:
+        # The compact, shareable artifact: one screen, one answer, honest about a
+        # thin or clean surface. Stands in for the full report, not alongside it.
+        subject = "on this machine" if local else f"in {path}"
+        click.echo(render_card(model, findings, subject))
+    else:
+        if local and not quiet:
+            # A machine audit must show the surface it reviewed - "clean" with no
+            # visible inventory is unverifiable, and the inventory IS the answer
+            # to the question --local asks: what can my agents already reach?
+            fleet = render_fleet(model)
+            if fleet:
+                click.echo(fleet)
+                click.echo("")
+        body = render_scan(model, findings, path, quiet=quiet)
+        if body:
+            click.echo(body)
 
-    if aivss and not quiet:
+    if aivss and not quiet and not card:
         from attestral.aivss import render_aivss
         block = render_aivss(model, findings)
         if block:
@@ -272,7 +283,7 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             Path(f"{output}.summary.md").write_text(
                 render_pr_summary(model, findings, path, net_new=net_new))
             click.echo(f"wrote {output}.summary.md")
-    elif not quiet:
+    elif not quiet and not card:
         click.echo("(no files written - add -o to save a report)")
 
     if fail_on:

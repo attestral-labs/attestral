@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "llm-gateway": {
+      "command": "npx",
+      "args": ["-y", "litellm-mcp-gateway"],
+      "env": {
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+        "GROQ_API_KEY": "${GROQ_API_KEY}"
+      }
+    },
+    "notes": {
+      "command": "npx",
+      "args": ["-y", "@notion/mcp-server"],
+      "env": {
+        "NOTION_API_KEY": "${NOTION_API_KEY}"
+      }
+    }
+  }
+}
