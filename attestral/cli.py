@@ -803,8 +803,14 @@ def verify(report: str, public_key: str | None) -> None:
               help="Generate a keypair to STEM.key + STEM.pub and exit.")
 @click.option("--signer", default="", help="Identity to record in the signature.")
 @click.option("-o", "--output", default=None, help="Write the signed report here (default: in place).")
+@click.option("--rekor", "rekor_flag", is_flag=True,
+              help="Anchor the signed head in Sigstore Rekor (a public transparency log "
+                   "outside your control) and write the receipt to <output>.rekor.json. "
+                   "Opt-in and online.")
+@click.option("--rekor-url", default=None,
+              help="Rekor instance to anchor to (default: https://rekor.sigstore.dev).")
 def sign(report: str | None, key_path: str | None, gen_key: str | None,
-         signer: str, output: str | None) -> None:
+         signer: str, output: str | None, rekor_flag: bool, rekor_url: str | None) -> None:
     """Sign a report's evidence-chain head (tamper-evident -> authentic).
 
     Wraps the chain head in a DSSE envelope signed with your Ed25519 key, so a
@@ -835,6 +841,18 @@ def sign(report: str | None, key_path: str | None, gen_key: str | None,
     out = output or report
     Path(out).write_text(json.dumps(data, indent=2))
     click.echo(f"signed {out}  ·  head {head[:16]}  ·  signer {signer or '(unnamed)'}")
+
+    if rekor_flag:
+        from attestral.rekor import DEFAULT_REKOR, anchor, receipt_line
+        from attestral.signing import public_key_of
+        try:
+            receipt = anchor(data["signature"], public_key_of(Path(key_path).read_text()),
+                             rekor_url=rekor_url or DEFAULT_REKOR)
+        except Exception as exc:  # noqa: BLE001 - the network is the failure surface
+            click.echo(f"Rekor anchoring FAILED - {exc}", err=True)
+            sys.exit(1)
+        Path(f"{out}.rekor.json").write_text(json.dumps(receipt, indent=2))
+        click.echo(f"  {receipt_line(receipt)}")
 
 
 @main.group()
@@ -1264,9 +1282,15 @@ def validate(path: str, output: str | None, fail_on_proof: bool, remediate: bool
 @click.option("--log", "log_path", type=click.Path(), default=None, metavar="LOG",
               help="Append the attestation to an append-only transparency log at LOG "
                    "(with --verify: check the log's history and this bundle's inclusion).")
+@click.option("--rekor", "rekor_flag", is_flag=True,
+              help="Anchor a SIGNED attestation in Sigstore Rekor, a public transparency "
+                   "log outside your control, and write the receipt to <output>.rekor.json. "
+                   "Opt-in and online. With --verify: check the receipt binds this attestation.")
+@click.option("--rekor-url", default=None,
+              help="Rekor instance to anchor to (default: https://rekor.sigstore.dev).")
 def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key: str | None,
            signer: str, do_verify: bool, public_key: str | None, output: str,
-           log_path: str | None) -> None:
+           log_path: str | None, rekor_flag: bool, rekor_url: str | None) -> None:
     """Produce or verify a signed conformance attestation for PATH.
 
     An attestation binds, in one DSSE-signed in-toto Statement: the reviewed
@@ -1328,6 +1352,18 @@ def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key:
                 click.echo(f"  transparency log: entry #{entry['index']} of {len(entries)} "
                            f"· history CONSISTENT · inclusion VERIFIED · "
                            f"root {proof['root'][:16]}…")
+            if rekor_flag:
+                from attestral.rekor import verify_receipt
+                receipt_path = Path(f"{output}.rekor.json")
+                if not receipt_path.exists():
+                    click.echo(f"Rekor receipt FAILED - {receipt_path} not found", err=True)
+                    sys.exit(1)
+                receipt = json.loads(receipt_path.read_text())
+                rok, rnotes = verify_receipt(receipt, bundle.get("envelope") or {})
+                if not rok:
+                    click.echo(f"Rekor receipt FAILED - {rnotes[0]}", err=True)
+                    sys.exit(1)
+                click.echo(f"  Rekor receipt: {rnotes[-1]}")
             sys.exit(0)
         click.echo(f"attestation FAILED - first failing step: {failures[0]}", err=True)
         click.echo(f"  all failing steps: {', '.join(failures)}", err=True)
@@ -1360,6 +1396,24 @@ def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key:
         click.echo("  the log proves append-only history, not distributed witness: "
                    "publish the head root somewhere you do not control (a commit, "
                    "Sigstore Rekor) so a rewrite has an external copy to contradict.")
+
+    if rekor_flag:
+        if not bundle.get("envelope"):
+            click.echo("Rekor anchoring FAILED - needs a signed attestation "
+                       "(pass --key or --gen-key)", err=True)
+            sys.exit(1)
+        from attestral.rekor import DEFAULT_REKOR, anchor, receipt_line
+        from attestral.signing import public_key_of
+        try:
+            receipt = anchor(bundle["envelope"], public_key_of(private_pem),
+                             rekor_url=rekor_url or DEFAULT_REKOR)
+        except Exception as exc:  # noqa: BLE001 - the network is the failure surface
+            click.echo(f"Rekor anchoring FAILED - {exc}", err=True)
+            sys.exit(1)
+        Path(f"{output}.rekor.json").write_text(json.dumps(receipt, indent=2))
+        click.echo(f"  {receipt_line(receipt)}")
+        click.echo(f"  receipt written to {output}.rekor.json - a public witness "
+                   "a rewrite cannot contradict")
 
     pred = bundle["statement"]["predicate"]
     subject_digest = bundle["statement"]["subject"][0]["digest"]["sha256"]

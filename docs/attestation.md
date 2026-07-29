@@ -197,3 +197,35 @@ ticket, Sigstore Rekor (the leaf is a plain SHA-256 of the DSSE bundle,
 exactly what Rekor logs) - and a rewrite has an external copy to contradict.
 Zero dependencies throughout: hashing is stdlib `hashlib`, and nothing here
 needs the `attestral[sign]` extra.
+
+## Public witness (`--rekor`)
+
+`attestral attest PATH --key reviewer.key --rekor` closes the distributed-witness
+gap directly: it submits the **signed** attestation to
+[Sigstore Rekor](https://docs.sigstore.dev/logging/overview/), a public
+transparency log outside your control, and writes the receipt (log index,
+integrated time, inclusion proof, signed entry timestamp) to
+`<output>.rekor.json`. After that, a rewrite has to contradict a public,
+widely-witnessed record, not just a file you host.
+
+The Rekor entry is the `dsse` type, and the envelope Attestral signs is exactly
+what it logs, so anchoring reuses the attestation's own signature. Anchoring
+therefore requires a signed attestation; an unsigned one is refused with a clear
+message. It is opt-in and online: the default review runs offline and is never
+anchored unless you ask, and the transport is injectable so the build / submit /
+parse / verify path is tested with no network.
+
+This is deliberately **not a blockchain**. Rekor is the Certificate-Transparency
+construction the software-supply-chain world already trusts, and it slots into
+the SLSA / in-toto / Sigstore stack Attestral already speaks; a public
+append-only log with witnesses is the right tool for "prove this was not
+rewritten," and it is cheaper, faster, and more auditor-recognized than a ledger.
+
+What the receipt proves, stated honestly: this exact signed attestation was
+submitted to a public log at a recorded time, and the entry is independently
+verifiable. `attest --verify --rekor` confirms the stored receipt is well-formed
+and binds this attestation (the logged payload hash matches the envelope's
+payload); full cryptographic verification of Rekor's signed entry timestamp
+against Rekor's key is what `rekor-cli verify --uuid <uuid>` does, and the receipt
+is portable to it. It does not prove the reviewed design is secure - a clean,
+publicly witnessed attestation over a weak design is still a weak design.

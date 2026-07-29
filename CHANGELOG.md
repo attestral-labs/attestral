@@ -6,6 +6,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **`--rekor`: anchor a signed review in a public transparency log (Sigstore Rekor).**
+  The evidence chain and the local transparency log (`attest --log`) prove append-only *local*
+  history, but a self-hosted file is not a distributed witness. `attest --key ... --rekor` submits
+  the signed attestation to Sigstore Rekor, a public log outside your control, and writes the
+  receipt (log index, integrated time, inclusion proof, signed entry timestamp) to
+  `<output>.rekor.json`, so a rewrite has to contradict a public record; `sign --rekor` does the
+  same for a signed evidence-chain head. It uses Rekor's `dsse` entry type, reusing the review's own
+  DSSE signature (so it requires a signed input; an unsigned one is refused). Deliberately not a
+  blockchain: Rekor is the Certificate-Transparency construction the supply-chain world already
+  trusts, and it slots into the SLSA / in-toto / Sigstore stack. Opt-in and online; the default
+  review still runs offline. `attest --verify --rekor` confirms the receipt is well-formed and binds
+  this attestation; the entry stays independently verifiable with `rekor-cli verify --uuid`. New
+  `attestral/rekor.py` with an injectable transport (tested with no network), 9 tests. No rule change.
+
 ## [0.19.0] - 2026-07-28
 
 ### Added
