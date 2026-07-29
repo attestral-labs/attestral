@@ -7,6 +7,14 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **ATL-221: a credential broker is declared but bypassed by a standing credential (CB4A TM-11).**
+  The model-level pairing of the agentgateway ingester with the credential rules, and the finding
+  only the system model can make. It fires when the system declares a broker (an agentgateway
+  route) yet a tool server or Kubernetes workload in the same model still holds a standing,
+  agent-readable credential in its own env, so the broker is not the exclusive credential path
+  (the CB4A "Model C in disguise"). New `model_broker_bypassed` matcher; it fires ONLY when a
+  broker is present, so a raw credential with no broker stays plain sprawl (ATL-104) and never
+  collapses into noise. Fixture `examples/broker-bypassed`, 4 tests, benchmark case. Pack 263 -> 264.
 - **agentgateway credential-broker review (ATL-166, ATL-167).** A new ingester
   (`attestral/ingest/agentgateway.py`) reads agentgateway credential-broker config in both the
   standalone `binds` form and the Kubernetes `AgentgatewayPolicy` CRD, and models each route as

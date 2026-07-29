@@ -637,6 +637,35 @@ class RuleEngine:
                     ),
                 ))
             return findings
+        elif "model_broker_bypassed" in match:
+            # A credential broker (agentgateway) is declared in this system, yet
+            # a tool server or workload still holds a standing, agent-readable
+            # credential in its own env. The broker is therefore not the
+            # exclusive credential path - it is a Model C in disguise (CB4A
+            # TM-11 broker bypass). Fires ONLY when a broker is present, so it
+            # never nags a design that made no brokering claim; the whole point
+            # is that the claim exists and is undercut. Only the system model
+            # sees both the broker route and the raw-credential holder at once.
+            if match["model_broker_bypassed"] is not True:
+                return []  # malformed spec: fail closed
+            if not model.by_type("agentgateway_route"):
+                return []  # no broker declared - this is not a bypass, it is job (a)
+            holders: list[str] = []
+            for c in model.by_type("mcp_server"):
+                if c.attr("_env_has_secrets") or c.attr("_has_cloud_credentials"):
+                    holders.append(c.name)
+            for c in model.by_type("k8s_container"):
+                if c.attr("_env_plaintext_secret") or (c.attr("_credential_providers") or []):
+                    holders.append(c.name)
+            if not holders:
+                return []
+            named = ", ".join(sorted(dict.fromkeys(holders))[:5])
+            detail = (
+                f"A credential broker is declared, but {len(set(holders))} "
+                f"component(s) still hold a standing credential in their own "
+                f"env: {named}. The broker is not the exclusive credential path."
+            )
+            return [self._finding(rule, "model:broker_bypass", "system model", detail=detail)]
         return []
 
     @staticmethod

@@ -173,6 +173,10 @@ positive:
     path: examples/credential-concentration
     expect: [ATL-104, ATL-105, ATL-112, ATL-164, ATL-216]
     cite: "CB4A TM-1 (draft-hartman-credential-broker-4-agents-00): one LLM-gateway server holding standing keys for five providers is the LiteLLM-class blast radius; the single-provider notes server in the same fixture is silent, so ATL-164 keys on concentration, not on any secret."
+  - id: broker-bypassed
+    path: examples/broker-bypassed
+    expect: [ATL-104, ATL-105, ATL-221]
+    cite: "CB4A TM-11 (Model C in disguise): a correctly-configured agentgateway broker beside an MCP server that still holds a raw standing NOTION_API_KEY. ATL-221 fires only because a broker is declared; a raw key with no broker is plain sprawl (ATL-104), so the two files together are the finding no per-file check makes."
   - id: agentgateway-broker
     path: examples/agentgateway-broker
     expect: [ATL-166, ATL-167]
