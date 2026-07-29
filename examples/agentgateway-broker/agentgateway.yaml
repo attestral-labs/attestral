@@ -1,0 +1,39 @@
+binds:
+  - port: 3000
+    listeners:
+      - routes:
+          - name: fails-open
+            matches:
+              - path: { pathPrefix: /supply-chain-agent }
+            policies:
+              jwtAuth:
+                mode: permissive
+                issuer: https://idp.example/
+            backends:
+              - mcp: { name: github }
+                backendAuth:
+                  oauthTokenExchange:
+                    host: idp.example.com:443
+                    tokenEndpointPath: /oauth2/v1/token
+                    clientAuth:
+                      clientId: gateway-client
+                      clientSecret: "sk-live-9f2c8a1beed4c0"
+                    audiences: [github-api]
+          - name: well-configured
+            matches:
+              - path: { pathPrefix: /reporting-agent }
+            policies:
+              jwtAuth:
+                mode: strict
+                issuer: https://idp.example/
+                audiences: [https://api.example/]
+            backends:
+              - mcp: { name: slack }
+                backendAuth:
+                  oauthTokenExchange:
+                    host: idp.example.com:443
+                    tokenEndpointPath: /oauth2/v1/token
+                    clientAuth:
+                      clientId: gateway-client
+                      secretRef: { name: gateway-oauth-client }
+                    audiences: [slack-api]

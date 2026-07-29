@@ -103,7 +103,7 @@ def breakdown(findings: list["Finding"], color: bool) -> str:
 _SURFACE_FAMILIES = [
     ("agent / MCP surface", ("mcp_server", "a2a_agent", "subagent", "code_agent",
                              "system_prompt", "skill", "agent_hook", "mcp_registry",
-                             "agent_tool")),
+                             "agent_tool", "agentgateway_route")),
     ("cloud resources", ("aws_", "azure_", "gcp_")),
     ("Kubernetes workloads", ("k8s_",)),
 ]
