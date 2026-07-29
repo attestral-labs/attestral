@@ -7,6 +7,7 @@ from attestral.ingest.agent_code import ingest_agent_code
 from attestral.ingest.agent_config import ingest_agent_config
 from attestral.ingest.agentgateway import ingest_agentgateway
 from attestral.ingest.dependencies import ingest_dependencies
+from attestral.ingest.deployment_env import ingest_deployment_env
 from attestral.ingest.kubernetes import ingest_kubernetes
 from attestral.ingest.mcp import ingest_mcp, ingest_registry
 from attestral.ingest.prompts import ingest_prompts
@@ -30,6 +31,7 @@ def build_model(path: str | Path) -> SystemModel:
     ingest_agent_config(path, model)
     ingest_agent_code(path, model)
     ingest_agentgateway(path, model)
+    ingest_deployment_env(path, model)
     ingest_dependencies(path, model)
     _add_reachability_edges(model)
     _add_taint_edges(model)
