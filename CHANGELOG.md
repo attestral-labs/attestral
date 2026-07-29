@@ -7,6 +7,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral whatif`: the security delta of a design change BEFORE you make it.**
+  A scanner tells you what is wrong now; a designer's next question is "if I remove this server, or
+  scope this capability away, what does it fix?" `whatif ./project --deny web:network` and
+  `whatif ./project --remove shell` apply one hypothetical change to a copy of the attested model,
+  re-derive the taint and reachability edges, and diff, so the answer is the tool's own reasoning
+  (rules + reachability + blast radius) run against the counterfactual, never a guess. It reports the
+  attack paths closed, findings resolved, and the blast-radius drop, and it never mutates the real
+  design. The payoff is the composition case a per-file linter cannot show: denying the web server's
+  network capability resolves the lethal-trifecta finding because the *flow* is what changed. New
+  `attestral/whatif.py`, 8 tests. No rule change.
 - **`--rekor`: anchor a signed review in a public transparency log (Sigstore Rekor).**
   The evidence chain and the local transparency log (`attest --log`) prove append-only *local*
   history, but a self-hosted file is not a distributed witness. `attest --key ... --rekor` submits
