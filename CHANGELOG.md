@@ -45,6 +45,13 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   gets a clean result rather than a manufactured scare. `report_terminal.render_card`.
 
 ### Changed
+- **Credential rules now map to the CB4A threat model.** The six standing-credential findings
+  (ATL-104 secret in env, ATL-110 credential in argv, ATL-112 cloud credentials, ATL-115
+  confused-deputy downstream credential, ATL-119 literal auth token, ATL-149 shared static
+  credential) each cite the specific Credential Broker for Agents threat they represent (TM-2
+  unrevocable long-lived key, TM-11 broker bypass, TM-3 bearer-token replay, TM-6 scope
+  composition). Attestral now speaks CB4A across the credential surface, so the sprawl a broker
+  exists to fix reads as a single, citable story alongside the new ATL-164/165 concentration pair.
 - **A clean scan now states how much was in scope, so it is never mistaken for a clean
   bill of health.** A finding-free scan of a thin surface (for example `scan --local` with a
   single MCP server installed) previously printed "No findings. Clean scan." in reassuring

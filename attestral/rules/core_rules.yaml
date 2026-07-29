@@ -107,7 +107,7 @@ rules:
     match: { attr_equals: { _env_has_secrets: true } }
     description: Credentials in tool-server env vars are exposed to the tool process and often to model context.
     recommendation: Use a secret manager or OS keychain; never place raw credentials where tool output can echo them.
-    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025"]
+    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025", "CB4A TM-2 (draft-hartman-credential-broker-4-agents-00)"]
 
   - id: ATL-201
     title: Agent runtime and cloud share no declared boundary controls
@@ -724,7 +724,7 @@ rules:
     match: { attr_any_contains: { args: ["--api-key", "--token", "--password", "--secret", "--access-key"] } }
     description: Secrets in argv are visible to every process on the host and to anything that captures the launch command, including agent context and logs.
     recommendation: Move the credential to a secret manager or OS keychain reference; never place it in launch arguments.
-    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025"]
+    frameworks: ["NIST IA-5", "ASVS V2.10", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025", "CB4A TM-11 (draft-hartman-credential-broker-4-agents-00)"]
 
   - id: ATL-111
     title: MCP server container mounts a broad host path
@@ -742,7 +742,7 @@ rules:
     match: { attr_equals: { _has_cloud_credentials: true } }
     description: The tool server's environment carries cloud provider credentials, a live and provable path from the agent runtime into the cloud trust boundary (recorded as a reachability edge in the model).
     recommendation: Put cloud access behind a scoped broker or short-lived role assumption; never hand raw cloud keys to an agent-reachable tool process.
-    frameworks: ["OWASP-ASI03:2026", "NIST AC-4", "NIST IA-5", "OWASP-MCP MCP01:2025"]
+    frameworks: ["OWASP-ASI03:2026", "NIST AC-4", "NIST IA-5", "OWASP-MCP MCP01:2025", "CB4A TM-2 (draft-hartman-credential-broker-4-agents-00)"]
 
   - id: ATL-113
     title: Agent instruction file is world-writable
@@ -769,7 +769,7 @@ rules:
     match: { attr_equals: { _confused_deputy: true } }
     description: A network-reachable server that also carries a downstream credential (a secret in env or a forwarded auth/token header) is a confused deputy - it can be induced to spend that delegated authority on an attacker's behalf, or to pass the token through to a third party.
     recommendation: Do not co-locate delegated credentials with a remote endpoint. Exchange the caller's own identity for a narrowly scoped, short-lived downstream token per request (per the MCP auth spec), and never forward a static credential onward.
-    frameworks: ["MCP Security Best Practices 2025-11-25", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025", "NSA CSI MCP 05/2026", "NIST AC-4", "NIST IA-5", "Agentic-SoK 2026 R5"]
+    frameworks: ["MCP Security Best Practices 2025-11-25", "OWASP-ASI03:2026", "OWASP-MCP MCP01:2025", "NSA CSI MCP 05/2026", "NIST AC-4", "NIST IA-5", "Agentic-SoK 2026 R5", "CB4A TM-6 (draft-hartman-credential-broker-4-agents-00)"]
 
   - id: ATL-153
     title: MCP server pinned to a pre-release or unstable channel
@@ -930,7 +930,7 @@ rules:
     match: { attr_equals: { _shared_memory_credential: true } }
     description: A vector or persistent-memory server (chroma, pinecone, weaviate, qdrant, pgvector, mem0, and the like) is reached through a single static credential in its environment, so every user's embedded data lands in one store behind one key with no per-tenant boundary. If the agent serves more than one user, a query - or a prompt injection steering one - can retrieve or poison another tenant's vectors (cross-tenant embedding leakage). Unlike the public-endpoint confused-deputy case (ATL-115 / the shared-identity fleet rule), this isolation gap exists for a purely internal multi-user agent with no exposed endpoint.
     recommendation: Partition the store per tenant (a namespace or collection per user, or per-tenant credentials), or exchange the caller's own identity for a scoped, short-lived credential per request, so a query can only reach the caller's own vectors. One shared key gives every user the union of everyone's data.
-    frameworks: ["OWASP LLM08 Vector and Embedding Weaknesses", "OWASP-ASI06:2026", "OWASP-ASI03:2026", "NIST AC-4", "NIST SC-4"]
+    frameworks: ["OWASP LLM08 Vector and Embedding Weaknesses", "OWASP-ASI06:2026", "OWASP-ASI03:2026", "NIST AC-4", "NIST SC-4", "CB4A TM-6 (draft-hartman-credential-broker-4-agents-00)"]
 
   - id: ATL-164
     title: One MCP server concentrates standing credentials for many providers
@@ -1080,7 +1080,7 @@ rules:
     match: { attr_list_contains: { _capabilities: "shell" } }
     description: A delegate the main agent can invoke holds a shell-execution tool grant, so one injected instruction anywhere in the delegation chain becomes command execution - outside the MCP fleet most reviews look at.
     recommendation: Drop Bash from the subagent's tools list; give it narrowly scoped tools, or gate its invocation behind human approval.
-    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI02:2026", "NIST AC-6"]
+    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI02:2026", "NIST AC-6", "CB4A TM-3 (draft-hartman-credential-broker-4-agents-00)"]
 
   - id: ATL-120
     title: Subagent inherits every tool of the main agent
