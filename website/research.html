@@ -305,10 +305,11 @@ web content (untrusted)
 
   <section>
     <h2>Check your own machine</h2>
-    <p>The scanner is open source (Apache 2.0), runs locally, and needs no API key.</p>
+    <p>The scanner is open source (Apache 2.0), runs locally, and needs no API key. Run the last line and you get a screenshot-ready card that says, in one screen, whether your own installed fleet assembles the trifecta.</p>
     <pre>pip install attestral
-attestral scan --local     <span class="c"># audits the MCP servers configured on this machine</span>
-attestral scan &lt;path&gt;      <span class="c"># reviews a repo's agent + cloud design</span></pre>
+attestral scan --local           <span class="c"># audits the MCP servers configured on this machine</span>
+attestral scan &lt;path&gt;            <span class="c"># reviews a repo's agent + cloud design</span>
+attestral scan --local --card    <span class="c"># the one-screen self-audit, made to share</span></pre>
     <p><code>--local</code> reads the MCP configs your clients already have installed (Claude Desktop, Cursor, VS Code, Windsurf) and tells you if you are running the trifecta right now.</p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/attestral-labs/attestral">&#9733; Star on GitHub</a>
