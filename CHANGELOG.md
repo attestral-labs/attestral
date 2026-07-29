@@ -6,6 +6,8 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-07-28
+
 ### Added
 - **DRF-011: credential-broker bypass at runtime (CB4A TM-11, the runtime half of ATL-221).**
   `compile` now marks a server `broker_required` when an agentgateway route fronts it, and `drift`
