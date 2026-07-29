@@ -7,6 +7,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **ATL-165: a Kubernetes workload concentrates standing credentials for many providers
+  (CB4A TM-1).** The deployment-manifest counterpart to ATL-164. A holistic sweep of 390
+  popular MCP repositories found the concentration pattern in zero committed `.mcp.json` files,
+  because committed configs do not ship provider keys in env; they ship in the Deployment that
+  runs. The k8s ingester now reuses the MCP layer's provider-family classifier over container
+  env and fires ATL-165 at 4+ distinct providers, so a LiteLLM-class gateway is flagged whether
+  it is declared in `.mcp.json` or a k8s manifest. Fixture `examples/k8s-credential-concentration`
+  (a 5-provider Deployment fires, a single-provider sidecar in the same pod is silent), 4 tests,
+  benchmark case. Pack 260 -> 261.
 - **ATL-164: one MCP server concentrates standing credentials for many providers (CB4A TM-1).**
   A single server whose environment holds long-lived keys for four or more distinct providers
   (LLM vendors, clouds, SaaS APIs) is a high-density credential target: one compromise, by
