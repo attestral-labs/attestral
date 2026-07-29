@@ -7,6 +7,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **ATL-168: credential concentration on the deployment surface (docker-compose and .env, CB4A TM-1).**
+  The holistic 390-repo sweep found the LiteLLM-class concentration pattern in zero committed MCP
+  configs, because it lives in the deployment, not the config. A new ingester
+  (`attestral/ingest/deployment_env.py`) reads a `docker-compose.yml` service's env (dict or list
+  form) and a `.env` file (templates skipped), emitting a `deployment_env` component that carries the
+  same provider-family signal as the MCP layer, and ATL-168 fires at 4+ distinct providers. It is the
+  deployment-surface counterpart to ATL-164 (MCP config) and ATL-165 (Kubernetes), so a gateway
+  holding five providers' keys is flagged wherever it lands. Fixture `examples/deployment-concentration`,
+  6 tests, benchmark case. Pack 264 -> 265.
 - **`compile --target agentgateway`: the attested design compiled into a credential-broker policy.**
   The moat closed on the credential layer, and the flagship of the CB4A thread: the reviewed design
   IS the broker policy, not a hand-written config that drifts from it. `render_agentgateway` emits a

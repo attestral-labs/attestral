@@ -968,6 +968,15 @@ rules:
     recommendation: Source the token-exchange clientSecret from a secretRef (Kubernetes) or an environment reference the deployment supplies, never a literal in the committed config, and rotate any secret that was committed in plaintext.
     frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "CWE-798"]
 
+  - id: ATL-168
+    title: A deployment env surface concentrates standing credentials for many providers
+    severity: high
+    target: deployment_env
+    match: { attr_equals: { _credential_concentration: true } }
+    description: A docker-compose service or a .env file holds long-lived credentials for four or more distinct providers (LLM vendors, clouds, or SaaS APIs) at once, so this one surface is a high-density credential target whose leak or compromise inherits every key in a single step. A holistic sweep of the most popular MCP repositories found this LiteLLM-class concentration in zero committed MCP configs, because the pattern does not live in the config, it lives in the deployment that runs it, and a docker-compose file or a .env is where a small team actually concentrates the keys. This is the deployment-surface counterpart to ATL-164 (MCP config) and ATL-165 (Kubernetes), the blast radius the CB4A draft rates CRITICAL (TM-1).
+    recommendation: Do not concentrate many providers' credentials in one compose service or one .env. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, scoped token per call so the process holds no reusable key, split the providers across isolated services, and never commit a .env with real keys to version control.
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
+
   - id: ATL-116
     title: Agent skill grants shell or unrestricted tool access
     severity: high

@@ -173,6 +173,10 @@ positive:
     path: examples/credential-concentration
     expect: [ATL-104, ATL-105, ATL-112, ATL-164, ATL-216]
     cite: "CB4A TM-1 (draft-hartman-credential-broker-4-agents-00): one LLM-gateway server holding standing keys for five providers is the LiteLLM-class blast radius; the single-provider notes server in the same fixture is silent, so ATL-164 keys on concentration, not on any secret."
+  - id: deployment-concentration
+    path: examples/deployment-concentration
+    expect: [ATL-168]
+    cite: "CB4A TM-1 on the deployment surface: a docker-compose LLM gateway and a .env each concentrating five providers' keys, where the holistic sweep showed concentration actually lives (not a committed .mcp.json); the single-provider compose service is silent, and a .env.example template is skipped."
   - id: broker-bypassed
     path: examples/broker-bypassed
     expect: [ATL-104, ATL-105, ATL-221]
