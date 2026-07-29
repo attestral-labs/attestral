@@ -25,6 +25,7 @@ DIAGRAM_KEYWORDS = {
     "ingest/local_config.py": "scan --local",
     "ingest/agent_config.py": "hooks",
     "ingest/agent_code.py": "Agent code",
+    "ingest/agentgateway.py": "Credential broker",
     "ingest/dependencies.py": "Dependency manifests",
     "ingest/scan.py": "SystemModel",
     "model.py": "SystemModel",

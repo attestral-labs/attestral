@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **agentgateway credential-broker review (ATL-166, ATL-167).** A new ingester
+  (`attestral/ingest/agentgateway.py`) reads agentgateway credential-broker config in both the
+  standalone `binds` form and the Kubernetes `AgentgatewayPolicy` CRD, and models each route as
+  an `agentgateway_route` component. This is the second job the CB4A draft frames for a design
+  review: not "does the agent hold a standing key" (ATL-104/164/165) but "does the declared
+  broker actually eliminate it". ATL-166 fires when a route brokers a credential to a backend but
+  its inbound side is not strictly authenticated, so an unauthenticated caller reaches a
+  credentialed egress (CB4A TM-9, fail-open). ATL-167 fires when the token-exchange `clientAuth`
+  inlines a literal `clientSecret` instead of a `secretRef` or env reference, hardcoding the
+  broker's own credential (CB4A TM-1). A correctly-configured route (strict inbound auth, secret
+  from a ref) is silent. Fixture `examples/agentgateway-broker`, 6 tests, benchmark case. Pack
+  261 -> 263. This is the enabler for the eventual `compile --target agentgateway`.
 - **ATL-165: a Kubernetes workload concentrates standing credentials for many providers
   (CB4A TM-1).** The deployment-manifest counterpart to ATL-164. A holistic sweep of 390
   popular MCP repositories found the concentration pattern in zero committed `.mcp.json` files,

@@ -950,6 +950,24 @@ rules:
     recommendation: Do not co-locate credentials for many providers in one workload. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, scoped token per call so the pod holds no reusable key, source each key from its own scoped `secretKeyRef` rather than a shared bundle, and split the providers across isolated workloads so one compromise does not inherit them all.
     frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
 
+  - id: ATL-166
+    title: Credential-broker route fails open (no strict inbound authentication)
+    severity: high
+    target: agentgateway_route
+    match: { attr_equals: { _fail_open: true } }
+    description: An agentgateway route brokers a real credential onto a backend on egress, but its inbound side is not strictly authenticated (jwtAuth is declared without mode strict), so an unauthenticated or weakly-authenticated caller reaches a credentialed egress. The whole value of a credential broker is that policy decides who gets a credential; a route that fails open hands that decision away. The CB4A draft rates fail-open degradation HIGH (TM-9) and its architecture is default-deny by construction.
+    recommendation: Set the route's inbound jwtAuth to mode strict (or an equivalent default-deny auth policy) so every caller is authenticated before any credential is brokered, and make fail-closed the default for every failure mode. A broker that will issue a credential to an unauthenticated caller is not enforcing policy.
+    frameworks: ["CB4A TM-9 (draft-hartman-credential-broker-4-agents-00)", "NIST SP 800-207 ZTA", "OWASP-ASI04:2026", "NIST AC-3"]
+
+  - id: ATL-167
+    title: Credential-broker config inlines a literal client secret
+    severity: high
+    target: agentgateway_route
+    match: { attr_equals: { _inline_client_secret: true } }
+    description: The gateway's token-exchange clientAuth carries a literal clientSecret in the config file rather than a secretRef or an environment reference, so the broker's own OAuth client credential is committed in plaintext. A broker exists to keep standing credentials out of reach; hardcoding the broker's client secret makes the broker config itself the leak. An env reference or an obvious placeholder is the correct pattern and is never flagged.
+    recommendation: Source the token-exchange clientSecret from a secretRef (Kubernetes) or an environment reference the deployment supplies, never a literal in the committed config, and rotate any secret that was committed in plaintext.
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "CWE-798"]
+
   - id: ATL-116
     title: Agent skill grants shell or unrestricted tool access
     severity: high

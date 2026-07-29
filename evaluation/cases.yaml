@@ -173,6 +173,10 @@ positive:
     path: examples/credential-concentration
     expect: [ATL-104, ATL-105, ATL-112, ATL-164, ATL-216]
     cite: "CB4A TM-1 (draft-hartman-credential-broker-4-agents-00): one LLM-gateway server holding standing keys for five providers is the LiteLLM-class blast radius; the single-provider notes server in the same fixture is silent, so ATL-164 keys on concentration, not on any secret."
+  - id: agentgateway-broker
+    path: examples/agentgateway-broker
+    expect: [ATL-166, ATL-167]
+    cite: "CB4A job b (review the declared broker): a fails-open agentgateway route (jwtAuth mode permissive, TM-9) that also inlines its OAuth client secret (TM-1). The correctly-configured sibling route (strict jwtAuth + secretRef) is silent, so the rules key on the broker being broken, not on it existing."
   - id: k8s-credential-concentration
     path: examples/k8s-credential-concentration
     expect: [ATL-165]
