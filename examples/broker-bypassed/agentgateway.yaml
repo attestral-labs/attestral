@@ -1,0 +1,16 @@
+binds:
+  - port: 3000
+    listeners:
+      - routes:
+          - name: brokered-github
+            policies:
+              jwtAuth: { mode: strict, issuer: https://idp.example/ }
+            backends:
+              - mcp: { name: github }
+                backendAuth:
+                  oauthTokenExchange:
+                    host: idp.example.com:443
+                    tokenEndpointPath: /oauth2/v1/token
+                    clientAuth:
+                      clientId: gw
+                      secretRef: { name: gw-oauth }

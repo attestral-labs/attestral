@@ -1436,6 +1436,15 @@ rules:
     recommendation: Do not co-locate an untrusted-input tool with a broadly-credentialed cloud tool in one session - put cloud access behind a scoped broker with short-lived, per-task credentials, or split the untrusted-input and cloud tools into separate agents.
     frameworks: ["OWASP-ASI02:2026", "OWASP-ASI03:2026", "OWASP LLM01 Prompt Injection", "NIST AC-4"]
 
+  - id: ATL-221
+    title: Credential broker is declared but bypassed by a standing credential
+    severity: high
+    target: model
+    match: { model_broker_bypassed: true }
+    description: The system declares a credential broker (an agentgateway route that brokers a credential onto a backend), yet a tool server or Kubernetes workload in the same model still holds a standing, agent-readable credential in its own environment. The broker is therefore not the exclusive credential path, so the standing key it was meant to eliminate is still reachable by injection or a compromise, and the whole point of deploying a broker (an agent never holds a reusable secret) is undercut. The CB4A draft calls this the Model C in disguise and rates broker bypass HIGH (TM-11). Only the system model sees both the broker route and the raw-credential holder at once.
+    recommendation: Route every credentialed egress through the broker and remove standing credentials from the tool servers and workloads it fronts, so the broker is the only path to a credential. A broker beside a raw key gives an attacker the key and skips the broker.
+    frameworks: ["CB4A TM-11 (draft-hartman-credential-broker-4-agents-00)", "NIST SP 800-207 ZTA", "OWASP-ASI03:2026", "NIST AC-6"]
+
   - id: ATL-217
     title: Information-flow lattice violation across the tool fleet
     severity: high
