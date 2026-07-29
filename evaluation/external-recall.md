@@ -32,8 +32,8 @@ Cases are classified by what a design-time review can even see:
 
 | Metric | Value |
 |---|---|
-| Design-visible recall | **7 / 7 (100%)** |
-| Full-set coverage (all 8 advisories) | **7 / 8 (88%)** |
+| Design-visible recall | **10 / 10 (100%)** |
+| Full-set coverage (all 11 advisories) | **10 / 11 (91%)** |
 | Out of design-time scope | 1 (a langgraph CVE with no confirmable fixed version) |
 | Taxonomy attempted (covered + partial) | 28 / 32 (88%) |
 
@@ -43,22 +43,27 @@ known-CVE table, ATL-117) and named the other four - agent-framework dependency
 CVEs - as a structural gap, because the vulnerability lived in the agent's Python
 dependency tree, which no ingester read. That named gap became a build: the
 package-manifest ingester (`attestral/ingest/dependencies.py`, rule ATL-145).
-With it, three of those four now fire, and coverage rose to **7/8 (88%)**.
+With it, three of those four fired, and coverage rose to 7/8. The set has since
+grown to **11 advisories at 10/11**, as new CVEs from the weekly radar land in
+the known-CVE tables and get a case here.
 
-**Design-visible: 7 of 7.** The four MCP-package advisories (mcp-remote
+**Design-visible: 10 of 10.** The four MCP-package advisories (mcp-remote
 CVE-2025-6514, apify CVE-2026-50143, git-mcp-server CVE-2025-53107,
-mcp-atlassian CVE-2026-27826) fire ATL-117; three framework advisories
-(langchain-core CVE-2025-68664 LangGrinch and CVE-2026-34070 path traversal,
-langgraph-checkpoint-sqlite CVE-2025-67644) now fire ATL-145 off a pinned
-`requirements.txt`. This subset measures one thing: **are the two known-CVE
-tables current**, which the weekly radar keeps up.
+mcp-atlassian CVE-2026-27826) fire ATL-117; six framework/SDK advisories fire
+ATL-145 off a pinned manifest - langchain-core CVE-2025-68664 LangGrinch and
+CVE-2026-34070 path traversal, langgraph-checkpoint-sqlite CVE-2025-67644, and
+three added since (litellm CVE-2026-30623, the langgraph redis checkpointer
+CVE-2026-27022, and the MCP TypeScript SDK ReDoS CVE-2026-0621, the last two off
+a `package.json`, so the ingester is exercised on npm as well as pip). This
+subset measures one thing: **are the two known-CVE tables current**, which the
+weekly radar keeps up.
 
-**Full-set: 7 of 8, and the residual is honest.** The one miss is langgraph
+**Full-set: 10 of 11, and the residual is honest.** The one miss is langgraph
 CVE-2026-28277 (a deserialization RCE that chains from CVE-2025-67644). It is a
 real, config-visible dependency vuln, but we could not confirm an exact fixed
 version from the public advisory, so it is not in the table - a data gap, marked
 out of scope rather than papered over. It stays in the set as the residual, and
-it is why coverage is 88% and not 100%.
+it is why coverage is 91% and not 100%.
 
 **Taxonomy: 28 of 32 attempted.** Against an independent denominator - the OWASP
 LLM Top 10, the OWASP MCP Top 10, and the OWASP ASI 2026 threat classes
@@ -79,8 +84,8 @@ Three things make this number trustworthy in a way the 116/116 is not:
 2. **It is allowed to be wrong, and was.** The first run scored 50%, which is
    not a number you report if you are optimizing for a clean pass. Each miss was
    itemised with its advisory and a concrete path to close it, and closing the
-   biggest one (a dependency ingester) is what moved it to 88% - with the one
-   residual still on the board.
+   biggest one (a dependency ingester) is what moved it up, and the set has since
+   grown to 10/11 as new CVEs landed - with the one residual still on the board.
 3. **It moves as the world moves.** The set grows as advisories land (the radar
    feeds it), so the denominator is not frozen to our advantage. A new
    dependency CVE lowers coverage until the ingester exists; a new MCP-package
@@ -101,8 +106,8 @@ if a known-CVE-table entry ever stops firing, the suite fails.
 - **Config reconstruction is a judgment call.** For each design-visible case we
   reconstruct the minimal launch config from the advisory; the label is the
   advisory's affected version, cited so anyone can check it.
-- **The set is still small (8).** It will grow with the radar. Do not read the
-  100% design-visible recall as a strong claim on seven cases; read the 88%
+- **The set is still small (11).** It will grow with the radar. Do not read the
+  100% design-visible recall as a strong claim on ten cases; read the 91%
   full-set and the itemised residual as the honest signal.
 - **The dependency ingester matches exact pins only.** It flags a
   known-vulnerable version pinned with `==` (or an exact npm pin); an open range

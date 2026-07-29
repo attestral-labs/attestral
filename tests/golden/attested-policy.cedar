@@ -1,6 +1,6 @@
 // Cedar authorization policy - COMPILED FROM AN ATTESTED DESIGN REVIEW.
 // Do not hand-edit: change the design, re-review, re-compile.
-// model_hash: b564cc3bf4e3e20f  chain_head: abc123def456
+// model_hash: 94b855ec530c4d5d  chain_head: abc123def456
 // generated_at: <SCRUBBED>
 // Cedar default is implicit deny: any MCP server without a permit below is denied.
 // Budgets are documentation only in Cedar (loop_repeat_threshold=5, max_calls_per_server=100).

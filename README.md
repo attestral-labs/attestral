@@ -31,10 +31,13 @@ attestral scan ./my-project
 No repo needed. Audit the MCP servers your agent tools are already wired to:
 
 ```sh
-attestral scan --local
+attestral scan --local           # full report: inventory + every finding
+attestral scan --local --card     # a compact, screenshot-ready self-audit card
 ```
 
 Discovers and scans configs from Claude Code (user scope, project `.mcp.json`, and the current project's local scope inside `~/.claude.json`), Claude Desktop, Cursor, VS Code, and Windsurf. It reports which sources were found vs absent and how many servers each contributed, prints an inventory of the agent tool surface it reviewed, and runs everything through the same rule pipeline as a repo scan.
+
+`--card` answers one question in one screen: does your installed fleet assemble the lethal trifecta, yes or no. It is honest by construction, a single-server machine is told the cross-surface checks could not fire (a thin result, not a clean bill of health), and a genuinely clean machine gets a clean result rather than a manufactured scare.
 
 ## Get started in one command
 
@@ -97,7 +100,7 @@ attestral explain ATL-103    # title, severity, description, fix, and framework 
 
 Every finding in the terminal output carries a `run: attestral explain <RULE_ID>` pointer, so the reasoning and the fix are one command away. Rule ids are matched case-insensitively.
 
-## What it catches (259-rule pack)
+## What it catches (260-rule pack)
 
 | Area | Examples |
 |---|---|
@@ -113,7 +116,7 @@ Every finding in the terminal output carries a `run: attestral explain <RULE_ID>
 
 Every finding maps to NIST 800-53, ASVS, SOC 2, CIS (AWS/Azure/GCP/K8s), OWASP LLM/Agentic, and MITRE ATLAS references. The agentic checks are additionally mapped to the attack/risk taxonomy of the agent-security SoK (Kim et al. 2026) in [docs/agentic-threat-model.md](docs/agentic-threat-model.md).
 
-**Recall you cannot self-grade.** The in-repo benchmark scores 116/116, but its labels come from our own fixtures. So we also measure against eight published 2025-2026 CVE advisories labelled from the advisory, not our output ([`evaluation/external-recall.md`](evaluation/external-recall.md)): that number is allowed to fall below 100% and does, with every miss itemised and a concrete path to close it.
+**Recall you cannot self-grade.** The in-repo benchmark scores 116/116, but its labels come from our own fixtures. So we also measure against eleven published 2025-2026 CVE advisories labelled from the advisory, not our output ([`evaluation/external-recall.md`](evaluation/external-recall.md)): that number is allowed to fall below 100% and does, with every miss itemised and a concrete path to close it.
 
 ## How a scan works (the pipeline)
 
@@ -132,7 +135,7 @@ flowchart TB
     end
     M --> L1
     subgraph REV["2 · Review (layered, each finding tagged by origin)"]
-        L1["<b>L1 Deterministic rules</b><br/>259 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
+        L1["<b>L1 Deterministic rules</b><br/>260 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
         L2["<b>L2 ML classifier</b> (optional)<br/>DeBERTa prompt-injection on agentic surfaces<br/>origin: ml"]
         L3["<b>L3 LLM</b> (optional)<br/>elicitation + LLM-as-judge verifier<br/>origin: llm"]
         L1 --> L2 --> L3
@@ -154,7 +157,7 @@ flowchart TB
 
 | Layer | What it does | Reproducible? | Cost |
 |---|---|---|---|
-| **L1 Deterministic** | 259 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
+| **L1 Deterministic** | 260 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
 | **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts, embedded MCP Apps HTML bodies) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
 | **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
 
@@ -393,7 +396,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on
 
 ## Real-world benchmark
 
-Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **259 rules** today; this table shows the historical progression, not the current pack size):
+Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **260 rules** today; this table shows the historical progression, not the current pack size):
 
 | | TerraGoat AWS | TerraGoat Azure | TerraGoat GCP | Distinct rules |
 |---|---|---|---|---|

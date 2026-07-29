@@ -1,9 +1,9 @@
 {
-  "total": 8,
-  "design_visible": 7,
-  "design_visible_detected": 7,
+  "total": 11,
+  "design_visible": 10,
+  "design_visible_detected": 10,
   "design_visible_recall": 1.0,
-  "full_coverage": 0.875,
+  "full_coverage": 0.9091,
   "out_of_scope": 1,
   "missed": [],
   "rows": [
@@ -78,6 +78,33 @@
       "expect": null,
       "threat": "unsafe deserialization in checkpoint restore, chained from CVE-2025-67644",
       "outcome": "out-of-scope:dependency"
+    },
+    {
+      "id": "litellm-mcp-cmd-injection",
+      "advisory": "CVE-2026-30623",
+      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-30623",
+      "scope": "design-visible",
+      "expect": "ATL-145",
+      "threat": "authenticated command injection in LiteLLM's MCP server endpoint",
+      "outcome": "detected"
+    },
+    {
+      "id": "langgraph-redis-checkpoint-query-injection",
+      "advisory": "CVE-2026-27022",
+      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-27022",
+      "scope": "design-visible",
+      "expect": "ATL-145",
+      "threat": "RediSearch query injection giving an access-control bypass in the redis checkpointer",
+      "outcome": "detected"
+    },
+    {
+      "id": "mcp-sdk-uritemplate-redos",
+      "advisory": "CVE-2026-0621",
+      "ref": "https://nvd.nist.gov/vuln/detail/CVE-2026-0621",
+      "scope": "design-visible",
+      "expect": "ATL-145",
+      "threat": "ReDoS in the MCP TypeScript SDK UriTemplate parser (denial of service)",
+      "outcome": "detected"
     }
   ],
   "taxonomy": {

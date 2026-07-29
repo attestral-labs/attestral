@@ -19,6 +19,61 @@ from attestral.model import Component, SystemModel
 
 _SECRET_HINTS = ("KEY", "SECRET", "TOKEN", "PASSWORD", "CREDENTIAL")
 
+# Env-var name markers -> the distinct third-party PROVIDER a credential belongs
+# to. Used to detect credential CONCENTRATION: one server holding standing keys
+# for many providers is the LiteLLM-class blast radius the CB4A draft rates
+# CRITICAL (TM-1). A marker only counts when the env var is also secret-shaped
+# (carries a _SECRET_HINTS token), so OPENAI_BASE_URL / OPENAI_ORG never count.
+# The families are deliberately coarse (one per vendor), so two AWS keys are one
+# provider, not two - concentration is about how many *blast surfaces* compromise
+# of this one process would inherit, not how many env vars it has.
+_CREDENTIAL_PROVIDERS = (
+    ("openai", ("OPENAI",)),
+    ("anthropic", ("ANTHROPIC", "CLAUDE")),
+    ("google-ai", ("GEMINI", "VERTEX", "GOOGLE_AI", "GOOGLEAI", "PALM_API")),
+    ("cohere", ("COHERE",)),
+    ("mistral", ("MISTRAL",)),
+    ("groq", ("GROQ",)),
+    ("together", ("TOGETHER_",)),
+    ("huggingface", ("HUGGINGFACE", "HUGGING_FACE", "HF_TOKEN")),
+    ("replicate", ("REPLICATE",)),
+    ("perplexity", ("PERPLEXITY",)),
+    ("aws", ("AWS_",)),
+    ("azure", ("AZURE_",)),
+    ("gcp", ("GOOGLE_APPLICATION_CREDENTIALS", "GCP_", "GCLOUD")),
+    ("github", ("GITHUB", "GH_TOKEN")),
+    ("gitlab", ("GITLAB",)),
+    ("slack", ("SLACK",)),
+    ("stripe", ("STRIPE",)),
+    ("twilio", ("TWILIO",)),
+    ("sendgrid", ("SENDGRID",)),
+    ("notion", ("NOTION",)),
+    ("linear", ("LINEAR_",)),
+    ("atlassian", ("JIRA", "CONFLUENCE", "ATLASSIAN")),
+    ("hubspot", ("HUBSPOT",)),
+    ("salesforce", ("SALESFORCE", "SFDC")),
+    ("datadog", ("DATADOG", "DD_API")),
+    ("pagerduty", ("PAGERDUTY", "PD_API")),
+    ("discord", ("DISCORD",)),
+    ("telegram", ("TELEGRAM",)),
+)
+
+
+def _credential_provider_families(env_keys: list) -> list[str]:
+    """The distinct third-party providers whose standing credential this env
+    holds. A key is counted only when it is secret-shaped AND matches a provider
+    marker, so config values (base URLs, org ids, model names) never inflate it."""
+    families: set[str] = set()
+    for raw in env_keys:
+        k = str(raw).upper()
+        if not any(h in k for h in _SECRET_HINTS):
+            continue
+        for family, markers in _CREDENTIAL_PROVIDERS:
+            if any(m in k for m in markers):
+                families.add(family)
+                break
+    return sorted(families)
+
 # Header keys (lowercased, substring) that carry a credential to a remote MCP
 # endpoint. Used twice, with opposite polarity: ANY of these counts as "the
 # remote is authenticated" (clears ATL-109), while one holding a LITERAL value
@@ -668,6 +723,15 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         ]
         attrs["_cloud_credential_keys"] = cred_keys
         attrs["_has_cloud_credentials"] = bool(cred_keys)
+        # Credential concentration (CB4A TM-1, the LiteLLM blast-radius pattern):
+        # one server holding standing keys for several providers is a single
+        # high-value target whose compromise inherits all of them. The threshold
+        # is 4 distinct providers, deliberately conservative: a 2-3 service agent
+        # is common and benign, while 4+ is the aggregator/gateway shape. Fewer
+        # false positives beats more coverage, and this stays out of ATL-104's lane.
+        providers = _credential_provider_families(attrs["env_keys"])
+        attrs["_credential_providers"] = providers
+        attrs["_credential_concentration"] = len(providers) >= 4
     return Component(
         id=f"mcp_server.{name}",
         type="mcp_server",

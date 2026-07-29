@@ -169,6 +169,10 @@ positive:
     world_writable: [.mcp.json]
     expect: [ATL-163]
     cite: "CVE-2026-30615 (Windsurf): a prompt injection gained persistence by rewriting a world-writable MCP config to auto-register a malicious stdio server; CWE-732; OWASP ASI05. The fixture's two servers are deliberately boring so the file-permission finding is the only signal."
+  - id: credential-concentration
+    path: examples/credential-concentration
+    expect: [ATL-104, ATL-105, ATL-112, ATL-164, ATL-216]
+    cite: "CB4A TM-1 (draft-hartman-credential-broker-4-agents-00): one LLM-gateway server holding standing keys for five providers is the LiteLLM-class blast radius; the single-provider notes server in the same fixture is silent, so ATL-164 keys on concentration, not on any secret."
 
 benign:
   - id: benign-readonly-fleet

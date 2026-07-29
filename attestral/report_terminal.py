@@ -475,6 +475,75 @@ def render_fleet(model: "SystemModel", *, color: bool | None = None) -> str:
     return "\n".join(lines)
 
 
+def render_card(
+    model: "SystemModel",
+    findings: list["Finding"],
+    subject: str,
+    *,
+    color: bool | None = None,
+) -> str:
+    """A compact, screenshot-ready self-audit card. One glance answers "do my
+    agents already assemble something dangerous?" and it is designed to be
+    shared. It is honest by construction: a thin or empty surface says so (it
+    reuses `clean_scan_category`), and a clean machine gets a satisfying green
+    result rather than a manufactured scare. `subject` is the human phrase for
+    what was reviewed, e.g. "on this machine" or "in ./my-project"."""
+    if color is None:
+        color = supports_color()
+
+    active = [f for f in findings if not f.waived]
+    n_surfaces = sum(1 for c in model.components if _family_of(c.type) == _AGENT_FAMILY)
+    noun = _plural(n_surfaces, "MCP/agent surface")
+    trifecta = [f for f in active if f.rule_id == "ATL-202"]
+    toxic = [f for f in active if f.rule_id in ("ATL-207", "ATL-213")]
+
+    W = 60
+    rule = "─" * W
+    out = [_dim(rule, color), _bold("  Attestral · agentic self-audit", color), ""]
+
+    if trifecta:
+        out.append(_paint(f"  {noun} reviewed {subject}.", _SEV_COLOR["info"], color))
+        out.append(_paint("  These assemble the LETHAL TRIFECTA.", _SEV_COLOR["critical"], color))
+        out.append("")
+        out.append(_dim("  private data + untrusted input + an outbound channel,", color))
+        out.append(_dim("  live in one session. One prompt injection away from", color))
+        out.append(_dim("  silent exfiltration.", color))
+    elif active:
+        out.append(_paint(f"  {noun} reviewed {subject}.", _SEV_COLOR["info"], color))
+        head = "  No lethal trifecta, but findings worth a look."
+        out.append(_paint(head, _SEV_COLOR["medium"], color))
+    else:
+        category = clean_scan_category(model)
+        if category == "clean":
+            out.append(_paint(f"  {noun} reviewed {subject}.", _SEV_COLOR["info"], color))
+            out.append(_paint("  No lethal trifecta, no toxic flow. Clean.",
+                              _SEV_COLOR["low"], color))
+        elif category == "thin":
+            out.append(_paint(f"  {noun} reviewed {subject}.", _SEV_COLOR["info"], color))
+            out.append(_paint("  Too few surfaces for the cross-surface checks",
+                              _SEV_COLOR["medium"], color))
+            out.append(_paint("  (lethal trifecta, toxic flow) to fire, so this is",
+                              _SEV_COLOR["medium"], color))
+            out.append(_paint("  a thin result, not a clean bill of health.",
+                              _SEV_COLOR["medium"], color))
+        else:  # empty
+            out.append(_paint(f"  No agent or MCP surface found {subject}.",
+                              _SEV_COLOR["medium"], color))
+            out.append(_dim("  Nothing was in scope to review.", color))
+
+    if active:
+        out.append("")
+        out.append("  " + breakdown(active, color))
+        if toxic and not trifecta:
+            out.append(_dim(f"  includes {_plural(len(toxic), 'toxic-flow finding')}", color))
+
+    out.append("")
+    out.append(_dim("  Audit yours:  pip install attestral && attestral scan --local", color))
+    out.append(_dim("  How 1 in 3 servers ship this:  attestral.vercel.app/research.html", color))
+    out.append(_dim(rule, color))
+    return "\n".join(out)
+
+
 def gate_line(fail_on: str, failed: bool, *, color: bool | None = None) -> str:
     """The final gate line. `failed` when findings sit at/above the threshold."""
     if color is None:

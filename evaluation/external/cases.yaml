@@ -112,3 +112,34 @@ cases:
     config_format: requirements.txt
     config: "langgraph"
     expect: null
+
+  # --- design-visible: pinned vulnerable dependency in a package.json manifest --
+  - id: litellm-mcp-cmd-injection
+    advisory: CVE-2026-30623
+    ref: https://nvd.nist.gov/vuln/detail/CVE-2026-30623
+    affected: "litellm <= 1.83.6"
+    threat: authenticated command injection in LiteLLM's MCP server endpoint
+    scope: design-visible
+    config_format: requirements.txt
+    config: "litellm==1.83.6"
+    expect: ATL-145
+
+  - id: langgraph-redis-checkpoint-query-injection
+    advisory: CVE-2026-27022
+    ref: https://nvd.nist.gov/vuln/detail/CVE-2026-27022
+    affected: "@langchain/langgraph-checkpoint-redis <= 1.0.0"
+    threat: RediSearch query injection giving an access-control bypass in the redis checkpointer
+    scope: design-visible
+    config_format: package.json
+    config: '{"dependencies": {"@langchain/langgraph-checkpoint-redis": "1.0.0"}}'
+    expect: ATL-145
+
+  - id: mcp-sdk-uritemplate-redos
+    advisory: CVE-2026-0621
+    ref: https://nvd.nist.gov/vuln/detail/CVE-2026-0621
+    affected: "@modelcontextprotocol/sdk 1.3.0 - 1.25.1"
+    threat: ReDoS in the MCP TypeScript SDK UriTemplate parser (denial of service)
+    scope: design-visible
+    config_format: package.json
+    config: '{"dependencies": {"@modelcontextprotocol/sdk": "1.25.1"}}'
+    expect: ATL-145
