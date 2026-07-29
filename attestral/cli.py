@@ -717,6 +717,48 @@ def blast_radius_cmd(path: str, limit: int) -> None:
 
 
 @main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--remove", "remove", default=None, metavar="NAME",
+              help="Counterfactual: remove the component named NAME.")
+@click.option("--deny", "deny", default=None, metavar="NAME:CAPABILITY",
+              help="Counterfactual: scope CAPABILITY off the component named NAME "
+                   "(e.g. web:network).")
+def whatif(path: str, remove: str | None, deny: str | None) -> None:
+    """Show the security delta of a design change BEFORE you make it.
+
+    Applies one hypothetical change to the model of PATH - remove a server, or
+    scope a capability away - and reports what it would fix: findings resolved,
+    attack paths closed, and the drop in worst-case blast radius. It runs the
+    tool's own rules, reachability, and blast-radius against the counterfactual,
+    so a designer can compare fixes without editing anything. The change is never
+    written; only a copy of the model is mutated.
+    """
+    from attestral.delta import render_delta_markdown
+    from attestral.whatif import whatif as run_whatif
+
+    deny_pair = None
+    if deny:
+        if ":" not in deny:
+            raise click.UsageError("--deny expects NAME:CAPABILITY (e.g. web:network)")
+        name, cap = deny.split(":", 1)
+        deny_pair = (name.strip(), cap.strip())
+
+    model = build_model(path)
+    delta, note = run_whatif(model, remove=remove, deny=deny_pair)
+    if delta is None:
+        raise click.UsageError(note)
+
+    change = f"remove '{remove}'" if remove else f"deny {deny_pair[0]}:{deny_pair[1]}"
+    click.echo(f"what-if: {change}\n")
+    if delta.is_empty:
+        click.echo("No security change: this would resolve nothing and open nothing.")
+        return
+    click.echo(render_delta_markdown(delta))
+    click.echo(f"\nblast radius: {delta.blast_before:.1f} -> {delta.blast_after:.1f}"
+               + (f"  ({delta.blast_top})" if delta.blast_top else ""))
+
+
+@main.command()
 @click.argument("base", type=click.Path(exists=True))
 @click.argument("head", type=click.Path(exists=True))
 @click.option("-o", "--output", default=None, metavar="FILE",

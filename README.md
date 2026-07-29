@@ -295,6 +295,7 @@ flowchart LR
     D -->|"design changed?<br/>re-attest"| A
     A --> V["attestral validate<br/><b>show the path is reachable</b><br/>+ proof-of-exploit per path (gated)"]
     A --> DF["attestral diff<br/><b>PR security-impact delta</b>"]
+    A --> WI["attestral whatif<br/><b>counterfactual: what-if I change this</b>"]
     style A fill:#96222E,color:#fff
     style B fill:#1F6A4A,color:#fff
     style F fill:#96222E11,stroke:#96222E
@@ -381,6 +382,10 @@ attestral blast-radius ./my-project
 # engine behind the PR-review bot (examples/github-actions/security-delta.yml)
 attestral diff ./base ./head
 attestral diff ./base ./head --fail-on high   # gate CI on newly-introduced risk
+
+# WHAT-IF: the security delta of a change BEFORE you make it (design assistant)
+attestral whatif ./my-project --deny web:network   # scope a capability away, see what it fixes
+attestral whatif ./my-project --remove shell        # remove a server, see the findings/paths resolved
 
 # FLEET: model several repos as ONE agent fleet and find flows that span them
 attestral fleet ./repo-a ./repo-b ./repo-c                 # ATL-213: cross-repo toxic flow

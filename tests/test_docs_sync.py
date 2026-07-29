@@ -38,6 +38,7 @@ DIAGRAM_KEYWORDS = {
     "injection_reach.py": "Injection-reachability fusion",
     "trust_asymmetry.py": "Trust-asymmetry",
     "delta.py": "security-impact delta",
+    "whatif.py": "what-if",
     "redteam.py": "show the path is reachable",
     "selfplay.py": "proof-of-exploit",
     "manifest.py": "manifest",
