@@ -344,6 +344,9 @@ attestral verify review.json --public-key reviewer.pub  # checks integrity AND a
 
 # COMPILE: turn the attested design into a default-deny mcp-guard policy
 attestral compile ./my-project -o policy.yaml
+# other targets: Cedar (AWS Verified Permissions) and a credential-broker config
+attestral compile ./my-project --target cedar -o attested.cedar
+attestral compile ./my-project --target agentgateway -o gw-policy.yaml  # CB4A default-deny broker
 # and verify a later design still NARROWS the reviewed one (fails on an expansion)
 attestral compile ./my-project --against policy.yaml
 

@@ -7,6 +7,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`compile --target agentgateway`: the attested design compiled into a credential-broker policy.**
+  The moat closed on the credential layer, and the flagship of the CB4A thread: the reviewed design
+  IS the broker policy, not a hand-written config that drifts from it. `render_agentgateway` emits a
+  default-deny agentgateway config (CB4A Model A/B) where every attested-allowed server becomes one
+  route with strict inbound auth and a per-call token-exchange backend (secret from a `secretRef`,
+  never inlined), and a server the review denied is simply not routable. The header binds the policy
+  to the review by `model_hash` and chain head. A round-trip test proves the compiler never emits a
+  broker it would itself flag: scanning its own output fires neither ATL-166 (fail-open) nor ATL-167
+  (inline secret). Third compile target, wired through the single `TARGETS` dispatch; no rule change.
 - **ATL-221: a credential broker is declared but bypassed by a standing credential (CB4A TM-11).**
   The model-level pairing of the agentgateway ingester with the credential rules, and the finding
   only the system model can make. It fires when the system declares a broker (an agentgateway

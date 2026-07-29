@@ -241,6 +241,53 @@ def render_cedar(policy: dict) -> str:
     return "\n".join(lines) + "\n\n" + "\n\n".join(blocks) + "\n"
 
 
+def render_agentgateway(policy: dict) -> str:
+    """Render the attested design as a default-deny agentgateway credential-broker
+    config (CB4A Model A/B). Every attested-allowed server becomes one route with
+    strict inbound authentication and a per-call token-exchange backend, so the
+    agent never holds a standing credential; a server the review denied is simply
+    not emitted, and agentgateway denies any route it does not know. This is the
+    moat closed on the credential layer: the review is the broker policy, not a
+    hand-written artifact that can drift from it. The operator supplies the token
+    endpoint and OAuth client per route; the client secret is always a secretRef,
+    never inlined (which ATL-167 would flag on the way back in)."""
+    meta = policy["metadata"]
+    routes: list[dict] = []
+    for name, entry in sorted(policy["servers"].items()):
+        if not entry.get("allow", False):
+            continue  # denied by the attested review -> not routable (default-deny)
+        routes.append({
+            "name": name,
+            # Default-deny at the front door: every caller is authenticated before
+            # any credential is brokered. A route with anything weaker is ATL-166.
+            "policies": {"jwtAuth": {"mode": "strict"}},
+            "backends": [{
+                "mcp": {"name": name},
+                "backendAuth": {"oauthTokenExchange": {
+                    # The broker mints a short-lived, scoped token per call via
+                    # RFC 8693 token exchange; fill host/tokenEndpointPath for your
+                    # IdP. The secret is referenced, never inlined.
+                    "host": "REPLACE_WITH_IDP_HOST:443",
+                    "tokenEndpointPath": "/oauth2/v1/token",
+                    "clientAuth": {
+                        "clientId": f"attestral-{name}",
+                        "secretRef": {"name": f"{name}-oauth-client"},
+                    },
+                }},
+            }],
+        })
+    config = {"binds": [{"port": 3000, "listeners": [{"routes": routes}]}]}
+    header = (
+        "# agentgateway credential-broker policy - COMPILED FROM AN ATTESTED DESIGN REVIEW.\n"
+        "# Default-deny: only attested-allowed servers are routable, each behind strict\n"
+        "# inbound auth and per-call token exchange, so no agent holds a standing key.\n"
+        "# Do not hand-edit: change the design, re-review, re-compile.\n"
+        f"# model_hash: {meta['model_hash'][:16]}…  "
+        f"chain_head: {(meta['review_chain_head'] or '-')[:16]}\n"
+    )
+    return header + yaml.safe_dump(config, sort_keys=False)
+
+
 def policy_digest(policy: dict, renderer) -> str:
     """SHA-256 of a policy rendering, with the non-deterministic timestamp neutralized.
 
@@ -267,4 +314,5 @@ TARGETS: dict[str, tuple] = {
     # default target; adding a target here is all it takes to wire it in.
     "mcp-guard": (render_policy_yaml, "mcp-guard-policy.yaml"),
     "cedar": (render_cedar, "attested-policy.cedar"),
+    "agentgateway": (render_agentgateway, "agentgateway-policy.yaml"),
 }
