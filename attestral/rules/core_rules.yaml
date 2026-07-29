@@ -941,6 +941,15 @@ rules:
     recommendation: Do not co-locate credentials for many providers in one process. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, narrowly scoped token per call so the process holds no reusable key, or at minimum split the providers across isolated processes so one compromise does not inherit them all. If this server is an LLM gateway, run it with per-request minted tokens, not a static key vault.
     frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
 
+  - id: ATL-165
+    title: One Kubernetes workload concentrates standing credentials for many providers
+    severity: high
+    target: k8s_container
+    match: { attr_equals: { _credential_concentration: true } }
+    description: A container's environment holds long-lived credentials for four or more distinct providers (LLM vendors, clouds, or SaaS APIs) at once, so this one workload is a high-density credential target - a compromise, by a supply-chain backdoor in its image, an RCE, or an SSRF, inherits every key in a single step. This is the deployment-manifest counterpart to ATL-164, where the LiteLLM-class gateway that concentrates many providers' keys usually lives, in a Deployment's env rather than a committed MCP config. A credential broker (CB4A) exists so a workload never holds a reusable, agent-readable key, and concentrating many providers behind one is the blast radius its threat model rates CRITICAL.
+    recommendation: Do not co-locate credentials for many providers in one workload. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, scoped token per call so the pod holds no reusable key, source each key from its own scoped `secretKeyRef` rather than a shared bundle, and split the providers across isolated workloads so one compromise does not inherit them all.
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
+
   - id: ATL-116
     title: Agent skill grants shell or unrestricted tool access
     severity: high

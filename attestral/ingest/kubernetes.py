@@ -94,31 +94,43 @@ def _image_attrs(image: str) -> dict[str, Any]:
     }
 
 
-def _env_signals(container: dict) -> dict[str, bool]:
-    """Scan container env for the two secret-handling signals.
+def _env_signals(container: dict) -> dict:
+    """Scan container env for the secret-handling signals.
 
-    Feeds two risk chains:
+    Feeds three risk chains:
       _env_plaintext_secret -> a literal `value:` on a secret-named var
                                (hardcoded credential in the manifest).
       _env_uses_secret_ref  -> the good pattern (valueFrom.secretKeyRef);
                                informational so a rule can reward it.
+      _credential_concentration -> the same CB4A TM-1 blast-radius signal as the
+                               MCP layer (ATL-164): this container's env carries
+                               standing credentials for >= 4 distinct providers.
+                               A LiteLLM-class gateway lives here, in the
+                               deployment manifest, not in a committed .mcp.json.
     """
+    from attestral.ingest.mcp import _credential_provider_families
+
     env = container.get("env") or []
     plaintext = False
     secret_ref = False
+    names: list[str] = []
     for entry in env:
         if not isinstance(entry, dict):
             continue
-        name = str(entry.get("name", "")).lower()
+        name = str(entry.get("name", ""))
+        names.append(name)
         value_from = entry.get("valueFrom")
         if isinstance(value_from, dict) and value_from.get("secretKeyRef"):
             secret_ref = True
         # A literal `value` (not sourced from valueFrom) on a secret-named var.
-        if "value" in entry and any(h in name for h in _SECRET_NAME_HINTS):
+        if "value" in entry and any(h in name.lower() for h in _SECRET_NAME_HINTS):
             plaintext = True
+    providers = _credential_provider_families(names)
     return {
         "_env_plaintext_secret": plaintext,
         "_env_uses_secret_ref": secret_ref,
+        "_credential_providers": providers,
+        "_credential_concentration": len(providers) >= 4,
     }
 
 

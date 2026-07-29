@@ -173,6 +173,10 @@ positive:
     path: examples/credential-concentration
     expect: [ATL-104, ATL-105, ATL-112, ATL-164, ATL-216]
     cite: "CB4A TM-1 (draft-hartman-credential-broker-4-agents-00): one LLM-gateway server holding standing keys for five providers is the LiteLLM-class blast radius; the single-provider notes server in the same fixture is silent, so ATL-164 keys on concentration, not on any secret."
+  - id: k8s-credential-concentration
+    path: examples/k8s-credential-concentration
+    expect: [ATL-165]
+    cite: "CB4A TM-1: the deployment-manifest counterpart to ATL-164. A LiteLLM Deployment whose container env sources five providers' keys is the concentration blast radius where it actually lives (a k8s manifest, not a committed .mcp.json); the single-provider sidecar in the same pod is silent. The pod's k8s-hardening findings (ATL-5xx) are real but out of the agentic benchmark's scope, so only ATL-165 is labelled here."
 
 benign:
   - id: benign-readonly-fleet
