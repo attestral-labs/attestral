@@ -1,0 +1,13 @@
+binds:
+  - port: 3000
+    listeners:
+      - routes:
+          - name: github
+            policies: { jwtAuth: { mode: strict } }
+            backends:
+              - mcp: { name: github }
+                backendAuth:
+                  oauthTokenExchange:
+                    host: idp.example:443
+                    tokenEndpointPath: /oauth2/v1/token
+                    clientAuth: { clientId: gw, secretRef: { name: gw-oauth } }

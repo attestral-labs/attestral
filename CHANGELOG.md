@@ -7,6 +7,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **DRF-011: credential-broker bypass at runtime (CB4A TM-11, the runtime half of ATL-221).**
+  `compile` now marks a server `broker_required` when an agentgateway route fronts it, and `drift`
+  fires DRF-011 when a runtime event reports that server was reached directly (`brokered: false`),
+  skipping the broker's auth, scoping, and audit. This closes the compile -> drift loop on the
+  credential layer: the static ATL-221 catches a broker declared beside a raw key, and DRF-011
+  catches a design that looks brokered but is bypassed at run time. Fail-closed in the DRF-008
+  style, only an explicit `brokered: false` on a broker-required server fires; an absent field is
+  unknown telemetry and never fires. Fixture `examples/broker-bypass-runtime` (benign brokered
+  stream clean, malicious direct-call stream fires), 5 tests. No ATL rule change (pack stays 265).
 - **ATL-168: credential concentration on the deployment surface (docker-compose and .env, CB4A TM-1).**
   The holistic 390-repo sweep found the LiteLLM-class concentration pattern in zero committed MCP
   configs, because it lives in the deployment, not the config. A new ingester
