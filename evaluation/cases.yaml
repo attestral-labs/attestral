@@ -91,6 +91,10 @@ positive:
     path: examples/vulnerable-agent
     expect: [ATL-101, ATL-102, ATL-103, ATL-104, ATL-105, ATL-106, ATL-107, ATL-108, ATL-115, ATL-202, ATL-203, ATL-207, ATL-217]
     cite: "Broad insecure MCP fleet"
+  - id: overbroad-fs-root
+    path: examples/overbroad-fs-root
+    expect: [ATL-102]
+    cite: "ATL-102 precision: a home-directory grant fires, a project subdir does not"
   - id: hook-injection
     path: examples/hook-injection
     expect: [ATL-118]

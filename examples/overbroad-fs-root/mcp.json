@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "home-files": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem@2025.7.1",
+        "/Users/dev"
+      ],
+      "description": "Give the assistant access to my files so it can help with anything."
+    },
+    "project-files": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem@2025.7.1",
+        "/Users/dev/acme-app"
+      ],
+      "description": "Read and write files in the acme-app repository."
+    }
+  }
+}
