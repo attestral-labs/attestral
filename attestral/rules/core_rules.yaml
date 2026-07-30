@@ -57,13 +57,13 @@ rules:
     frameworks: ["NIST SC-8", "OWASP-ASI03:2026", "OWASP-MCP MCP07:2025", "NSA CSI MCP 05/2026"]
 
   - id: ATL-102
-    title: Filesystem MCP server rooted at a broad path
+    title: Filesystem or exec MCP server granted an over-broad root ($HOME, a system dir, or /)
     severity: high
     target: mcp_server
-    match: { attr_list_any_of: { args: ["/", "~", "/home", "/Users"] } }
-    description: The agent gains read/write reach over a broad filesystem root, far beyond task scope.
-    recommendation: Scope the server to the narrowest project directory that supports the workflow.
-    frameworks: ["NIST AC-6", "OWASP-ASI02:2026", "OWASP-MCP MCP02:2025"]
+    match: { attr_in: { _fs_root_scope: [home, system, root] } }
+    description: This server can reach the disk (a filesystem server, or one holding a shell capability) and was launched with an allowed directory at or above the user's home, a system directory, or the filesystem root, so the agent - and any prompt injection that steers it - reads SSH private keys, shell dotfiles, cloud credential files, and browser data, and writes outside any intended workspace. The over-broad path grant, not a secret value, is the finding, so a scanner that only greps for hardcoded keys never sees it. A server scoped to a specific project subdirectory (the safe, common case, e.g. `/Users/you/repo`) classifies as "project" and is deliberately never flagged, so pointing a server at your actual working directory does not raise a false alarm.
+    recommendation: Scope the server to the narrowest directory it actually needs - the repository or a single data directory below your home - never $HOME itself, a system path, or /. Pass an explicit allowed-directory argument (for example `/Users/you/project`, not `/Users/you` or `/`), and split the read and write roots if only reads are required.
+    frameworks: ["NIST AC-6", "OWASP-ASI02:2026", "OWASP-MCP MCP02:2025", "SAFE-T1105", "CWE-732"]
 
   - id: ATL-103
     title: Shell-capable MCP server configured

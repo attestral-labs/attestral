@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -177,6 +178,74 @@ def _interpreter_shellout(command: str, args: list) -> bool:
         return False
     code = " ".join(argv).lower()
     return any(m in code for m in _SHELLOUT_MARKERS)
+
+
+# Over-broad filesystem/exec root (OWASP-ASI02, SAFE-T1105): a disk-capable MCP
+# server started with an allowed directory at or above $HOME or a system dir
+# hands the agent - and any injection that reaches it - read/write over SSH keys,
+# dotfiles, cloud credentials, and browser data. Deliberately coarse and fail-
+# closed: a specific project subdir (the common, safe case) classifies as
+# "project" and never fires.
+_FS_SYSTEM_DIRS = (
+    "/etc", "/root", "/boot", "/proc", "/sys", "/bin", "/sbin",
+    "/usr/bin", "/usr/sbin", "/var/root",
+    "c:/windows", "c:/program files", "c:/programdata",
+)
+_FS_HOME_ANCHORS = ("~", "$home", "${home}", "%userprofile%", "$env:userprofile")
+_FS_SCOPE_RANK = {"root": 3, "system": 2, "home": 2, "project": 1}
+
+
+def _looks_like_path(tok: str) -> bool:
+    """A launch token that names a filesystem location (absolute, home-anchored,
+    a Windows drive path, or a UNC root). Package names (`@scope/pkg`,
+    `server-filesystem`) and flags never start this way, so they are ignored."""
+    t = tok.strip().strip('"').strip("'")
+    if not t:
+        return False
+    low = t.lower()
+    return (
+        t.startswith(("/", "~"))
+        or low.startswith(("$home", "${home}", "%userprofile%", "$env:userprofile"))
+        or re.match(r"^[a-z]:[\\/]", low) is not None
+        or t.startswith("\\\\")
+    )
+
+
+def _classify_path_scope(raw: str) -> str | None:
+    """Broadest-risk classification of one token as a filesystem grant: 'root'
+    (/, a drive root, a UNC root), 'system' (/etc, C:\\Windows, ...), 'home'
+    (the home directory itself), or 'project' (a specific subdir - safe).
+    Returns None if the token is not a path. A subdir *under* home is 'project',
+    not 'home', so scoping to `~/repo` stays clean."""
+    if not _looks_like_path(raw):
+        return None
+    t = raw.strip().strip('"').strip("'").replace("\\", "/")
+    low = t.lower().rstrip("/") or "/"
+    if low == "/" or re.fullmatch(r"[a-z]:", low) or re.fullmatch(r"/{2,}", low):
+        return "root"
+    if any(low == s or low.startswith(s + "/") for s in _FS_SYSTEM_DIRS):
+        return "system"
+    if low in _FS_HOME_ANCHORS or re.fullmatch(r"/(users|home)/[^/]+", low):
+        return "home"
+    return "project"
+
+
+def _split_flag_value(tok: str) -> str:
+    """`--allowed-dir=/etc` -> `/etc`; a bare token is returned unchanged, so a
+    path passed either as its own arg or glued to a flag is both classified."""
+    if tok.startswith("-") and "=" in tok:
+        return tok.split("=", 1)[1]
+    return tok
+
+
+def _broadest_fs_scope(args: list) -> str | None:
+    """The widest filesystem grant among a server's launch args, or None if it
+    takes no path argument."""
+    scopes = [
+        s for a in (args or [])
+        if (s := _classify_path_scope(_split_flag_value(str(a))))
+    ]
+    return max(scopes, key=lambda s: _FS_SCOPE_RANK[s]) if scopes else None
 
 # Substring hints, matched against the launch command + server name, that
 # classify what a tool server can reach. Deliberately coarse: they feed the
@@ -657,6 +726,18 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         if ui_texts:
             attrs["_ui_resource_texts"] = ui_texts
         attrs["_capabilities"] = sorted(caps)
+        # Over-broad filesystem/exec root (ATL-102): a disk-capable server (a
+        # filesystem server, or one with shell) launched with an allowed dir at
+        # or above $HOME / a system dir / the root. Only derived on disk-capable
+        # servers so a network server that happens to take a path never fires,
+        # and only set when the scope is actually dangerous (a project subdir,
+        # the safe common case, leaves the attribute unset - the precision that
+        # replaced ATL-102's old bare-prefix match, which flagged every project
+        # under /Users or /home).
+        if caps & {"filesystem", "shell"}:
+            scope = _broadest_fs_scope(attrs.get("args") or [])
+            if scope in ("root", "home", "system"):
+                attrs["_fs_root_scope"] = scope
         # Egress allowlist (the declassifier ATL-202 recommends): only meaningful
         # on an egress-capable server, matched against the launch command and the
         # env keys/values so an allowlist set either way is seen.

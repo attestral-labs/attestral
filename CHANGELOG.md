@@ -6,6 +6,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Changed
+- **ATL-102 (over-broad filesystem/exec root) made precise: a project subdirectory no longer false-
+  positives.** The rule used to match any launch argument under `/`, `~`, `/home`, or `/Users`, which
+  fired on every developer who correctly scoped a filesystem server to their own repo (`/Users/you/
+  repo` lives under `/Users`). The MCP ingester now classifies the broadest path grant as `root`
+  (`/`, a drive root), `system` (`/etc`, `C:\Windows`, ...), `home` (the home directory itself), or
+  `project` (a specific subdirectory), and ATL-102 fires only on the first three. Scoping a server to
+  your actual working directory is now clean, while a grant of `$HOME`, a system dir, or `/` still
+  fires, and the scope is derived only for disk-capable servers (filesystem or shell), so a network
+  server that happens to take a path argument never fires. This is the highest-signal item from the
+  2026 agentic research sweep (OWASP-ASI02, SAFE-T1105) delivered as a precision fix rather than a new
+  rule. New fixture `examples/overbroad-fs-root` (home grant fires, project subdir does not) and
+  `tests/test_fs_root_scope.py`. No pack-count change (stays 265).
+
 ### Added
 - **CVE-table refresh (2026 sweep): 6 MCP-server advisories -> ATL-117, 11 agent-framework
   advisories -> ATL-145.** A broad, source-verified sweep of the 2025-2026 agentic advisory
