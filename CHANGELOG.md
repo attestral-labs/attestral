@@ -7,16 +7,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
-- **`attestral whatif`: the security delta of a design change BEFORE you make it.**
-  A scanner tells you what is wrong now; a designer's next question is "if I remove this server, or
-  scope this capability away, what does it fix?" `whatif ./project --deny web:network` and
-  `whatif ./project --remove shell` apply one hypothetical change to a copy of the attested model,
-  re-derive the taint and reachability edges, and diff, so the answer is the tool's own reasoning
-  (rules + reachability + blast radius) run against the counterfactual, never a guess. It reports the
-  attack paths closed, findings resolved, and the blast-radius drop, and it never mutates the real
-  design. The payoff is the composition case a per-file linter cannot show: denying the web server's
-  network capability resolves the lethal-trifecta finding because the *flow* is what changed. New
-  `attestral/whatif.py`, 8 tests. No rule change.
+- **CVE-table refresh (2026 sweep): 6 MCP-server advisories -> ATL-117, 11 agent-framework
+  advisories -> ATL-145.** A broad, source-verified sweep of the 2025-2026 agentic advisory
+  landscape (GitHub Advisory DB / OSV, cross-checked) extends the two embedded known-CVE tables that
+  feed the existing rules; no new rule, no matcher change. New launch-time (ATL-117) coverage:
+  `@modelcontextprotocol/server-filesystem` (EscapeRoute CVE-2025-53110), `@modelcontextprotocol/inspector`
+  (CVE-2025-49596, RCE 9.4), `mcp-server-kubernetes` (CVE-2025-53355), `node-code-sandbox-mcp`
+  (CVE-2025-53372), `mcp-server-git` (CVE-2025-68143 chain), and `mcp-atlassian` MCPwnfluence
+  (CVE-2026-27825, RCE 9.1, incomplete-fix so full remediation is >= 0.22.0). New dependency-tree
+  (ATL-145) coverage: `langgraph-checkpoint` (CVE-2025-64439 / CVE-2026-27794), `llama-index-core`
+  (CVE-2025-1793 / CVE-2025-6209), `vllm` (CVE-2025-62164), `semantic-kernel` (CVE-2026-26030, eval
+  RCE 9.9), `pydantic-ai` (CVE-2026-25580), `smolagents` (CVE-2025-11844), the MCP Python SDK `mcp`
+  (CVE-2025-66416), the MCP TS SDK (CVE-2026-25536), and `langflow` (CVE-2025-3248, CISA KEV).
+  Overlapping ranges are partitioned so each pin reports its most relevant CVE. Still fires only on
+  an exactly comparable version (near-zero false positives). Fixture `examples/vulnerable-deps`
+  extended (now 4 ATL-145 fires); new launch-time and range-precision tests. No pack change (265).
 - **`--rekor`: anchor a signed review in a public transparency log (Sigstore Rekor).**
   The evidence chain and the local transparency log (`attest --log`) prove append-only *local*
   history, but a self-hosted file is not a distributed witness. `attest --key ... --rekor` submits

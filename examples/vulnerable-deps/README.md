@@ -9,13 +9,17 @@ design-time architecture review usually misses.
 attestral scan examples/vulnerable-deps
 ```
 
-Fires **ATL-145** twice:
+Fires **ATL-145** four times:
 
 - `langchain-core==1.2.4` - CVE-2025-68664 ("LangGrinch", CVSS 9.3), a
   serialization-injection flaw that exfiltrates environment secrets. Fixed in
   0.3.81 / 1.2.5.
 - `langgraph-checkpoint-sqlite==3.0.0` - CVE-2025-67644 (CVSS 7.3), SQL
   injection in the SQLite checkpointer, chainable toward RCE. Fixed in 3.0.1.
+- `llama-index-core==0.12.20` - CVE-2025-1793 (critical), SQL injection across
+  the vector-store integrations. Fixed in 0.12.29.
+- `semantic-kernel==1.39.0` - CVE-2026-26030 (CVSS 9.9), the InMemoryVectorStore
+  filter is compiled to a Python lambda run through `eval()`. Fixed in 1.39.4.
 
 `requests==2.31.0` is present as a negative control: it is not in the known-CVE
 table, so it must not flag. Only an exactly pinned (`==`) vulnerable version is
