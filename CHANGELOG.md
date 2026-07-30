@@ -7,6 +7,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Changed
+- **ATL-147 (binds to all interfaces) made precise, and now covers IPv6 and config fields.** The
+  rule substring-matched `0.0.0.0` in the launch args, so it false-positived on a deliberate bind to
+  a specific private address whose text contains it (`10.0.0.0`, `100.0.0.0`) and missed the IPv6
+  all-interfaces form (`::`, `[::]`) entirely. The MCP ingester now derives `_binds_all_interfaces`
+  by matching the exact host portion of each launch/config token (handling `host`, `host:port`,
+  `--flag=host`, `[::]:port`, and a `host`/`bind`/`address` config field), so `0.0.0.0` and `::`
+  fire while `10.0.0.0` does not. Citation refreshed with CVE-2026-11624 (missing Origin validation,
+  the DNS-rebinding class the MCP transport spec's bind-127.0.0.1 / validate-Origin requirement
+  exists to prevent). New `tests/test_bind_all_interfaces.py`. No pack-count change (stays 265).
 - **ATL-102 (over-broad filesystem/exec root) made precise: a project subdirectory no longer false-
   positives.** The rule used to match any launch argument under `/`, `~`, `/home`, or `/Users`, which
   fired on every developer who correctly scoped a filesystem server to their own repo (`/Users/you/

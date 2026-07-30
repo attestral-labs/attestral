@@ -83,13 +83,13 @@ rules:
     frameworks: ["OWASP-ASI05:2026", "OWASP-MCP MCP05:2025", "MITRE ATLAS AML.T0053", "NIST AC-6"]
 
   - id: ATL-147
-    title: MCP server binds to all network interfaces (0.0.0.0)
+    title: MCP server binds to all network interfaces (0.0.0.0 / ::)
     severity: high
     target: mcp_server
-    match: { attr_any_contains: { args: ["0.0.0.0"] } }
-    description: The launch binds the server to 0.0.0.0, so its tool endpoint is reachable from every network the host sits on, not just localhost. A local MCP server meant for one agent becomes an unauthenticated tool endpoint for the LAN, and a malicious web page can reach it through DNS rebinding to drive its tools (CVE-2026-59950, CVE-2026-63118, CVE-2025-66416, CVE-2026-23744).
-    recommendation: Bind the server to 127.0.0.1 (or a Unix socket) for local use. If it genuinely must be remote, put it behind an authenticated gateway that validates the Origin/Host header against an allowlist, and never expose the raw server on 0.0.0.0.
-    frameworks: ["OWASP-MCP MCP07:2025", "OWASP-ASI05:2026", "MITRE ATLAS AML.T0049", "NIST SC-7"]
+    match: { attr_equals: { _binds_all_interfaces: true } }
+    description: The server is launched or configured to listen on every interface (IPv4 0.0.0.0 or IPv6 ::), so its tool endpoint is reachable from every network the host sits on, not just localhost. A local MCP server meant for one agent becomes an unauthenticated tool endpoint for the LAN, and, because the MCP transport spec requires servers to validate the Origin header and bind to 127.0.0.1, a malicious web page can reach a non-validating server through DNS rebinding and drive its tools (CVE-2026-11624, CVE-2026-59950, CVE-2026-63118, CVE-2025-66416, CVE-2026-23744). The bind address is matched exactly, so a deliberate bind to a specific private address (for example 10.0.0.0) is not flagged.
+    recommendation: Bind the server to 127.0.0.1 (or a Unix socket) for local use. If it genuinely must be remote, put it behind an authenticated gateway that validates the Origin/Host header against an allowlist, and never expose the raw server on 0.0.0.0 or ::.
+    frameworks: ["OWASP-MCP MCP07:2025", "OWASP-ASI05:2026", "MITRE ATLAS AML.T0049", "NIST SC-7", "CWE-1327"]
 
   - id: ATL-148
     title: MCP server forwards the caller's session token or auth header downstream
