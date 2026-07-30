@@ -247,6 +247,42 @@ def _broadest_fs_scope(args: list) -> str | None:
     ]
     return max(scopes, key=lambda s: _FS_SCOPE_RANK[s]) if scopes else None
 
+
+# Bind-to-all-interfaces (ATL-147): a server that listens on 0.0.0.0 / :: is
+# reachable from every network the host sits on and drivable by a web page via
+# DNS rebinding. Matched EXACTLY on the host portion so a specific private bind
+# like 10.0.0.0 (whose text contains "0.0.0.0") never false-positives, and both
+# IPv4 (0.0.0.0) and IPv6 (::) all-interfaces forms are caught.
+_BIND_ALL_HOSTS = {"0.0.0.0", "::", "[::]", "0:0:0:0:0:0:0:0"}
+_BIND_HOST_KEYS = ("host", "bindhost", "bind", "bind_host", "address", "hostname", "listen")
+
+
+def _host_of(token: str) -> str:
+    """The host portion of a launch/config token that may be `host`,
+    `host:port`, `--flag=host`, `--flag=host:port`, or `[::]:port`."""
+    t = token.strip().strip('"').strip("'")
+    if t.startswith("-") and "=" in t:
+        t = t.split("=", 1)[1]
+    if t.startswith("["):                       # [::]:port -> [::]
+        return t.split("]", 1)[0] + "]" if "]" in t else t
+    if t.count(":") == 1:                        # host:port -> host (leave bare ::)
+        t = t.split(":", 1)[0]
+    return t
+
+
+def _binds_all_interfaces(args: list, cfg: dict) -> bool:
+    """True if the server is launched or configured to listen on every interface
+    (0.0.0.0 / :: ), exactly - not a substring match."""
+    for a in (args or []):
+        if _host_of(str(a)) in _BIND_ALL_HOSTS:
+            return True
+    if isinstance(cfg, dict):
+        for k, v in cfg.items():
+            if str(k).lower() in _BIND_HOST_KEYS and isinstance(v, str):
+                if _host_of(v) in _BIND_ALL_HOSTS:
+                    return True
+    return False
+
 # Substring hints, matched against the launch command + server name, that
 # classify what a tool server can reach. Deliberately coarse: they feed the
 # fleet-level combination rules (ATL-202/203), not per-server findings, so a
@@ -738,6 +774,10 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             scope = _broadest_fs_scope(attrs.get("args") or [])
             if scope in ("root", "home", "system"):
                 attrs["_fs_root_scope"] = scope
+        # Listens on every interface (ATL-147): 0.0.0.0 / :: in the launch args
+        # or a host/bind config field. Exact host match, so 10.0.0.0 never fires.
+        if _binds_all_interfaces(attrs.get("args") or [], cfg):
+            attrs["_binds_all_interfaces"] = True
         # Egress allowlist (the declassifier ATL-202 recommends): only meaningful
         # on an egress-capable server, matched against the launch command and the
         # env keys/values so an allowlist set either way is seen.
