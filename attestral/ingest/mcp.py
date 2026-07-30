@@ -225,6 +225,33 @@ _KNOWN_VULNS = (
     # scheme validation, allowing arbitrary intents (calls, SMS, USSD, content
     # providers). Affected below 0.0.50; fixed in 0.0.50 (scheme allowlist).
     ("mobile-mcp", (0, 0, 49), "CVE-2026-35394"),
+    # CVE-2025-53109/53110 "EscapeRoute": prefix-match bypass + symlink escape in
+    # @modelcontextprotocol/server-filesystem let an agent read/write outside the
+    # allowed directory. Affected below 2025.7.1 (also the legacy <0.6.3 line);
+    # fixed in 2025.7.1.
+    ("server-filesystem", (2025, 7, 0), "CVE-2025-53110"),
+    # CVE-2025-49596: the @modelcontextprotocol/inspector proxy had no auth
+    # between the Inspector client and the proxy, giving RCE on the host (CVSS
+    # 9.4). Affected below 0.14.1; fixed in 0.14.1.
+    ("inspector", (0, 14, 0), "CVE-2025-49596"),
+    # CVE-2025-53355: command injection in mcp-server-kubernetes - unsanitized
+    # input reached execSync in kubectl_scale/kubectl_patch/explain_resource.
+    # Affected through 2.4.9; fixed above 2.4.9.
+    ("mcp-server-kubernetes", (2, 4, 9), "CVE-2025-53355"),
+    # CVE-2025-53372: command injection via child_process.execSync in
+    # node-code-sandbox-mcp escapes the Docker sandbox -> RCE. Affected through
+    # 1.2.0; fixed in 1.3.0.
+    ("node-code-sandbox-mcp", (1, 2, 0), "CVE-2025-53372"),
+    # CVE-2025-68143/68144/68145: path-scope bypass + unrestricted git_init +
+    # git_diff argument injection in mcp-server-git (uvx), an RCE chain when
+    # paired with a filesystem server via poisoned repo content. Affected below
+    # 2025.12.18; fixed in 2025.12.18.
+    ("mcp-server-git", (2025, 12, 17), "CVE-2025-68143"),
+    # CVE-2026-27825 "MCPwnfluence": arbitrary file write via path traversal in
+    # mcp-atlassian's confluence_download_attachment -> unauthenticated RCE
+    # (CVSS 9.1); chains with the SSRF above. The 0.17.0 fix was incomplete (a
+    # DNS-rebind TOCTOU remained), so full remediation is >= 0.22.0.
+    ("mcp-atlassian", (0, 21, 9999), "CVE-2026-27825"),
 )
 
 

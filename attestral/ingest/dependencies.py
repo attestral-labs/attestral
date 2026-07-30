@@ -51,6 +51,44 @@ _KNOWN_DEP_VULNS = (
     # and args ran as the LiteLLM process. Patched in 1.83.7 (stdio launcher
     # allowlist: npx/uvx/python/node/docker/deno).
     ("litellm", (((0, 0, 0), (1, 83, 6)),), "CVE-2026-30623"),
+    # CVE-2025-64439: RCE via JsonPlusSerializer's "json"-mode constructor-style
+    # deserialization fallback in langgraph-checkpoint (< 3.0). More severe than
+    # the pickle-fallback CVE below, so it owns the whole pre-3.0 range.
+    ("langgraph-checkpoint", (((0, 0, 0), (2, 9999, 9999)),), "CVE-2025-64439"),
+    # CVE-2026-27794: BaseCache defaulted to pickle_fallback=True -> pickle RCE on
+    # an untrusted cache in langgraph-checkpoint. Patched in 4.0.0; the 3.x window
+    # not already covered by 64439.
+    ("langgraph-checkpoint", (((3, 0, 0), (3, 9999, 9999)),), "CVE-2026-27794"),
+    # CVE-2025-1793: SQL injection across llama-index-core's vector-store
+    # integrations (string-concat queries), CVSS critical. Patched in 0.12.29.
+    ("llama-index-core", (((0, 0, 0), (0, 12, 28)),), "CVE-2025-1793"),
+    # CVE-2025-6209: path traversal in llama-index-core's encode_image -> arbitrary
+    # file read. Affected 0.12.27-0.12.40, patched 0.12.41; the window above the
+    # SQLi's ceiling.
+    ("llama-index-core", (((0, 12, 29), (0, 12, 40)),), "CVE-2025-6209"),
+    # CVE-2025-62164: torch.load() of a user prompt-embedding in vLLM -> memory
+    # corruption (DoS/RCE). Affected >=0.10.2 <0.11.1; patched 0.11.1.
+    ("vllm", (((0, 10, 2), (0, 11, 0)),), "CVE-2025-62164"),
+    # CVE-2026-26030: semantic-kernel's InMemoryVectorStore built a filter as a
+    # Python lambda run through eval() -> RCE (CVSS 9.9). Patched in 1.39.4.
+    ("semantic-kernel", (((0, 0, 0), (1, 39, 3)),), "CVE-2026-26030"),
+    # CVE-2026-25580: SSRF in pydantic-ai's URL-download handling (message
+    # history) -> internal / cloud-metadata access. Affected >=0.0.26 <1.56.0.
+    ("pydantic-ai", (((0, 0, 26), (1, 55, 9999)),), "CVE-2026-25580"),
+    # CVE-2025-11844: XPath injection in smolagents' search_item_ctrl_f
+    # (vision_web_browser). Affected through 1.20.0; patched 1.22.0.
+    ("smolagents", (((0, 0, 0), (1, 20, 0)),), "CVE-2025-11844"),
+    # CVE-2025-66416: missing DNS-rebinding protection on the localhost
+    # StreamableHTTP/SSE transport in the MCP Python SDK -> SSRF, tool
+    # invocation. Affected below 1.23.0; patched 1.23.0.
+    ("mcp", (((0, 0, 0), (1, 22, 9999)),), "CVE-2025-66416"),
+    # CVE-2026-25536: shared server/transport reuse in the MCP TS SDK caused
+    # JSON-RPC id collisions -> cross-client data leak. Affected 1.10.0-1.25.3;
+    # the window above the ReDoS CVE's ceiling. (npm, scoped.)
+    ("@modelcontextprotocol/sdk", (((1, 25, 2), (1, 25, 3)),), "CVE-2026-25536"),
+    # CVE-2025-3248: unauthenticated RCE via /api/v1/validate/code (AST exec) in
+    # Langflow, exploited by the Flodrix botnet (CISA KEV). Patched in 1.3.0.
+    ("langflow", (((0, 0, 0), (1, 2, 9999)),), "CVE-2025-3248"),
 )
 
 _MANIFESTS = ("requirements.txt", "pyproject.toml", "package.json")

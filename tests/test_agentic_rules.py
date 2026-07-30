@@ -345,3 +345,50 @@ def test_patched_mobile_mcp_not_flagged(tmp_path):
     from attestral.model import SystemModel
     model = ingest_mcp(cfg, SystemModel())
     assert model.get("mcp_server.mobile").attr("_has_known_cve") is False
+
+
+def test_2026_sweep_mcp_server_cves_fire_atl117(tmp_path):
+    # The 2026 CVE sweep additions to the launch-time advisory table: each server
+    # is launched at an affected version and must fire ATL-117 with its CVE, and
+    # the npm scope must be stripped before matching the bare package name.
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+
+    cases = {
+        "fs": ("@modelcontextprotocol/server-filesystem@2025.6.0", "CVE-2025-53110"),
+        "inspect": ("@modelcontextprotocol/inspector@0.14.0", "CVE-2025-49596"),
+        "k8s": ("mcp-server-kubernetes@2.4.9", "CVE-2025-53355"),
+        "sandbox": ("node-code-sandbox-mcp@1.2.0", "CVE-2025-53372"),
+        "git": ("mcp-server-git@2025.12.17", "CVE-2025-68143"),
+        "atlassian": ("mcp-atlassian@0.21.0", "CVE-2026-27825"),
+    }
+    for name, (token, cve) in cases.items():
+        cfg = tmp_path / f"{name}.json"
+        cfg.write_text(
+            f'{{"mcpServers": {{"{name}": {{"command": "npx", "args": ["{token}"]}}}}}}'
+        )
+        model = ingest_mcp(cfg, SystemModel())
+        srv = model.get(f"mcp_server.{name}")
+        assert srv.attr("_has_known_cve") is True, name
+        assert srv.attr("_known_cve") == cve, name
+        assert "ATL-117" in {f.rule_id for f in RuleEngine().evaluate(model)}, name
+
+
+def test_2026_sweep_patched_mcp_servers_not_flagged(tmp_path):
+    # The fixed release of each 2026-sweep server must clear (fail-closed).
+    from attestral.ingest.mcp import ingest_mcp
+    from attestral.model import SystemModel
+
+    for name, token in {
+        "fs": "@modelcontextprotocol/server-filesystem@2025.7.1",
+        "inspect": "@modelcontextprotocol/inspector@0.14.1",
+        "k8s": "mcp-server-kubernetes@2.5.0",
+        "git": "mcp-server-git@2025.12.18",
+        "atlassian": "mcp-atlassian@0.22.0",
+    }.items():
+        cfg = tmp_path / f"{name}.json"
+        cfg.write_text(
+            f'{{"mcpServers": {{"{name}": {{"command": "npx", "args": ["{token}"]}}}}}}'
+        )
+        model = ingest_mcp(cfg, SystemModel())
+        assert model.get(f"mcp_server.{name}").attr("_has_known_cve") is False, name

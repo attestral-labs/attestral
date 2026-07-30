@@ -10,7 +10,38 @@ def test_fixture_flags_known_vulnerable_deps():
     ids = {f.rule_id for f in RuleEngine().evaluate(model)}
     assert "ATL-145" in ids
     deps = {c.attr("_known_cve") for c in model.by_type("dependency")}
-    assert {"CVE-2025-68664", "CVE-2025-67644"} <= deps
+    assert {"CVE-2025-68664", "CVE-2025-67644",
+            "CVE-2025-1793", "CVE-2026-26030"} <= deps
+
+
+def test_agent_framework_cve_ranges_are_branch_precise():
+    # The 2026 sweep additions: each is checked at an affected pin and at its fix.
+    # langgraph-checkpoint has two CVEs partitioned across the 2.x / 3.x windows.
+    assert _dep_cve("langgraph-checkpoint", "2.1.0") == "CVE-2025-64439"
+    assert _dep_cve("langgraph-checkpoint", "3.5.0") == "CVE-2026-27794"
+    assert _dep_cve("langgraph-checkpoint", "4.0.0") is None          # patched
+    # llama-index-core: the critical SQLi owns <=0.12.28, the file-read the window above.
+    assert _dep_cve("llama-index-core", "0.12.20") == "CVE-2025-1793"
+    assert _dep_cve("llama-index-core", "0.12.35") == "CVE-2025-6209"
+    assert _dep_cve("llama-index-core", "0.12.41") is None            # patched
+    # vLLM torch.load RCE is floored at 0.10.2 (older majors unaffected).
+    assert _dep_cve("vllm", "0.11.0") == "CVE-2025-62164"
+    assert _dep_cve("vllm", "0.11.1") is None                         # patched
+    assert _dep_cve("vllm", "0.9.0") is None                          # below the floor
+    # semantic-kernel eval() RCE and pydantic-ai SSRF.
+    assert _dep_cve("semantic-kernel", "1.39.3") == "CVE-2026-26030"
+    assert _dep_cve("semantic-kernel", "1.39.4") is None              # patched
+    assert _dep_cve("pydantic-ai", "1.55.0") == "CVE-2026-25580"
+    assert _dep_cve("pydantic-ai", "1.56.0") is None                 # patched
+    # smolagents XPath injection; the MCP Python SDK DNS-rebind SSRF.
+    assert _dep_cve("smolagents", "1.20.0") == "CVE-2025-11844"
+    assert _dep_cve("mcp", "1.22.0") == "CVE-2025-66416"
+    assert _dep_cve("mcp", "1.23.0") is None                          # patched
+    # Langflow unauth RCE (CISA KEV).
+    assert _dep_cve("langflow", "1.2.0") == "CVE-2025-3248"
+    assert _dep_cve("langflow", "1.3.0") is None                      # patched
+    # The MCP TS SDK id-collision CVE sits just above the ReDoS ceiling (1.25.1).
+    assert _dep_cve("@modelcontextprotocol/sdk", "1.25.2") == "CVE-2026-25536"
 
 
 def test_safe_pin_is_not_flagged(tmp_path):
@@ -52,7 +83,10 @@ def test_langgraph_chain_and_mcp_sdk_cves():
     assert _dep_cve("@langchain/langgraph-checkpoint-redis", "1.0.1") is None
     # ReDoS in the MCP TypeScript SDK's UriTemplate parser, floored at 1.3.0.
     assert _dep_cve("@modelcontextprotocol/sdk", "1.20.0") == "CVE-2026-0621"
-    assert _dep_cve("@modelcontextprotocol/sdk", "1.25.2") is None  # patched
+    # 1.25.2 fixes the ReDoS but is affected by the id-collision CVE below it;
+    # 1.26.0 fixes both.
+    assert _dep_cve("@modelcontextprotocol/sdk", "1.25.2") == "CVE-2026-25536"
+    assert _dep_cve("@modelcontextprotocol/sdk", "1.26.0") is None  # both patched
     assert _dep_cve("@modelcontextprotocol/sdk", "1.2.0") is None   # below the affected floor
 
 
