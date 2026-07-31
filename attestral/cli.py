@@ -1109,6 +1109,31 @@ def compile(path: str, output: str | None, target: str, prior: str | None,
 
 
 @main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("-o", "--output", default=None,
+              help="Write the generated agentgateway credential-broker config to "
+                   "this file. Without it, the plan prints only.")
+def broker(path: str, output: str | None) -> None:
+    """Strip standing credentials and generate a per-call credential broker for PATH.
+
+    For every MCP server that holds a secret in its environment, prints the exact
+    keys to remove and the CB4A Model A broker route (a strict-auth, per-call,
+    provider-scoped token) that replaces them, so the agent process holds no
+    reusable key. With -o, writes the generated agentgateway broker config.
+    Terminal-first: nothing is written without -o.
+    """
+    from attestral.broker import broker_plans, render_broker_config, render_broker_plan
+    model = build_model(path)
+    click.echo(render_broker_plan(model))
+    if output:
+        plans = broker_plans(model)
+        if plans:
+            Path(output).write_text(render_broker_config(plans))
+            click.echo(f"\nwrote {output} - agentgateway credential-broker config "
+                       f"({len(plans)} route(s), default-deny)")
+
+
+@main.command()
 @click.argument("policy_file", type=click.Path(exists=True))
 @click.argument("events_file", type=click.Path(exists=True), required=False)
 @click.option("--fail-on-drift", is_flag=True, help="Exit non-zero on any drift (CI/cron gate).")

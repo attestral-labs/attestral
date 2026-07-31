@@ -63,6 +63,7 @@ DIAGRAM_KEYWORDS = {
     "narrowing.py": "narrowing",
     "policy_verify.py": "prove policy properties",
     "fix.py": "compile-the-fix",
+    "broker.py": "per-call broker",
     "remediate.py": "concrete source edit",
     "drift.py": "drift",
     "attest.py": "conformance attestation",
