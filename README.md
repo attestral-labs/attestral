@@ -291,7 +291,7 @@ flowchart LR
     A --> F["attestral fix<br/><b>compile-the-fix</b>"]
     A --> BR["attestral broker<br/><b>strip a standing credential, generate a per-call broker</b>"]
     A --> C["attestral compile<br/><b>enforce</b><br/>+ --verify: prove policy properties"]
-    C --> D["attestral drift<br/><b>detect</b>"]
+    C --> D["attestral drift<br/><b>detect</b><br/>+ --remediate: propose the tightening<br/>+ --lockdown: instant narrowing-verified containment"]
     D --> AT["attestral attest<br/><b>signed conformance attestation</b><br/>+ --log: append-only transparency log<br/>+ --rekor: public Sigstore Rekor witness"]
     AT -->|"verify offline"| B
     D -->|"design changed?<br/>re-attest"| A
@@ -360,6 +360,7 @@ attestral drift policy.yaml events.jsonl --fail-on-drift
 # drift finding, re-emitted to both targets (proposed only, always a narrowing)
 attestral drift policy.yaml events.jsonl --remediate
 attestral drift policy.yaml events.jsonl --remediate -o mcp-guard-policy.yaml  # + sibling .cedar
+attestral drift policy.yaml events.jsonl --lockdown -o lock   # act: emit lock.lockdown.yaml + .json, exit 2
 
 # ATTEST: bind the reviewed design, both compiled policies, and the runtime drift
 # verdict into ONE signed conformance attestation a third party can verify offline

@@ -1147,11 +1147,18 @@ def broker(path: str, output: str | None) -> None:
               help="PROPOSE the minimal policy-tightening delta that would have prevented "
                    "each drift finding (quarantine the offending server), for both compiled "
                    "targets. Proposed only - a human reviews and re-compiles; it never widens.")
+@click.option("--lockdown", "lockdown_flag", is_flag=True,
+              help="ACT: emit an instant containment - the enforcement policy with every "
+                   "drifted server quarantined - plus a machine-consumable lockdown record. "
+                   "Carries a narrowing proof (only removes capability), so a responder can "
+                   "auto-apply it. Exits 2 when a lockdown is emitted (the responder signal).")
 @click.option("-o", "--output", default=None,
               help="With --remediate: write the re-emitted mcp-guard policy here plus a "
-                   "sibling .cedar. Terminal-first: nothing is written without -o.")
+                   "sibling .cedar. With --lockdown: write <stem>.lockdown.yaml (the policy "
+                   "to apply) and <stem>.lockdown.json (the record). Nothing is written without -o.")
 def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
-          use_stdin: bool, watch: bool, remediate: bool, output: str | None) -> None:
+          use_stdin: bool, watch: bool, remediate: bool, lockdown_flag: bool,
+          output: str | None) -> None:
     """Diff runtime events against a compiled POLICY_FILE.
 
     Batch (default): diff every event in EVENTS_FILE at once. Continuous:
@@ -1250,6 +1257,26 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
             cedar_out = Path(output).with_suffix(".cedar")
             cedar_out.write_text(render_cedar(tightened))
             click.echo(f"  wrote {output}  ·  {cedar_out}")
+
+    if lockdown_flag:
+        from attestral.compile import render_policy_yaml
+        from attestral.lockdown import build_lockdown, lockdown_record, render_lockdown
+        lock = build_lockdown(policy, findings)
+        click.echo("")
+        click.echo(render_lockdown(lock))
+        if lock.triggered and not lock.safe_to_apply:
+            # Fail-closed: a lockdown that would widen the policy is never emitted.
+            sys.exit(1)
+        if output and lock.triggered:
+            enforce = Path(f"{output}.lockdown.yaml")
+            enforce.write_text(render_policy_yaml(lock.policy))
+            record = Path(f"{output}.lockdown.json")
+            record.write_text(json.dumps(lockdown_record(policy, lock), indent=2))
+            click.echo(f"  wrote {enforce}  ·  {record}")
+        if lock.triggered:
+            # The lockdown signal a responder / CI acts on (distinct from the
+            # generic drift gate exit 1), so an orchestrator can apply the policy.
+            sys.exit(2)
 
     if findings and fail_on_drift:
         click.echo("DRIFT: deployment no longer matches the attested design", err=True)
