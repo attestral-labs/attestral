@@ -30,11 +30,12 @@ def main() -> None:
 @click.option("-o", "--output", default="attestral-report",
               help="Write report files to this stem (implies writing files).")
 @click.option("--format", "fmt",
-              type=click.Choice(["md", "json", "both", "sarif", "aibom", "md-summary"]),
+              type=click.Choice(["md", "json", "both", "sarif", "aibom", "md-summary", "html"]),
               default="both",
               help="Report file format when writing: md/json/both/sarif, "
-                   "aibom for a CycloneDX 1.6 AI-BOM of the agent stack, or "
-                   "md-summary for a compact PR/job-summary markdown. "
+                   "aibom for a CycloneDX 1.6 AI-BOM of the agent stack, "
+                   "md-summary for a compact PR/job-summary markdown, or "
+                   "html for an interactive blast-radius threat topography. "
                    "Passing this (or -o) writes files; otherwise results only print.")
 @click.option("--llm", is_flag=True, help="Add LLM threat elicitation (needs ANTHROPIC_API_KEY).")
 @click.option("--fail-on", type=click.Choice(["critical", "high", "medium", "low"]), default=None,
@@ -283,6 +284,10 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             Path(f"{output}.summary.md").write_text(
                 render_pr_summary(model, findings, path, net_new=net_new))
             click.echo(f"wrote {output}.summary.md")
+        if fmt == "html":
+            from attestral.topography import render_topography
+            Path(f"{output}.html").write_text(render_topography(model, findings, path))
+            click.echo(f"wrote {output}.html - interactive threat topography (open in a browser)")
     elif not quiet and not card:
         click.echo("(no files written - add -o to save a report)")
 
