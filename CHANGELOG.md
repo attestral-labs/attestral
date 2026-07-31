@@ -6,6 +6,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Changed
+- **ML canonicalization extended to the invisible-character evasion family, and `chaos` grown to match.**
+  The ML injection tier's hidden-character detection now covers the **Unicode Tags block**
+  (U+E0000-E007F) and **emoji variation selectors** (U+FE00-FE0F, U+E0100-E01EF) - the two
+  steganographic surfaces that carry no visible glyph and reach up to 100% evasion of commercial
+  classifiers (Mindgard 2025, CSA 2026). Their mere presence in a tool description is the signal; a
+  legitimate description never contains a Tags codepoint. This closes the gaps the 2026 robustness
+  sweep flagged; zero-width, bidi (embeddings, overrides, and isolates), word joiners, homoglyph
+  confusables, and base64 payloads were already covered. `attestral chaos` grows from 6 to 13 simulated
+  attacks spanning the whole character-injection family (homoglyph, Tags-block, emoji, base64, bidi,
+  and a ShareLock-style split payload), which is now **caught by the fleet union scoring** no per-tool
+  classifier can match. It keeps one deliberately open, honestly-reported gap - an injection hidden in
+  a tool schema default, which the ML tier does not yet enumerate - so the harness stays a real
+  robustness gate (`--fail-on-miss` trips on it) rather than a rubber stamp. No rule change (pack stays 265).
+
 ### Added
 - **`attestral chaos`: chaos engineering for agents - simulate poisoning attacks against the design.**
   Attestral now actively attacks the configuration it scans. `chaos` applies a deterministic library

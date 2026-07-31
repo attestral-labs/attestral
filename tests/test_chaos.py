@@ -23,20 +23,41 @@ from attestral.ingest import build_model
 FIXTURE = "examples/demo-project"
 
 
-def test_all_poisoning_attacks_are_caught_by_the_review():
-    # Every simulated poisoning class must be flagged - regression confidence for
-    # the rules and the zero-dep ML injection tier at once.
+def test_structural_and_evasion_attacks_are_caught():
+    # Regression confidence: the rules catch the structural poisonings and the
+    # ML tier catches the whole character-injection evasion family at once.
     results = run_chaos(build_model(FIXTURE))
     assert len(results) == len(ATTACKS)
-    missed = [r.attack.id for r in results if not r.caught]
-    assert not missed, f"poisoning attacks slipped through: {missed}"
     by = {r.attack.id: r.by for r in results}
     assert by["shell-smuggle"] == "ATL-103"
     assert by["schema-poisoning"] == "ATL-150"
     assert by["rug-pull"] == "ATL-106"
     assert by["secret-smuggle"] == "ATL-104"
-    assert by["tool-poisoning"] == "ml"          # the injection tier catches it
-    assert by["injection-evasion"] == "ml"       # robust to zero-width obfuscation
+    for evasion in ("tool-poisoning", "injection-evasion", "homoglyph",
+                    "base64-payload", "bidi-override"):
+        assert by[evasion] == "ml", evasion
+
+
+def test_canonicalization_closes_the_invisible_character_gaps():
+    # Regression guard for the canonicalization extension: an injection smuggled
+    # through the Unicode Tags block or emoji variation selectors is caught.
+    by = {r.attack.id: (r.caught, r.by) for r in run_chaos(build_model(FIXTURE))}
+    assert by["tags-stego"] == (True, "ml")
+    assert by["emoji-stego"] == (True, "ml")
+
+
+def test_split_payload_is_caught_only_by_fleet_scoring():
+    # The ShareLock split is invisible per-tool and visible to the system model.
+    by = {r.attack.id: (r.caught, r.by) for r in run_chaos(build_model(FIXTURE))}
+    assert by["split-payload"] == (True, "ml (fleet)")
+
+
+def test_schema_default_is_a_tracked_open_gap():
+    # Honest: the ML tier does not yet enumerate every schema string field, so
+    # this one slips through. The harness reports it rather than hiding it.
+    results = run_chaos(build_model(FIXTURE))
+    missed = [r.attack.id for r in results if not r.caught]
+    assert missed == ["schema-default"]
 
 
 def test_chaos_does_not_mutate_the_original_model():
@@ -50,7 +71,7 @@ def test_report_shape_and_counts():
     results = run_chaos(build_model(FIXTURE))
     rep = chaos_report(results)
     assert rep["attacks"] == len(ATTACKS)
-    assert rep["caught"] == len(ATTACKS)
+    assert rep["caught"] == len(ATTACKS) - 1        # all but the tracked schema-default gap
     assert {r["id"] for r in rep["results"]} == {a.id for a in ATTACKS}
 
 
@@ -74,6 +95,8 @@ def test_cli_chaos_prints_and_writes_json_only_with_output(tmp_path):
     assert data["attacks"] == len(ATTACKS)
 
 
-def test_cli_fail_on_miss_gate_is_green_when_all_caught():
+def test_cli_fail_on_miss_gate_flags_the_open_gap():
+    # --fail-on-miss is a robustness gate; the tracked schema-default gap trips it.
     r = CliRunner().invoke(main, ["chaos", FIXTURE, "--fail-on-miss"])
-    assert r.exit_code == 0, r.output
+    assert r.exit_code == 1
+    assert "schema-default" in r.output

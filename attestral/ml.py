@@ -471,14 +471,22 @@ _WEIGHTS: dict[str, float] = {
 }
 
 # Zero-width & bidi/override control characters used to smuggle instructions
-# past a human reviewer while an LLM still reads them.
+# past a human reviewer while an LLM still reads them. The Tags block and the
+# variation selectors carry no visible glyph at all: an attacker encodes an entire
+# instruction into them, trailing a benign description, and the model reads it
+# while the reviewer sees nothing (up to 100% evasion of commercial classifiers,
+# Mindgard 2025; CSA 2026). Their mere presence in a tool description is the
+# signal - a legitimate description never contains a Tags codepoint.
 _HIDDEN_UNICODE = re.compile(
     "["
-    "\u200b-\u200f"   # zero-width space/joiner, LRM/RLM marks
-    "\u202a-\u202e"   # bidi embedding / override controls
-    "\u2060-\u2064"   # word joiner, invisible separators
-    "\u2066-\u2069"   # bidi isolates (LRI/RLI/FSI/PDI)
-    "\ufeff"           # zero-width no-break space / BOM
+    "\u200b-\u200f"          # zero-width space/joiner, LRM/RLM marks
+    "\u202a-\u202e"          # bidi embedding / override controls
+    "\u2060-\u2064"          # word joiner, invisible separators
+    "\u2066-\u2069"          # bidi isolates (LRI/RLI/FSI/PDI)
+    "\ufeff"                  # zero-width no-break space / BOM
+    "\ufe00-\ufe0f"          # variation selectors (emoji steganography, BMP)
+    "\U000e0000-\U000e007f"  # Unicode Tags block (invisible ASCII smuggling)
+    "\U000e0100-\U000e01ef"  # variation selectors supplement
     "]"
 )
 _HTML_COMMENT = re.compile(r"<!--(.*?)-->", re.DOTALL)
@@ -564,7 +572,8 @@ def _rot13(text: str) -> str:
 
 def _describe_hidden_unicode(text: str) -> str:
     seen = {f"U+{ord(ch):04X}" for ch in text if _HIDDEN_UNICODE.match(ch)}
-    return "zero-width/bidi control chars " + ", ".join(sorted(seen))
+    return "invisible control chars (zero-width / bidi / Tags / variation selectors) " + \
+        ", ".join(sorted(seen))
 
 
 # Cross-script homoglyphs: characters that render like an ASCII letter but carry
