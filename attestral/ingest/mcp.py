@@ -438,6 +438,52 @@ def _external_schema_refs(tools) -> list[str]:
     return refs
 
 
+# JSON Schema fields that carry human-language text an agent reads and can be
+# steered by, hidden BELOW the top-level tool description: a parameter
+# `description`, a `title`, a string `default`/`const`, or an `enum` value. This
+# is the line-jumping / full-schema-poisoning surface (Trail of Bits, CyberArk
+# 2025) - the injection lives in a schema field a scanner that only reads
+# `tool.description` never sees. Enumerated here so the ML tier scores each.
+_SCHEMA_TEXT_KEYS = ("description", "title", "default", "const")
+
+
+def _tool_schema_strings(tools) -> list[dict]:
+    """Every human-language string inside a tool's input schema, as
+    [{name, text}] so the ML tier scores each. The tool's TOP-LEVEL description
+    is handled by `_tool_descriptions`; this collects only schema-internal
+    strings (nested descriptions/titles/defaults/consts/enum values), so the two
+    never double-count."""
+    out: list[dict] = []
+
+    def _walk(node, tname: str) -> None:
+        if isinstance(node, dict):
+            for k in _SCHEMA_TEXT_KEYS:
+                v = node.get(k)
+                if isinstance(v, str) and v.strip():
+                    out.append({"name": tname, "text": v})
+            enum = node.get("enum")
+            if isinstance(enum, list):
+                for e in enum:
+                    if isinstance(e, str) and e.strip():
+                        out.append({"name": tname, "text": e})
+            for key, v in node.items():
+                if key not in _SCHEMA_TEXT_KEYS and key != "enum":
+                    _walk(v, tname)
+        elif isinstance(node, list):
+            for v in node:
+                _walk(v, tname)
+
+    items = tools if isinstance(tools, list) else (
+        list(tools.values()) if isinstance(tools, dict) else [])
+    names = list(tools.keys()) if isinstance(tools, dict) else None
+    for i, t in enumerate(items):
+        if isinstance(t, dict):
+            tname = str(t.get("name", names[i] if names else i))
+            for k in _TOOL_SCHEMA_KEYS:
+                _walk(t.get(k), tname)
+    return out
+
+
 def _header_mapped_params(tools) -> list[str]:
     """Every tool parameter mapped into a transport HTTP header via the
     `x-mcp-header` schema extension (MCP SEP-2243, Final). The client mirrors
@@ -847,6 +893,9 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         tool_descs = _tool_descriptions(cfg.get("tools"))
         if tool_descs:
             attrs["_tool_descriptions"] = tool_descs
+        schema_strings = _tool_schema_strings(cfg.get("tools"))
+        if schema_strings:
+            attrs["_tool_schema_strings"] = schema_strings
         tool_names = _tool_names(cfg.get("tools"))
         if tool_names:
             attrs["_tool_names"] = tool_names

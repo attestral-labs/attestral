@@ -7,6 +7,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Changed
+- **Schema-string enumeration closes the line-jumping gap: the ML tier now scores every string in a
+  tool's input schema, not just the top-level description.** An injection hidden in a parameter
+  description, a schema `default`/`const`, or an `enum` value - the line-jumping / full-schema-poisoning
+  surface (Trail of Bits, CyberArk 2025) that fires at `tools/list` before any approval gate - was
+  invisible to a scanner that only read `tool.description`. The MCP ingester now walks each tool's
+  input schema and emits every human-language string as `_tool_schema_strings`, which the ML tier
+  scores like any other tool language (and which joins the cross-tool reassembly pool). This flips the
+  `chaos` `schema-default` attack from a tracked gap to CAUGHT. To keep the harness honest rather than
+  a rubber stamp, `chaos` now carries a genuine open frontier - a semantic `paraphrase` that the
+  zero-dep heuristic tier cannot see (the model tier `--ml` recovers it) - so `--fail-on-miss` still
+  trips on a real, documented limitation. New `tests/test_schema_string_enum.py`. No rule change (pack stays 265).
 - **ML canonicalization extended to the invisible-character evasion family, and `chaos` grown to match.**
   The ML injection tier's hidden-character detection now covers the **Unicode Tags block**
   (U+E0000-E007F) and **emoji variation selectors** (U+FE00-FE0F, U+E0100-E01EF) - the two
