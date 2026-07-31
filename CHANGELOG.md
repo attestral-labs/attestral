@@ -18,6 +18,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   graph a team can actually parse. Terminal-first is preserved: nothing is written without `-o`. The
   embedded data escapes HTML-significant characters so a poisoned config's component name can never
   break out of the page. New `attestral/topography.py`, 8 tests. No rule change (pack stays 265).
+- **`attestral broker`: strip a standing credential, generate the just-in-time broker that replaces
+  it.** The credential rules (ATL-104/110/112/115/164/168) detect a server holding a standing,
+  agent-readable secret; this turns detection into the fix. For every MCP server that carries a
+  secret in its environment, `broker` prints the exact env keys to strip and generates a CB4A Model A
+  agentgateway route that mints a short-lived, per-call token scoped to the providers that server
+  actually needs (an intent-bound token, not a blanket grant), so the agent process holds no reusable
+  key. The generated config is default-deny (a server not listed is not routable), uses strict
+  inbound auth, and references the client secret rather than inlining it (so it never reintroduces the
+  very thing ATL-167 flags). It is the active-governor half of the credential layer: detect, then
+  generate the control that removes the standing key. Terminal-first: the plan prints; the config is
+  written only with `-o`. New `attestral/broker.py`, 6 tests. No rule change (pack stays 265).
 
 ### Changed
 - **ATL-147 (binds to all interfaces) made precise, and now covers IPv6 and config fields.** The

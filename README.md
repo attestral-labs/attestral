@@ -289,6 +289,7 @@ flowchart LR
     A["attestral scan<br/><b>attest</b>"] --> B["attestral verify<br/><b>prove</b>"]
     A --> R["attestral remediate<br/><b>concrete source edit</b>"]
     A --> F["attestral fix<br/><b>compile-the-fix</b>"]
+    A --> BR["attestral broker<br/><b>strip a standing credential, generate a per-call broker</b>"]
     A --> C["attestral compile<br/><b>enforce</b><br/>+ --verify: prove policy properties"]
     C --> D["attestral drift<br/><b>detect</b>"]
     D --> AT["attestral attest<br/><b>signed conformance attestation</b><br/>+ --log: append-only transparency log<br/>+ --rekor: public Sigstore Rekor witness"]
@@ -401,6 +402,7 @@ attestral scan examples/demo-project -o review        # attest  -> review.md + r
 attestral verify review.json                          # prove   -> chain VALID
 attestral remediate examples/demo-project             # remediate -> concrete source edit per finding
 attestral fix examples/demo-project                   # fix     -> enforceable control per finding
+attestral broker examples/vulnerable-agent            # broker  -> strip standing creds, generate a per-call broker
 attestral compile examples/demo-project -o policy.yaml # enforce -> default-deny policy
 attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on-drift  # detect
 ```
