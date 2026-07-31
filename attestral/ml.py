@@ -163,6 +163,17 @@ def _collect_component_surfaces(c: Component, out: list[TextSurface]) -> None:
             out.append(
                 TextSurface(c.id, c.source, f"tool '{tname}' description", str(tdesc), c.type)
             )
+    # Schema-internal strings (parameter descriptions, titles, defaults, enum
+    # values): the line-jumping / full-schema-poisoning surface an attacker uses
+    # to hide an instruction below the top-level tool description. Scored like a
+    # tool description so it also joins the cross-tool reassembly pool.
+    for t in c.attr("_tool_schema_strings") or []:
+        tname = t.get("name", "") if isinstance(t, dict) else ""
+        ttext = t.get("text", "") if isinstance(t, dict) else str(t)
+        if ttext:
+            out.append(
+                TextSurface(c.id, c.source, f"tool '{tname}' schema field", str(ttext), c.type)
+            )
     # MCP Apps HTML resource bodies (issue #100): server-authored content
     # rendered in the agent host, reduced to the text an agent can be steered
     # by. The label deliberately does NOT start with "tool '", so UI bodies

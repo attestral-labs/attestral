@@ -52,12 +52,19 @@ def test_split_payload_is_caught_only_by_fleet_scoring():
     assert by["split-payload"] == (True, "ml (fleet)")
 
 
-def test_schema_default_is_a_tracked_open_gap():
-    # Honest: the ML tier does not yet enumerate every schema string field, so
-    # this one slips through. The harness reports it rather than hiding it.
+def test_schema_default_injection_is_caught_via_schema_enumeration():
+    # The ingester enumerates every schema string, so an injection hidden in a
+    # tool's schema default (not the top-level description) is scored and caught.
+    by = {r.attack.id: (r.caught, r.by) for r in run_chaos(build_model(FIXTURE))}
+    assert by["schema-default"] == (True, "ml")
+
+
+def test_paraphrase_is_the_honest_open_frontier():
+    # The semantic-rewrite class the zero-dep heuristic tier cannot see is the one
+    # tracked slip-through; the harness reports it rather than hiding it.
     results = run_chaos(build_model(FIXTURE))
     missed = [r.attack.id for r in results if not r.caught]
-    assert missed == ["schema-default"]
+    assert missed == ["paraphrase"]
 
 
 def test_chaos_does_not_mutate_the_original_model():
@@ -71,7 +78,7 @@ def test_report_shape_and_counts():
     results = run_chaos(build_model(FIXTURE))
     rep = chaos_report(results)
     assert rep["attacks"] == len(ATTACKS)
-    assert rep["caught"] == len(ATTACKS) - 1        # all but the tracked schema-default gap
+    assert rep["caught"] == len(ATTACKS) - 1        # all but the tracked paraphrase frontier
     assert {r["id"] for r in rep["results"]} == {a.id for a in ATTACKS}
 
 
@@ -96,7 +103,7 @@ def test_cli_chaos_prints_and_writes_json_only_with_output(tmp_path):
 
 
 def test_cli_fail_on_miss_gate_flags_the_open_gap():
-    # --fail-on-miss is a robustness gate; the tracked schema-default gap trips it.
+    # --fail-on-miss is a robustness gate; the tracked paraphrase frontier trips it.
     r = CliRunner().invoke(main, ["chaos", FIXTURE, "--fail-on-miss"])
     assert r.exit_code == 1
-    assert "schema-default" in r.output
+    assert "paraphrase" in r.output
