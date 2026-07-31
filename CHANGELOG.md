@@ -7,6 +7,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral drift --lockdown`: instant, narrowing-verified runtime containment.** Where
+  `--remediate` PROPOSES a design tightening a human re-compiles, `--lockdown` turns a drift finding
+  into an enforcement ACTION: it quarantines every server that diverged from the attested design
+  (deny) and emits both the enforcement policy to apply now (`<stem>.lockdown.yaml`) and a
+  machine-consumable lockdown record (`<stem>.lockdown.json`, carrying what tripped it, the quarantined
+  servers, and the before/after policy digests), then exits 2 so a production responder - a webhook, a
+  sidecar, a CI job - can apply it the moment drift is seen. What licenses automatic application, and
+  what a bare "kill the server" script cannot claim, is a narrowing proof: the locked-down policy only
+  ever REMOVES capability from the reviewed design, never adds it (`narrowing.classify` must not return
+  EXPANSION, or the lockdown is refused), so applying it can only fail safe - a compromised runtime
+  that trips a lockdown can, at worst, deny itself. This closes the compile-to-drift loop into a real
+  enforcement action, the spine of the active-governor direction. New `attestral/lockdown.py`, 5
+  tests. No rule change (pack stays 265).
 - **`attestral scan --format html`: an interactive blast-radius threat topography.** A compliance
   report tells you a finding exists; this renders what it can *reach*. The new format writes one
   self-contained, offline HTML file (no external requests, theme-aware) that draws every agent tool

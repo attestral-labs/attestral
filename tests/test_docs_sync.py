@@ -66,6 +66,7 @@ DIAGRAM_KEYWORDS = {
     "broker.py": "per-call broker",
     "remediate.py": "concrete source edit",
     "drift.py": "drift",
+    "lockdown.py": "lockdown",
     "attest.py": "conformance attestation",
 }
 # Wiring, not pipeline stages: no diagram box expected.
