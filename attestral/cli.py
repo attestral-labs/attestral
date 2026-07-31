@@ -1134,6 +1134,35 @@ def broker(path: str, output: str | None) -> None:
 
 
 @main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("-o", "--output", default=None,
+              help="Write the chaos report JSON here. Terminal-first: nothing is written without -o.")
+@click.option("--fail-on-miss", is_flag=True,
+              help="Exit non-zero if any simulated poisoning attack slips through (CI robustness gate).")
+def chaos(path: str, output: str | None, fail_on_miss: bool) -> None:
+    """Simulate poisoning attacks against PATH's design and report what the review catches.
+
+    Chaos engineering for agents: applies a deterministic library of poisoning
+    mutations (smuggle a shell tool, inject a prompt-injection tool description,
+    poison a schema with an external $ref, flip a pin to @latest, add a
+    secret-holding server) to a copy of the attested model, re-runs Attestral's
+    own rules and ML injection tier over each mutant, and reports CAUGHT vs
+    slipped-through. Offline and deterministic - no API key, no eval.
+    """
+    from attestral.chaos import chaos_report, render_chaos, run_chaos
+    model = build_model(path)
+    results = run_chaos(model)
+    click.echo(render_chaos(results))
+    if output:
+        Path(output).write_text(json.dumps(chaos_report(results), indent=2))
+        click.echo(f"\nwrote {output}")
+    if fail_on_miss and any(not r.caught for r in results):
+        missed = ", ".join(r.attack.id for r in results if not r.caught)
+        click.echo(f"\nGate: simulated attack(s) slipped through: {missed}", err=True)
+        sys.exit(1)
+
+
+@main.command()
 @click.argument("policy_file", type=click.Path(exists=True))
 @click.argument("events_file", type=click.Path(exists=True), required=False)
 @click.option("--fail-on-drift", is_flag=True, help="Exit non-zero on any drift (CI/cron gate).")

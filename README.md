@@ -298,6 +298,7 @@ flowchart LR
     A --> V["attestral validate<br/><b>show the path is reachable</b><br/>+ proof-of-exploit per path (gated)"]
     A --> DF["attestral diff<br/><b>PR security-impact delta</b>"]
     A --> WI["attestral whatif<br/><b>counterfactual: what-if I change this</b>"]
+    A --> CH["attestral chaos<br/><b>simulate poisoning attacks, report what the review catches</b>"]
     style A fill:#96222E,color:#fff
     style B fill:#1F6A4A,color:#fff
     style F fill:#96222E11,stroke:#96222E
@@ -404,6 +405,7 @@ attestral verify review.json                          # prove   -> chain VALID
 attestral remediate examples/demo-project             # remediate -> concrete source edit per finding
 attestral fix examples/demo-project                   # fix     -> enforceable control per finding
 attestral broker examples/vulnerable-agent            # broker  -> strip standing creds, generate a per-call broker
+attestral chaos examples/demo-project                 # chaos   -> simulate poisoning attacks, report caught vs missed
 attestral compile examples/demo-project -o policy.yaml # enforce -> default-deny policy
 attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on-drift  # detect
 ```

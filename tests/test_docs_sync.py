@@ -41,6 +41,7 @@ DIAGRAM_KEYWORDS = {
     "whatif.py": "what-if",
     "redteam.py": "show the path is reachable",
     "selfplay.py": "proof-of-exploit",
+    "chaos.py": "chaos",
     "manifest.py": "manifest",
     "ifc.py": "information-flow lattice",
     "ml.py": "ML",
