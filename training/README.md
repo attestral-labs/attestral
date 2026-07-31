@@ -168,3 +168,63 @@ Whatever you train, pin it. Record the base revision, the dataset hash, and the
 output revision, and pass `--ml-revision` / `--ml-model` so the classifier that
 reviewed a design is provably the one that ran - the same attestation posture
 as the rest of Attestral.
+
+---
+
+## Research directions (2026)
+
+A survey of the 2025-2026 literature on injection detection, run to decide how to
+expand this layer. The through-line: **the classifier is a signal, not a wall,
+and the real risk on tool descriptions is over-defense, not under-defense.**
+Chatbot-trained detectors bypass at 90-100% once an attacker adapts
+([arXiv 2504.11168](https://arxiv.org/abs/2504.11168),
+[2510.09023](https://arxiv.org/abs/2510.09023)) *and* over-fire on the
+imperative-but-benign prose real tool descriptions are written in, dropping agent
+utility to ~41% on AgentDojo ([arXiv 2510.05244](https://arxiv.org/html/2510.05244v1)).
+So the priority is not a bigger net; it is measuring over-defense and collapsing
+the evasion families before scoring.
+
+**Do first (measure before you train).** Build an on-domain eval set: pair the
+label model's own `_IMPERATIVE` trigger tokens with real benign MCP tool
+descriptions (a NotInject-style false-positive slice) and add
+[MCPTox](https://arxiv.org/abs/2508.14925) (1,312 tool-poisoning cases over 45
+real MCP servers) and [InjecAgent](https://arxiv.org/abs/2403.02691) as
+tool-description-shaped inputs. This turns every model choice from "trust the
+vendor's F1 on chat" into a reproducible number on our surface. It is the
+prerequisite for the model decision below.
+
+**Model candidates** (the gate is licensing - Attestral is Apache-2.0 open-core;
+do not bundle a non-OSI model):
+
+| Candidate | License | Note |
+|---|---|---|
+| `protectai/deberta-v3-base-prompt-injection-v2` (current) | Apache-2.0 | The honest baseline. Keep as default until an on-domain eval says otherwise. |
+| `codeintegrity-ai/promptguard` (ModernBERT, 8192 ctx) | Apache-2.0 | Only license-clean model that beats protectai on paper. Primary swap *candidate*, gated on the eval above. |
+| Meta Prompt Guard 2 (86M / 22M) | Llama 4 Community | Best metrics + the only agentic eval (AgentDojo), but the license blocks redistribution. Expose as an optional user-supplied model slot, never bundled. |
+| `testsavantai/prompt-injection-defender` (ships ONNX) | verify | Closest architectural drop-in to the onnx tier; confirm the license before use. |
+
+**Keep the tokenizer.** DeBERTa-v3 uses a Unigram/SentencePiece tokenizer, which
+is immune to the TokenBreak single-character attack that bypasses BPE/WordPiece
+guards ([arXiv 2506.07948](https://arxiv.org/abs/2506.07948)). A swap to a
+BPE/WordPiece model would reintroduce that gap; hold a TokenBreak negative-control
+test to catch a regression.
+
+**Hardening (bigger than any model swap).** A canonicalization pass (NFKC, strip
+zero-width / Unicode Tags block / variation selectors / bidi controls, fold
+homoglyph confusables) run *before* both tiers collapses the invisible-character
+evasion family wholesale; and cross-tool **union scoring** is the only defense to
+threshold/split payloads ([ShareLock](https://arxiv.org/abs/2606.27027), 94.1%
+success), which no per-tool classifier can see and the system model can. The
+[`attestral chaos`](../README.md) harness is where these are exercised as
+attacks; extend it with the split-payload, homoglyph, Tags-block, emoji-VS,
+base64, and schema-default cases and let the misses drive the hardening.
+
+**Fine-tune / fusion (once the eval exists).** Hard-negative mining of
+benign-but-imperative tool descriptions (the "Mitigating Over-defense for Free"
+trick, [arXiv 2410.22770](https://arxiv.org/abs/2410.22770)) is the highest-value
+fine-tune for our false-positive problem; gate the LLM judge behind the calibrated
+classifier so it only runs on the uncertain band (cost + the no-API-key default);
+and distill the judge into DeBERTa offline by running it as a labeling function
+over the `review.jsonl` abstain queue. The barbell holds: our moat is the MCP
+tool-description *distribution* and the judge we already have, not out-building a
+funded lab on generic jailbreak data.
