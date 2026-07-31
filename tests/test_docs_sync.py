@@ -56,6 +56,7 @@ DIAGRAM_KEYWORDS = {
     "rekor.py": "Rekor",
     "memory.py": "signed-provenance audit",
     "sarif.py": "SARIF",
+    "topography.py": "Topography",
     "aibom.py": "AI-BOM",
     "report_terminal.py": "Terminal",
     "compile.py": "compile",

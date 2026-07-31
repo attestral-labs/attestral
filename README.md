@@ -84,6 +84,7 @@ attestral scan .                          # print only - nothing is written
 attestral scan . -o review                # write review.md + review.json
 attestral scan . --format sarif -o out    # write out.sarif for GitHub Code Scanning
 attestral scan . --format aibom -o inv    # write inv.cdx.json - a CycloneDX 1.6 AI-BOM
+attestral scan . --format html -o topo    # write topo.html - interactive blast-radius topography
 attestral scan . --quiet --fail-on high   # CI: just the summary + gate line, exit 1 on high+
 attestral scan . --baseline attestral-baseline.json   # first run records; later runs show only net-new
 ```
@@ -152,7 +153,7 @@ flowchart TB
     TA --> W
     W --> BL["Baseline<br/>diff-aware: report only net-new findings"]
     BL --> EV["3 · Evidence<br/>SHA-256 hash chain · verify offline<br/>+ optional Ed25519/DSSE signed head"]
-    EV --> OUT["Output: Terminal (default, writes nothing) · Markdown · JSON · <b>SARIF</b> (Code Scanning) · <b>AI-BOM</b> (CycloneDX 1.6)"]
+    EV --> OUT["Output: Terminal (default, writes nothing) · Markdown · JSON · <b>SARIF</b> (Code Scanning) · <b>AI-BOM</b> (CycloneDX 1.6) · <b>Threat Topography</b> (interactive HTML)"]
     style L1 fill:#0a7d3611,stroke:#0a7d36
     style L3 fill:#96222E11,stroke:#96222E
 ```

@@ -6,6 +6,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **`attestral scan --format html`: an interactive blast-radius threat topography.** A compliance
+  report tells you a finding exists; this renders what it can *reach*. The new format writes one
+  self-contained, offline HTML file (no external requests, theme-aware) that draws every agent tool
+  surface as a node sized by its blast radius and, on click, animates the if-compromised wavefront to
+  the capability classes it can drive (cloud, shell, filesystem, network, memory, ...). It is the
+  visual counterpart to `attestral blast-radius`, built from the same system model, reachability, and
+  rule findings, and it surfaces the fleet-level lethal-trifecta finding no single node owns. This is
+  the first cut of a "visual threat topography" - turning the text report into the clickable attack
+  graph a team can actually parse. Terminal-first is preserved: nothing is written without `-o`. The
+  embedded data escapes HTML-significant characters so a poisoned config's component name can never
+  break out of the page. New `attestral/topography.py`, 8 tests. No rule change (pack stays 265).
+
 ### Changed
 - **ATL-147 (binds to all interfaces) made precise, and now covers IPv6 and config fields.** The
   rule substring-matched `0.0.0.0` in the launch args, so it false-positived on a deliberate bind to
