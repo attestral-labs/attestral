@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral chaos`: chaos engineering for agents - simulate poisoning attacks against the design.**
+  Attestral now actively attacks the configuration it scans. `chaos` applies a deterministic library
+  of poisoning mutations - smuggle in a shell tool, inject a prompt-injection tool description, poison
+  a tool schema with an external `$ref`, flip a pin to a mutable `@latest` tag, add a secret-holding
+  server, and obfuscate an injection with zero-width characters - to a copy of the attested model,
+  re-runs Attestral's own detection (the deterministic rules plus the zero-dep ML injection tier) over
+  each mutant, and reports which attacks the review would CATCH and which slip through. A caught attack
+  is regression confidence; a slip-through is an honest coverage gap. Everything is deterministic and
+  offline (the mutations are a fixed adversarial library, not model output), so it runs with no API
+  key and no eval, at the same tier as the default scan - an optional LLM-driven attack generator can
+  layer on later, exactly as `ml.py` layers heavier tiers over the heuristic one. `--fail-on-miss`
+  makes it a CI robustness gate. New `attestral/chaos.py`, 6 tests. No rule change (pack stays 265).
 - **`attestral drift --lockdown`: instant, narrowing-verified runtime containment.** Where
   `--remediate` PROPOSES a design tightening a human re-compiles, `--lockdown` turns a drift finding
   into an enforcement ACTION: it quarantines every server that diverged from the attested design
