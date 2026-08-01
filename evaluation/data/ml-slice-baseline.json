@@ -31,7 +31,7 @@
     "recall": null,
     "fp_rate": 0.0,
     "n_pos": 0,
-    "n_neg": 32,
+    "n_neg": 48,
     "false_positives": 0
   }
 }
