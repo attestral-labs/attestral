@@ -1185,12 +1185,25 @@ def chaos(path: str, output: str | None, fail_on_miss: bool) -> None:
                    "drifted server quarantined - plus a machine-consumable lockdown record. "
                    "Carries a narrowing proof (only removes capability), so a responder can "
                    "auto-apply it. Exits 2 when a lockdown is emitted (the responder signal).")
+@click.option("--enforce", "enforce_path", type=click.Path(), default=None,
+              help="The LIVE enforcement policy file - the path a running mcp-guard reads. "
+                   "With --lockdown, every narrowing-verified lockdown is pushed here "
+                   "atomically (temp file + rename) and journaled to a hash-chained "
+                   "<ENFORCE>.journal.jsonl. A lockdown that would widen is refused and "
+                   "never written.")
+@click.option("--reload-cmd", default=None,
+              help="Command run after each successful push to --enforce (e.g. a container "
+                   "HUP so the guard re-reads its policy). Run without a shell; a non-zero "
+                   "exit or failed spawn is a warning line, never fatal to the monitor.")
 @click.option("-o", "--output", default=None,
               help="With --remediate: write the re-emitted mcp-guard policy here plus a "
                    "sibling .cedar. With --lockdown: write <stem>.lockdown.yaml (the policy "
-                   "to apply) and <stem>.lockdown.json (the record). Nothing is written without -o.")
+                   "to apply) and <stem>.lockdown.json (the record); streaming without "
+                   "--enforce keeps the journal at <stem>.lockdown.journal.jsonl. Nothing "
+                   "is written without -o or --enforce.")
 def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
           use_stdin: bool, watch: bool, remediate: bool, lockdown_flag: bool,
+          enforce_path: str | None, reload_cmd: str | None,
           output: str | None) -> None:
     """Diff runtime events against a compiled POLICY_FILE.
 
@@ -1206,20 +1219,104 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
     re-emits it to both mcp-guard and Cedar. It only ever narrows the policy; it
     never widens the design to match the drift, so a compromised runtime cannot
     drive its own policy. Proposed only - a human approves and re-compiles.
+
+    `--lockdown --enforce` closes it LIVE: in streaming mode, each time the
+    quarantine set grows, the narrowing-verified lockdown is pushed atomically to
+    the enforcement policy the guard reads, journaled to a hash-chained
+    <ENFORCE>.journal.jsonl, and `--reload-cmd` (if given) is run so the guard
+    picks it up. Detection never moves: every event is still evaluated against
+    the ORIGINAL attested POLICY_FILE, so drift is always measured against the
+    reviewed design while enforcement only ever narrows the runtime. A lockdown
+    that fails the narrowing proof is REFUSED and journaled, never pushed, and
+    the monitor keeps running.
     """
     import yaml as _yaml
     from attestral.drift import DriftMonitor, detect_drift, load_events
+    if enforce_path and not lockdown_flag:
+        raise click.UsageError("--enforce only acts on lockdowns; pass --lockdown as well.")
+    if reload_cmd and not enforce_path:
+        raise click.UsageError("--reload-cmd fires after a push to --enforce; pass --enforce.")
     policy = _yaml.safe_load(Path(policy_file).read_text())
 
     def _emit(f) -> None:
         click.echo(f"  [{f.severity.value.upper():8}] {f.rule_id}  {f.title}  ({f.component_id})")
 
+    def _run_reload() -> None:
+        """Run the --reload-cmd hook after a successful push. Never fatal: a
+        non-zero exit or a failed spawn is a warning line and the monitor
+        continues - containment must not die on a flaky hook."""
+        if not reload_cmd:
+            return
+        import shlex
+        import subprocess
+        try:
+            proc = subprocess.run(shlex.split(reload_cmd), check=False)
+            if proc.returncode != 0:
+                click.echo(f"  warning: --reload-cmd exited {proc.returncode} "
+                           "(monitor continues)", err=True)
+        except (OSError, ValueError) as exc:
+            click.echo(f"  warning: --reload-cmd failed to start: {exc} "
+                       "(monitor continues)", err=True)
+
     if use_stdin or watch:
         monitor = DriftMonitor(policy)
         seen = drifts = 0
+        stream_findings: list = []      # every drift finding seen so far, accumulated
+        last_pushed: set[str] | None = None
+        last_refused: set[str] | None = None
+        pushed_any = False
+        gate_tripped = False
+
+        journal_path = None
+        if lockdown_flag:
+            if enforce_path:
+                journal_path = Path(f"{enforce_path}.journal.jsonl")
+            elif output:
+                journal_path = Path(f"{output}.lockdown.journal.jsonl")
+            # neither --enforce nor -o: terminal-first, nothing is written.
+
+        def _contain(new_findings) -> None:
+            """Rebuild the lockdown from every finding seen so far and act only
+            when the quarantine set changed. Drift is still measured against the
+            ORIGINAL attested policy (the monitor never re-reads the enforcement
+            file); enforcement only ever narrows the runtime."""
+            nonlocal last_pushed, last_refused, pushed_any
+            from attestral.lockdown import (build_lockdown, journal_append,
+                                            lockdown_journal_entry, push_lockdown)
+            stream_findings.extend(new_findings)
+            lock = build_lockdown(policy, stream_findings)
+            if not lock.triggered:
+                return
+            qset = set(lock.quarantined)
+            names = ", ".join(lock.quarantined)
+            if not lock.safe_to_apply:
+                # Fail-closed: never widen, never die. Journal the refusal and
+                # keep monitoring.
+                if qset != last_refused:
+                    last_refused = qset
+                    click.echo(f"  REFUSED lockdown of {names}: the tightening would "
+                               "widen the policy - not pushed, monitoring continues")
+                    if journal_path:
+                        journal_append(journal_path,
+                                       lockdown_journal_entry(policy, lock, "refused"))
+                return
+            if qset == last_pushed:
+                return  # idempotent: the same offenders re-drifting is one push
+            last_pushed = qset
+            pushed_any = True
+            if enforce_path:
+                push_lockdown(lock, enforce_path)
+                click.echo(f"  LOCKDOWN pushed: quarantined {names} -> {enforce_path}")
+            else:
+                click.echo(f"  LOCKDOWN pushed: quarantined {names} "
+                           "(no --enforce target - responder signal only)")
+            if journal_path:
+                journal_append(journal_path, lockdown_journal_entry(policy, lock, "push"))
+            if enforce_path:
+                _run_reload()
 
         def _feed(lines):
-            nonlocal seen, drifts
+            nonlocal seen, drifts, gate_tripped
             for line in lines:
                 line = line.strip()
                 if not line:
@@ -1229,16 +1326,31 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
                 except json.JSONDecodeError:
                     continue
                 seen += 1
-                for f in monitor.observe(ev):
+                new = monitor.observe(ev)
+                for f in new:
                     drifts += 1
                     _emit(f)
-                    if fail_on_drift:
+                if not new:
+                    continue
+                if lockdown_flag:
+                    _contain(new)
+                if fail_on_drift:
+                    if lockdown_flag:
+                        # The sidecar's job is containment: note the gate, keep
+                        # monitoring, settle the exit code at stream end.
+                        gate_tripped = True
+                    else:
                         click.echo("DRIFT: deployment no longer matches the attested design", err=True)
                         sys.exit(1)
 
         if use_stdin:
             _feed(sys.stdin)
             click.echo(f"{seen} events · {drifts} drift findings (stream ended)", err=True)
+            if pushed_any:
+                sys.exit(2)  # the responder signal, same as batch --lockdown
+            if gate_tripped:
+                click.echo("DRIFT: deployment no longer matches the attested design", err=True)
+                sys.exit(1)
         else:
             import time
             click.echo(f"watching {events_file} for drift (Ctrl-C to stop)…", err=True)
@@ -1293,12 +1405,17 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
 
     if lockdown_flag:
         from attestral.compile import render_policy_yaml
-        from attestral.lockdown import build_lockdown, lockdown_record, render_lockdown
+        from attestral.lockdown import (build_lockdown, journal_append,
+                                        lockdown_journal_entry, lockdown_record,
+                                        push_lockdown, render_lockdown)
         lock = build_lockdown(policy, findings)
         click.echo("")
         click.echo(render_lockdown(lock))
+        journal_path = Path(f"{enforce_path}.journal.jsonl") if enforce_path else None
         if lock.triggered and not lock.safe_to_apply:
             # Fail-closed: a lockdown that would widen the policy is never emitted.
+            if journal_path:
+                journal_append(journal_path, lockdown_journal_entry(policy, lock, "refused"))
             sys.exit(1)
         if output and lock.triggered:
             enforce = Path(f"{output}.lockdown.yaml")
@@ -1306,6 +1423,12 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
             record = Path(f"{output}.lockdown.json")
             record.write_text(json.dumps(lockdown_record(policy, lock), indent=2))
             click.echo(f"  wrote {enforce}  ·  {record}")
+        if enforce_path and lock.triggered:
+            push_lockdown(lock, enforce_path)
+            click.echo(f"  LOCKDOWN pushed: quarantined {', '.join(lock.quarantined)} "
+                       f"-> {enforce_path}")
+            journal_append(journal_path, lockdown_journal_entry(policy, lock, "push"))
+            _run_reload()
         if lock.triggered:
             # The lockdown signal a responder / CI acts on (distinct from the
             # generic drift gate exit 1), so an orchestrator can apply the policy.
