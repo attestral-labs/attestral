@@ -6,6 +6,23 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **The drift containment loop now runs live: `attestral drift --watch/--stdin --lockdown --enforce PATH`
+  pushes narrowing-verified lockdowns to the enforcement point the moment drift crosses.** Streaming
+  detection could already see a rug-pull live, but containment was batch-only; now the sidecar
+  rebuilds the quarantine lockdown as findings accumulate, re-verifies the narrowing proof, and
+  atomically writes the tightened policy to the file a running mcp-guard reads, then fires an
+  optional `--reload-cmd` hook (shell-free, non-fatal). Detection never moves: every event is still
+  judged against the original attested policy, so a compromised runtime cannot drive its own policy,
+  and a push happens only when the quarantine set grows (idempotent under repeat drift). Every push
+  or refusal is appended to a hash-chained, append-only `<enforce>.journal.jsonl` with before/after
+  policy digests; `lockdown.verify_journal` detects any edited, removed, or reordered entry - the
+  evidence-chain contract applied to containment actions. A lockdown that fails the narrowing proof
+  is refused, journaled, and never written, and the monitor keeps running. Stream end exits 2 when a
+  lockdown was pushed (the responder signal); batch mode honors `--enforce` with the same journal.
+  Terminal-first holds: no `--enforce` and no `-o` means nothing touches disk. 9 new tests.
+  No rule change (pack stays 265).
+
 ### Changed
 - **The LLM judge is now cascade-gated: it is spent only where it changes the answer.** `--judge`
   called the model on every unwaived finding; now the cheap deterministic and ML tiers run first, and

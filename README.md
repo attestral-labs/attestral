@@ -291,7 +291,7 @@ flowchart LR
     A --> F["attestral fix<br/><b>compile-the-fix</b>"]
     A --> BR["attestral broker<br/><b>strip a standing credential, generate a per-call broker</b>"]
     A --> C["attestral compile<br/><b>enforce</b><br/>+ --verify: prove policy properties"]
-    C --> D["attestral drift<br/><b>detect</b><br/>+ --remediate: propose the tightening<br/>+ --lockdown: instant narrowing-verified containment"]
+    C --> D["attestral drift<br/><b>detect</b><br/>+ --remediate: propose the tightening<br/>+ --lockdown: instant narrowing-verified containment<br/>+ --enforce: push it to the live enforcement point"]
     D --> AT["attestral attest<br/><b>signed conformance attestation</b><br/>+ --log: append-only transparency log<br/>+ --rekor: public Sigstore Rekor witness"]
     AT -->|"verify offline"| B
     D -->|"design changed?<br/>re-attest"| A
@@ -309,6 +309,8 @@ flowchart LR
 Two commands answer "so what do I do about this finding" from both ends. `attestral remediate` reads the rule's own matcher and the component's real value and prints the **concrete source edit** to make: the boolean flag to flip (`set publicly_accessible = false`), the bad value to replace (`http://… -> https://…`), the control to add, tied to the file it lives in. `attestral fix` compiles the exact **enforceable control** that closes the finding, bound to the review's chain head, with a verification verdict: a fleet finding is proven closed by re-synthesizing the model without the isolated capability (`re-synthesized`), and a per-server finding gets the mcp-guard constraint that governs it at the proxy (`enforced-at-proxy`). A remediation that is *also* an enforceable runtime control is the payoff of the attest-compile-drift loop, and the thing a linter structurally cannot offer.
 
 `attestral drift --remediate` closes the loop the other way, the self-healing half: **detect -> propose the tightening -> a human approves -> re-compile.** A drift finding means the runtime diverged from the *reviewed* design, so remediation synthesizes the minimal policy delta that would have prevented each finding - quarantine the offending server (`allow: false`, carrying the DRF id as the reason) - and re-emits it to **both** compiled targets (mcp-guard and Cedar). The safety principle is load-bearing and non-negotiable: it only ever **narrows** the policy toward denial, and it **never widens** the design to match the drift, because widening would rubber-stamp the very attack the drift caught. A compromised runtime cannot drive its own policy. Every proposed delta is verified a narrowing (`narrowing.classify` must return NARROWING or UNCHANGED, never EXPANSION) *before* it is emitted, and it is a **proposal** only - nothing is applied until a human re-compiles. Terminal-first: the proposed ops and the narrowing verdict print to the terminal; the re-emitted policies are written only with `-o`.
+
+`attestral drift --watch --lockdown --enforce <path>` is the same loop run live, with the human moved to review-after: **detect the moment it happens -> prove the narrowing -> push the containment.** The streaming monitor keeps evaluating every event against the *original attested* policy (drift is always measured against the reviewed design, never against its own containment), and when drift crosses it rebuilds the quarantine lockdown, re-verifies the narrowing proof, and atomically pushes the tightened policy to the file the enforcement point - a running mcp-guard - actually reads; `--reload-cmd` runs a hook after each push (say, a container HUP). A push happens only when the quarantine set grows, so repeat drift is idempotent and new drift escalates. A lockdown that fails the narrowing proof is **refused**, never written, and the monitor keeps running. Every push and every refusal is appended to a hash-chained, append-only `<enforce>.journal.jsonl` (before/after policy digests, triggers, narrowing verdict); `verify_journal` detects any edited, removed, or reordered entry - the evidence-chain contract applied to containment actions themselves. The narrowing proof is what makes auto-apply defensible: the only drift response safe to automate is one that provably removes capability.
 
 ### The four commands
 
@@ -362,6 +364,7 @@ attestral drift policy.yaml events.jsonl --fail-on-drift
 attestral drift policy.yaml events.jsonl --remediate
 attestral drift policy.yaml events.jsonl --remediate -o mcp-guard-policy.yaml  # + sibling .cedar
 attestral drift policy.yaml events.jsonl --lockdown -o lock   # act: emit lock.lockdown.yaml + .json, exit 2
+attestral drift policy.yaml events.jsonl --watch --lockdown --enforce live.yaml --reload-cmd "docker kill -s HUP mcp-guard"  # live containment loop + hash-chained journal
 
 # ATTEST: bind the reviewed design, both compiled policies, and the runtime drift
 # verdict into ONE signed conformance attestation a third party can verify offline
