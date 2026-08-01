@@ -53,6 +53,9 @@ def main() -> None:
               default="medium", help="Judge reasoning effort. Higher is more rigorous and costs more.")
 @click.option("--judge-suppress", is_flag=True,
               help="Auto-waive high-confidence false positives (kept on the record).")
+@click.option("--judge-all", is_flag=True,
+              help="Judge every finding, not just the FP-prone / high-severity ones "
+                   "(by default the judge is spent only where it changes the answer).")
 @click.option("--ml", is_flag=True,
               help="Force the model-grade ML tier (onnx/deberta if installed). The zero-dep "
                    "heuristic already runs by default; use --ml-engine to pick a specific tier.")
@@ -83,7 +86,8 @@ def main() -> None:
 def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: str, llm: bool,
          fail_on: str | None, min_confidence: str | None,
          waivers_path: str | None, judge: bool, judge_model: str,
-         judge_panel: int, judge_effort: str, judge_suppress: bool, ml: bool, no_ml: bool,
+         judge_panel: int, judge_effort: str, judge_suppress: bool, judge_all: bool,
+         ml: bool, no_ml: bool,
          ml_engine: str | None, ml_model: str | None, ml_revision: str | None, ml_threshold: float,
          baseline_path: str | None, update_baseline: bool, aivss: bool, card: bool,
          quiet: bool) -> None:
@@ -194,7 +198,7 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             click.echo("cross-examining findings with the judge…", err=True)
         from attestral.judge import JudgeConfig, judge_findings
         cfg = JudgeConfig(model=judge_model, panel=judge_panel, effort=judge_effort,
-                          suppress=judge_suppress)
+                          suppress=judge_suppress, gate=not judge_all)
         for note in judge_findings(model, findings, cfg):
             click.echo(f"  ! {note}", err=True)
 
