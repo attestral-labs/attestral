@@ -28,7 +28,7 @@ import os
 from collections import Counter
 from dataclasses import dataclass
 
-from attestral.model import Finding, SystemModel
+from attestral.model import Finding, Severity, SystemModel
 
 VERDICTS = ("confirmed", "false_positive", "needs_review")
 
@@ -92,6 +92,20 @@ class JudgeConfig:
     max_tokens: int = 4096               # room for adaptive thinking + the small verdict
     suppress: bool = False               # auto-waive high-confidence false positives
     suppress_min_confidence: float = 0.7
+    # Cascade gate (Calibrate-Then-Delegate, arXiv 2604.14251): the cheap tiers run
+    # first, and the expensive judge is spent only where it changes the answer -
+    # the FP-prone findings (confidence below high) and the high-stakes ones
+    # (severity high or critical). A high-confidence, lower-severity structural
+    # finding is already settled, so judging it is wasted budget. gate=False
+    # restores judging every finding (the --judge-all path).
+    gate: bool = True
+
+
+def _should_judge(finding: Finding) -> bool:
+    """A finding worth an LLM verdict: FP-prone (confidence below high) or
+    high-stakes (severity high/critical). Everything else is already settled by
+    the deterministic tiers."""
+    return finding.severity.rank >= Severity.HIGH.rank or finding.confidence != "high"
 
 
 def api_key() -> str | None:
@@ -223,9 +237,14 @@ def judge_findings(model: SystemModel, findings: list[Finding],
 
     panel = max(1, cfg.panel)
     unverified = 0
+    settled = 0
     last_error = ""
     for f in findings:
         if f.waived:                      # a human waiver already accepted this
+            continue
+        if cfg.gate and not _should_judge(f):
+            # Already settled by the deterministic tiers: spend no judge call on it.
+            settled += 1
             continue
         base = json.dumps(build_context(model, f))
         votes: list[dict] = []
@@ -248,6 +267,9 @@ def judge_findings(model: SystemModel, findings: list[Finding],
             unverified += 1
 
     notes: list[str] = []
+    if settled:
+        notes.append(f"judge: {settled} settled finding(s) skipped "
+                     "(high-confidence, lower-severity; --judge-all to verify them too)")
     if unverified:
         note = f"judge: {unverified} finding(s) could not be verified"
         if last_error:

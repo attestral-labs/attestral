@@ -7,6 +7,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Changed
+- **The LLM judge is now cascade-gated: it is spent only where it changes the answer.** `--judge`
+  called the model on every unwaived finding; now the cheap deterministic and ML tiers run first, and
+  a finding is escalated to the judge only when it is FP-prone (confidence below high) or high-stakes
+  (severity high or critical). A high-confidence, lower-severity structural finding is already settled,
+  so judging it was wasted budget (Calibrate-Then-Delegate / model-cascade, arXiv 2604.14251;
+  RouteLLM). This cuts judge API calls sharply on a typical scan while keeping the second opinion on
+  exactly the findings where it matters, and it strengthens the "no API key by default, judge opt-in
+  for the hard cases" posture. The skipped count is reported to the operator, and `--judge-all`
+  restores judging every finding. New `JudgeConfig.gate`; tests cover the gate predicate, that a
+  settled finding spends no API call, and that `--judge-all` bypasses it. No rule change (pack stays 265).
 - **Over-defense eval extended to the schema-field surface (32 -> 48 benign hard negatives).** Scoring
   every schema string (the line-jumping fix) scores *more* surfaces, so the responsible follow-up is to
   prove it did not buy new false positives on benign schemas. The over-defense slice

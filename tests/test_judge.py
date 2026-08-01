@@ -215,3 +215,51 @@ def test_judge_live_smoke():
     judge_findings(m, [f], JudgeConfig(panel=1))
     assert f.judge_verdict in ("confirmed", "false_positive", "needs_review")
     assert 0.0 <= f.judge_confidence <= 1.0
+
+
+# --- cascade gate: spend the judge only where it changes the answer -----------
+
+def _finding(rule, sev, conf="high", origin="deterministic"):
+    f = Finding(rule, "t", sev, "mcp_server.x", "d", "r")
+    f.confidence = conf
+    f.origin = origin
+    return f
+
+
+def test_gate_skips_settled_findings_and_judges_the_rest():
+    from attestral.judge import _should_judge
+    # high-stakes or FP-prone -> judged; high-confidence + lower-severity -> settled
+    assert _should_judge(_finding("ATL-103", Severity.CRITICAL))
+    assert _should_judge(_finding("ATL-107", Severity.HIGH))
+    assert _should_judge(_finding("ATL-ML-001", Severity.MEDIUM, conf="low", origin="ml"))
+    assert not _should_judge(_finding("ATL-114", Severity.MEDIUM, conf="high"))
+    assert not _should_judge(_finding("ATL-101", Severity.LOW, conf="high"))
+
+
+def test_gate_spends_no_judge_call_on_a_settled_finding():
+    m = SystemModel()
+    settled = _finding("ATL-114", Severity.MEDIUM, conf="high")
+    calls = []
+
+    def q(payload: str) -> str:
+        calls.append(payload)
+        return '{"verdict":"confirmed","confidence":0.9,"reasoning":"x"}'
+
+    notes = judge_findings(m, [settled], JudgeConfig(), query=q)
+    assert calls == []                       # the API was never called
+    assert settled.judge_verdict == ""       # left unjudged
+    assert any("settled" in n for n in notes)
+
+
+def test_judge_all_bypasses_the_gate():
+    m = SystemModel()
+    settled = _finding("ATL-114", Severity.MEDIUM, conf="high")
+    calls = []
+
+    def q(payload: str) -> str:
+        calls.append(payload)
+        return '{"verdict":"confirmed","confidence":0.9,"reasoning":"x"}'
+
+    judge_findings(m, [settled], JudgeConfig(gate=False), query=q)
+    assert len(calls) == 1                    # gate off -> judged like before
+    assert settled.judge_verdict == "confirmed"
