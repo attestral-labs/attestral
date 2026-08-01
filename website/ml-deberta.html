@@ -428,6 +428,24 @@
   </section>
 
   <section>
+    <p class="eyebrow">The architecture</p>
+    <h2>The layers are a cascade, not a stack</h2>
+    <p>DeBERTa is one layer of five, and the layers are not ranked copies of each other doing the same job with more compute. Each owns a <em>different</em> failure mode, and they are ordered cheapest-first, so a scan spends microseconds on most surfaces and an API call only where the cheap layers cannot settle the question. This is the FrugalGPT / RouteLLM cascade pattern (<a href="https://arxiv.org/abs/2305.05176">Chen et al., 2023</a>) applied to security review: the expensive verifier is a scalpel, not a floodlight.</p>
+    <table class="mtable">
+      <thead><tr><th>Layer</th><th>Cost</th><th>What it owns</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td>Deterministic rules</td><td class="n">&micro;s</td><td>structure: a flag, a CIDR, a capability, a cross-boundary flow</td><td>always on</td></tr>
+        <tr><td>ML heuristic</td><td class="n">&micro;s</td><td>obfuscation it can undo: canonicalize invisible unicode, fold homoglyphs, decode base64, then pattern-match</td><td>always on</td></tr>
+        <tr><td>ML model (<code>--ml</code>)</td><td class="n">ms</td><td>semantic variation the pattern bank cannot see: paraphrase, novel phrasing</td><td>opt-in</td></tr>
+        <tr><td>LLM elicitation (<code>--llm</code>)</td><td class="n">API</td><td>threats a static surface does not name: adversarial what-if over the modeled design</td><td>opt-in</td></tr>
+        <tr><td>LLM judge (<code>--judge</code>)</td><td class="n">API, gated</td><td>context no text-only layer holds: the loopback that makes non-TLS moot, the trust boundary that makes a path unreachable</td><td>opt-in, on the uncertain / high-stakes findings only</td></tr>
+      </tbody>
+    </table>
+    <p>Two design decisions make the cascade honest. First, every ML tier emits a <strong>byte-identical finding shape</strong> - same rule id, same threshold, same <code>origin</code> tag - so escalating from the heuristic to DeBERTa changes the <em>verdict set</em> on borderline text, never the evidence chain or the SARIF. The tier is a knob you turn, not a different product. Second, the two layers that read <em>language</em> are complementary rather than nested: the heuristic owns the obfuscation it is built to undo and the model owns the semantic variation the heuristic cannot see, which is why the default path runs the model <em>over</em> the heuristic's canonicalized text, and why neither dominates the other on the adaptive test below.</p>
+    <p class="pull">The apex layer, the judge, is <strong>calibrated-then-delegated</strong> (<a href="https://arxiv.org/abs/2604.14251">arXiv 2604.14251</a>): the cheap tiers run first and the judge is spent only on the findings it can actually change - the false-positive-prone ones and the high-severity ones - while a high-confidence structural finding is already settled and never costs a token. That is what keeps a scan that needs no API key by default able to add an LLM verifier for the hard cases without paying for it on the easy ones. The next page walks through exactly how the judge rules.</p>
+  </section>
+
+  <section>
     <p class="eyebrow">Measured</p>
     <h2>How well it actually scores</h2>
     <p>Numbers, not adjectives. Both tiers were measured through the production scan path (same chunking, same 0.5 threshold) against two things: an independent labeled set of 662 prompts (<a href="https://huggingface.co/datasets/deepset/prompt-injections">deepset/prompt-injections</a>, 263 injection / 399 benign), and the 106 real text surfaces Attestral's own ingest pulls from 33 popular public MCP server repos, with every flag human-adjudicated.</p>
