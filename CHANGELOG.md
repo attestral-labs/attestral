@@ -7,6 +7,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Threat topography v2: the interactive blast-radius map now draws trust boundaries and walked
+  attack paths.** `scan --format html` renders one dashed zone per trust boundary present (agent
+  runtime, cloud, cluster) instead of a single flat grid, so a cloud resource no longer renders as
+  an "agent surface"; modeled edges between rendered nodes draw as always-visible hairlines with
+  cross-boundary edges accented - the agent-to-cloud reachability picture a per-file scanner cannot
+  draw. The red-team walker's proofs embed as structured attack paths: clicking one dims everything
+  else and marches the wavefront entry -> pivot -> impact across zone borders, each rung labeled
+  with its role (Esc clears the overlay). Large fleets stay readable via a per-zone cap with a
+  "+N more" overflow. Same invariants as v1: one self-contained offline file, both themes,
+  script-breakout-safe payload, deterministic output for a fixed model. 7 new tests.
+  No rule change (pack stays 265).
 - **The drift containment loop now runs live: `attestral drift --watch/--stdin --lockdown --enforce PATH`
   pushes narrowing-verified lockdowns to the enforcement point the moment drift crosses.** Streaming
   detection could already see a rug-pull live, but containment was batch-only; now the sidecar

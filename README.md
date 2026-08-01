@@ -84,7 +84,7 @@ attestral scan .                          # print only - nothing is written
 attestral scan . -o review                # write review.md + review.json
 attestral scan . --format sarif -o out    # write out.sarif for GitHub Code Scanning
 attestral scan . --format aibom -o inv    # write inv.cdx.json - a CycloneDX 1.6 AI-BOM
-attestral scan . --format html -o topo    # write topo.html - interactive blast-radius topography
+attestral scan . --format html -o topo    # write topo.html - blast-radius topography: trust-boundary zones + walked attack paths
 attestral scan . --quiet --fail-on high   # CI: just the summary + gate line, exit 1 on high+
 attestral scan . --baseline attestral-baseline.json   # first run records; later runs show only net-new
 ```
