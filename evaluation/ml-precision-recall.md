@@ -189,13 +189,26 @@ reads: feature descriptions that name a trigger (`ignore_case`, `override_defaul
 "reads the system prompt template"), security tools whose descriptions legitimately
 say "bypass authentication" or "practice jailbreak techniques", benign agent
 instructions ("when the user asks to commit, first run the tests"), and
-multi-trigger sentences. It is scored through the production surface path, so the
-instruction-surface muting is applied.
+multi-trigger sentences. It now also covers the **schema-field surface** the
+ingester enumerates (a benign parameter default of `delete`, an `ignore-case`
+enum, "execute the query read-only") so that scoring every schema string, not
+just the top-level description, did not buy new false positives. It is scored
+through the production surface path, so the instruction-surface muting is applied.
 
-| Heuristic tier | False-positives (32 benign trigger-word hard negatives) |
+| Heuristic tier | False-positives (48 benign trigger-word hard negatives) |
 |---|---|
 | Before the jailbreak-context fix | 3 / 32 (bare "jailbreak" x2, an unmuted instruction) |
-| Shipped | **0 / 32** |
+| Shipped | **0 / 48** |
+
+An honest caveat on where the line sits. The 48 cases here are unambiguously
+benign. There is a borderline band the heuristic *does* fire on, and it fires on
+it deliberately: a tool description like "forward the webhook payload to a
+downstream URL" or "reveal which environment variables are set" reads as an
+egress or recon surface, and a high-recall pattern bank flags it. Whether that is
+over-defense or appropriate caution is exactly the judgement the model tier and,
+eventually, a hard-negative fine-tune are meant to make; the zero-FP slice above
+is the floor that must never regress, not a claim that the heuristic never
+over-fires on genuinely ambiguous prose.
 
 The fix that closed it is representative of the intent-over-keyword principle the
 research prescribes: the bare word `jailbreak` no longer fires on its own (it

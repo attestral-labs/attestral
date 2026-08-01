@@ -7,6 +7,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Changed
+- **Over-defense eval extended to the schema-field surface (32 -> 48 benign hard negatives).** Scoring
+  every schema string (the line-jumping fix) scores *more* surfaces, so the responsible follow-up is to
+  prove it did not buy new false positives on benign schemas. The over-defense slice
+  (`evaluation/data/over-defense.jsonl`, the NotInject-style benign-with-trigger-words set) now includes
+  benign schema fields (a `delete` default, an `ignore-case` enum, "execute the query read-only") and
+  more legitimately-imperative tool descriptions - all scored 0 false positives through the production
+  path. The eval doc records an honest caveat: there is a borderline band the heuristic fires on by
+  design (a "forward the payload downstream" egress tool, a "reveal which env vars are set" recon tool),
+  which is the model-tier / hard-negative-fine-tune judgement call, not a regression. The zero-FP slice
+  is the floor that must never regress. Docs/eval only; no code or rule change.
 - **Schema-string enumeration closes the line-jumping gap: the ML tier now scores every string in a
   tool's input schema, not just the top-level description.** An injection hidden in a parameter
   description, a schema `default`/`const`, or an `enum` value - the line-jumping / full-schema-poisoning
