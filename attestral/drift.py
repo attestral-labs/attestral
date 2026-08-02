@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import copy
 import json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 from attestral.manifest import manifest_hash, normalize_tools
@@ -560,3 +562,325 @@ def load_events(path: str | Path) -> list[dict]:
         except json.JSONDecodeError:
             continue
     return events
+
+
+# --- incident forensics: replay a recorded stream into a reconstruction ----------
+#
+# `attestral drift --replay` answers the two questions a responder asks after the
+# fact: WHEN did the runtime diverge from the attested design, and what contained
+# it. It feeds the recorded stream through a fresh DriftMonitor so every finding
+# lands at the exact event ordinal (and timestamp, when the telemetry carries one)
+# where it crossed, then merges the hash-chained containment journal into the same
+# timeline. Forensics is fail-closed REPORTING: a malformed event line, a garbage
+# timestamp, or a tampered journal is counted and surfaced as a headline of the
+# reconstruction - never raised, never silently dropped.
+
+@dataclass
+class Replay:
+    """The reconstructed incident: a chronological ``timeline`` of moments (each
+    drift finding at the event where it crossed, each containment journal entry
+    where it landed) plus honest ``summary`` stats. ``as_dict`` is the JSON
+    incident record ``drift --replay -o`` writes."""
+    timeline: list[dict] = field(default_factory=list)
+    summary: dict = field(default_factory=dict)
+
+    def as_dict(self) -> dict:
+        return {"timeline": self.timeline, "summary": self.summary}
+
+
+def _parse_ts(val) -> datetime | None:
+    """Best-effort ISO-8601 parse of an event/journal ``ts``. Returns an aware
+    datetime (a naive value is assumed UTC so comparisons never raise), or None
+    for absent/garbage input - a bad timestamp degrades the moment to ordinal
+    ordering, it never crashes the replay."""
+    if not isinstance(val, str) or not val.strip():
+        return None
+    try:
+        dt = datetime.fromisoformat(val.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _journal_verdict(entries: list, malformed_lines: int) -> str:
+    """Re-verify the containment journal's hash chain over already-parsed
+    entries - the same tamper-evidence contract as ``lockdown.verify_journal``,
+    carried into the replay so a doctored journal becomes a HEADLINE of the
+    reconstruction rather than an exception. Returns "intact" or
+    "TAMPERED: <reason>". Any unparseable line fails closed, exactly as the
+    path-based verifier does."""
+    from attestral.lockdown import _entry_sha
+
+    if malformed_lines:
+        return f"TAMPERED: {malformed_lines} unparseable journal line(s)"
+    prev = ""
+    for i, e in enumerate(entries, 1):
+        if not isinstance(e, dict):
+            return f"TAMPERED: entry {i} is not an object"
+        if e.get("seq") != i:
+            return f"TAMPERED: entry {i}: sequence break (got {e.get('seq')!r})"
+        if e.get("prev_sha") != prev:
+            return f"TAMPERED: entry {i}: prev_sha mismatch"
+        try:
+            expected = _entry_sha(e)
+        except Exception:
+            return f"TAMPERED: entry {i}: unhashable entry"
+        if e.get("entry_sha") != expected:
+            return f"TAMPERED: entry {i}: entry_sha mismatch"
+        prev = e["entry_sha"]
+    return "intact"
+
+
+def replay_drift(policy: dict, events: list, journal_entries: list | None = None, *,
+                 malformed_events: int = 0, malformed_journal_lines: int = 0) -> Replay:
+    """Reconstruct the incident from a recorded stream (and, optionally, the
+    containment journal `--lockdown --enforce` wrote while it happened).
+
+    Every event runs through a fresh :class:`DriftMonitor`, so each finding is
+    pinned to the 1-based event ordinal - and the event's ``ts``, when it parses -
+    at which it actually crossed (a rug-pull at the manifest flip, a budget at the
+    crossing call). Journal entries are matched into the timeline by their ``ts``,
+    or appended in seq order after the last event when a timestamp comparison is
+    not possible. The journal chain is verified FIRST and the verdict carried in
+    the summary: a tampered journal earns no containment credit (the final state
+    stays DRIFTED and the gap stats are withheld), but its claimed entries still
+    appear in the timeline so the responder sees what the journal asserts."""
+    monitor = DriftMonitor(policy)
+    drift_moments: list[tuple[int, int, dict]] = []   # (position, emit order, moment)
+    event_ts: list[datetime | None] = []              # parsed ts per fed event
+    fed = 0
+    for ev in events:
+        if not isinstance(ev, dict):
+            malformed_events += 1
+            continue
+        fed += 1
+        parsed = _parse_ts(ev.get("ts"))
+        event_ts.append(parsed)
+        ts_str = str(ev["ts"]) if parsed else None
+        try:
+            new = monitor.observe(ev)
+        except Exception:
+            # A single hostile event must never kill the reconstruction.
+            malformed_events += 1
+            continue
+        for f in new:
+            drift_moments.append((fed, len(drift_moments), {
+                "kind": "drift",
+                "ordinal": fed,
+                "ts": ts_str,
+                "rule_id": f.rule_id,
+                "severity": f.severity.value,
+                "server": f.component_id.removeprefix("mcp_server."),
+                "title": f.title,
+                "detail": f.description.removeprefix(f"Event #{fed}: "),
+            }))
+
+    entries = list(journal_entries) if journal_entries is not None else []
+    if journal_entries is None and not malformed_journal_lines:
+        verdict = "no journal"
+    else:
+        verdict = _journal_verdict(entries, malformed_journal_lines)
+    intact = verdict == "intact"
+
+    contain_moments: list[tuple[int, int, dict]] = []
+    have_ts = any(t is not None for t in event_ts)
+    for idx, e in enumerate(entries, 1):
+        if not isinstance(e, dict):
+            continue  # already condemned by the chain verdict
+        ets = _parse_ts(e.get("ts"))
+        if ets is not None and have_ts:
+            pos = 0  # after the last event at-or-before the entry's timestamp
+            for i, t in enumerate(event_ts, 1):
+                if t is not None and t <= ets:
+                    pos = i
+        else:
+            pos = fed  # no comparable ts: append after the last event, seq order
+        action = e.get("action")
+        q = e.get("quarantined")
+        contain_moments.append((pos, idx, {
+            "kind": "containment",
+            "ordinal": pos or None,
+            "ts": str(e["ts"]) if ets else None,
+            "seq": e.get("seq") if isinstance(e.get("seq"), int) else idx,
+            "action": action if action in ("push", "refused") else "unknown",
+            "quarantined": [str(s) for s in q] if isinstance(q, list) else [],
+            "narrowing": str(e.get("narrowing", "")),
+        }))
+
+    # Chronological merge: a containment entry sorts AFTER the drift moment(s) of
+    # the event it lands on - the push follows the drift that triggered it.
+    merged = sorted(
+        [(pos, 0, sub, m) for pos, sub, m in drift_moments]
+        + [(pos, 1, sub, m) for pos, sub, m in contain_moments],
+        key=lambda t: t[:3],
+    )
+    timeline = [m for _, _, _, m in merged]
+
+    by_rule: dict[str, int] = {}
+    for _, _, m in drift_moments:
+        by_rule[m["rule_id"]] = by_rule.get(m["rule_id"], 0) + 1
+    first_drift = None
+    if drift_moments:
+        m = drift_moments[0][2]
+        first_drift = {"ordinal": m["ordinal"], "ts": m["ts"], "rule_id": m["rule_id"]}
+    pushes = [(pos, m) for pos, _, m in contain_moments if m["action"] == "push"]
+    refusals = sum(1 for _, _, m in contain_moments if m["action"] == "refused")
+
+    # Containment credit requires an INTACT chain: a journal that fails
+    # verification attests nothing, so the gap stats are withheld and the final
+    # state stays DRIFTED. Fail-closed, like every other verdict in the pipeline.
+    first_push = None
+    gap = None
+    if intact and pushes:
+        pos, m = pushes[0]
+        first_push = {"seq": m["seq"], "ts": m["ts"], "after_event": pos}
+        if first_drift:
+            d_ts, p_ts = _parse_ts(first_drift["ts"]), _parse_ts(m["ts"])
+            if d_ts and p_ts:
+                gap = {"seconds": (p_ts - d_ts).total_seconds()}
+            else:
+                gap = {"events": max(pos - first_drift["ordinal"], 0)}
+    if not drift_moments:
+        final_state = "CONFORM"
+    elif intact and pushes:
+        final_state = "CONTAINED"
+    else:
+        final_state = "DRIFTED"
+
+    return Replay(timeline=timeline, summary={
+        "events": fed,
+        "malformed_event_lines": malformed_events,
+        "findings": len(drift_moments),
+        "by_rule": dict(sorted(by_rule.items())),
+        "first_drift": first_drift,
+        "pushes": len(pushes),
+        "refusals": refusals,
+        "first_push": first_push,
+        "drift_to_containment": gap,
+        "journal_entries": len(entries),
+        "malformed_journal_lines": malformed_journal_lines,
+        "journal_verdict": verdict,
+        "final_state": final_state,
+    })
+
+
+def load_jsonl(path: str | Path) -> tuple[list[dict], int]:
+    """Tolerant JSONL reader for forensics: returns ``(object lines, malformed
+    line count)``. Unlike :func:`load_events`, the drop is COUNTED - a replay
+    must report how many lines it could not read, never silently discard them."""
+    objs: list[dict] = []
+    bad = 0
+    for line in Path(path).read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            bad += 1
+            continue
+        if isinstance(obj, dict):
+            objs.append(obj)
+        else:
+            bad += 1
+    return objs, bad
+
+
+_SEV_CODES = {"critical": "1;31", "high": "31", "medium": "33", "low": "2", "info": "2"}
+
+
+def _clock(ts: str | None) -> str:
+    dt = _parse_ts(ts)
+    return dt.strftime("%H:%M:%S") if dt else "--:--:--"
+
+
+def _fmt_secs(x: float) -> str:
+    return f"{x:.0f}s" if float(x).is_integer() else f"{x:.2f}s"
+
+
+def render_replay(replay: Replay, *, color: bool | None = None) -> str:
+    """Terminal timeline, chronological, one line per moment, then the summary
+    block a responder reads first: first drift, drift-to-containment gap, the
+    journal-chain verdict, and the final state."""
+    from attestral.report_terminal import _bold, _dim, _paint, supports_color
+
+    if color is None:
+        color = supports_color()
+    s = replay.summary
+    chain_ok = s["journal_verdict"] == "intact"
+    # A broken chain means every containment line is only a CLAIM.
+    caveat = "" if chain_ok else _dim("  [claimed - chain broken]", color)
+    lines = [_bold(f"REPLAY - incident reconstruction: {s['events']} event(s) "
+                   "against the attested design", color), ""]
+
+    if not replay.timeline:
+        lines.append(_paint("  no drift and no containment - the runtime matched "
+                            "the attested design", "32", color))
+    for m in replay.timeline:
+        num = f"#{m['ordinal']}" if m.get("ordinal") else "#-"
+        stamp = f"  {num:>4} {_dim(_clock(m.get('ts')), color)}"
+        if m["kind"] == "drift":
+            rid = _paint(f"{m['rule_id']:<8}", _SEV_CODES.get(m["severity"], "31"), color)
+            lines.append(f"{stamp}  {rid} {m['server']}: {m['detail']}")
+        elif m["action"] == "push":
+            lines.append(f"{stamp}  {_paint('LOCKDOWN pushed', '32', color)}  "
+                         f"quarantined: {', '.join(m['quarantined']) or '-'}{caveat}")
+        elif m["action"] == "refused":
+            lines.append(f"{stamp}  {_paint('LOCKDOWN REFUSED', '1;31', color)}  "
+                         "narrowing proof failed - nothing pushed "
+                         f"(sought: {', '.join(m['quarantined']) or '-'}){caveat}")
+        else:
+            lines.append(f"{stamp}  {_dim('journal entry (unrecognized action)', color)}")
+
+    lines += ["", _bold("  incident summary", color)]
+
+    def row(label: str, value: str) -> None:
+        lines.append(f"  {label:<18} {value}")
+
+    events_cell = str(s["events"])
+    if s["malformed_event_lines"]:
+        events_cell += f" ({s['malformed_event_lines']} malformed line(s) skipped)"
+    row("events", events_cell)
+    counts = ", ".join(f"{k} x{v}" for k, v in s["by_rule"].items())
+    row("drift findings", f"{s['findings']} ({counts})" if counts else "0")
+    fd = s["first_drift"]
+    if fd:
+        at = _clock(fd["ts"]) if fd["ts"] else f"event #{fd['ordinal']}"
+        row("first drift", f"#{fd['ordinal']} at {at} ({fd['rule_id']})")
+
+    verdict = s["journal_verdict"]
+    fp = s["first_push"]
+    gap = s["drift_to_containment"]
+    if verdict == "no journal":
+        row("containment", "no journal provided (--journal merges the containment trail)")
+    elif not chain_ok:
+        row("containment", "unverifiable - the journal chain does not hold")
+    elif not (s["pushes"] or s["refusals"]):
+        row("containment", "none recorded in the journal")
+    else:
+        parts = []
+        if fp:
+            when = _clock(fp["ts"]) if fp["ts"] else f"after event #{fp['after_event']}"
+            tail = ""
+            if gap and "seconds" in gap:
+                tail = f" - {_fmt_secs(gap['seconds'])} after first drift"
+            elif gap and "events" in gap:
+                tail = f" - {gap['events']} event(s) after first drift"
+            parts.append(f"pushed at {when}{tail}")
+        if s["refusals"]:
+            parts.append(f"{s['refusals']} refusal(s)")
+        row("containment", "; ".join(parts))
+
+    if verdict == "no journal":
+        row("journal chain", "none provided")
+    elif chain_ok:
+        n = s["journal_entries"]
+        row("journal chain", _paint(
+            f"intact ({n} {'entry' if n == 1 else 'entries'})", "32", color))
+    else:
+        row("journal chain", _paint(verdict, "1;31", color))
+
+    state = s["final_state"]
+    code = {"CONFORM": "32", "CONTAINED": "32"}.get(state, "1;31")
+    row("final state", _paint(state, code, color))
+    return "\n".join(lines)

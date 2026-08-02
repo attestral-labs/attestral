@@ -1195,16 +1195,27 @@ def chaos(path: str, output: str | None, fail_on_miss: bool) -> None:
               help="Command run after each successful push to --enforce (e.g. a container "
                    "HUP so the guard re-reads its policy). Run without a shell; a non-zero "
                    "exit or failed spawn is a warning line, never fatal to the monitor.")
+@click.option("--replay", "replay_flag", is_flag=True,
+              help="Post-incident forensics: reconstruct WHEN the runtime diverged - each "
+                   "finding pinned to the event ordinal and timestamp where it crossed - "
+                   "and what contained it, as a chronological timeline plus honest summary "
+                   "stats (first drift, drift-to-containment gap, final state).")
+@click.option("--journal", "journal_file", type=click.Path(exists=True), default=None,
+              help="With --replay: the hash-chained containment journal "
+                   "(<ENFORCE>.journal.jsonl) to merge into the timeline. The chain is "
+                   "verified first; a tampered journal is a headline of the "
+                   "reconstruction and earns no containment credit, never trusted.")
 @click.option("-o", "--output", default=None,
               help="With --remediate: write the re-emitted mcp-guard policy here plus a "
                    "sibling .cedar. With --lockdown: write <stem>.lockdown.yaml (the policy "
                    "to apply) and <stem>.lockdown.json (the record); streaming without "
-                   "--enforce keeps the journal at <stem>.lockdown.journal.jsonl. Nothing "
-                   "is written without -o or --enforce.")
+                   "--enforce keeps the journal at <stem>.lockdown.journal.jsonl. With "
+                   "--replay: write the JSON incident record here. Nothing is written "
+                   "without -o or --enforce.")
 def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
           use_stdin: bool, watch: bool, remediate: bool, lockdown_flag: bool,
-          enforce_path: str | None, reload_cmd: str | None,
-          output: str | None) -> None:
+          enforce_path: str | None, reload_cmd: str | None, replay_flag: bool,
+          journal_file: str | None, output: str | None) -> None:
     """Diff runtime events against a compiled POLICY_FILE.
 
     Batch (default): diff every event in EVENTS_FILE at once. Continuous:
@@ -1229,14 +1240,50 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
     reviewed design while enforcement only ever narrows the runtime. A lockdown
     that fails the narrowing proof is REFUSED and journaled, never pushed, and
     the monitor keeps running.
+
+    `--replay` looks BACKWARD: incident forensics over a recorded stream. Every
+    event replays through a fresh monitor so each finding lands at the exact
+    ordinal (and timestamp) where it crossed, the containment journal
+    (`--journal`) merges into the same timeline with its hash chain verified
+    first, and the summary answers the responder's questions: when did it
+    diverge, how long until containment, does the journal hold, and did the run
+    end CONFORM, DRIFTED, or CONTAINED. Terminal-first; `-o` writes the JSON
+    incident record.
     """
     import yaml as _yaml
-    from attestral.drift import DriftMonitor, detect_drift, load_events
+    from attestral.drift import (DriftMonitor, detect_drift, load_events,
+                                 load_jsonl, render_replay, replay_drift)
     if enforce_path and not lockdown_flag:
         raise click.UsageError("--enforce only acts on lockdowns; pass --lockdown as well.")
     if reload_cmd and not enforce_path:
         raise click.UsageError("--reload-cmd fires after a push to --enforce; pass --enforce.")
+    if replay_flag and (use_stdin or watch or remediate or lockdown_flag):
+        raise click.UsageError("--replay is post-incident forensics over a recorded "
+                               "stream; it cannot combine with --watch, --stdin, "
+                               "--remediate, or --lockdown.")
+    if journal_file and not replay_flag:
+        raise click.UsageError("--journal merges the containment trail into --replay; "
+                               "pass --replay as well.")
     policy = _yaml.safe_load(Path(policy_file).read_text())
+
+    if replay_flag:
+        if not events_file:
+            raise click.UsageError("--replay needs EVENTS_FILE - the recorded stream "
+                                   "to reconstruct.")
+        events, bad_events = load_jsonl(events_file)
+        journal_entries, bad_journal = (load_jsonl(journal_file)
+                                        if journal_file else (None, 0))
+        replay = replay_drift(policy, events, journal_entries,
+                              malformed_events=bad_events,
+                              malformed_journal_lines=bad_journal)
+        click.echo(render_replay(replay))
+        if output:
+            Path(output).write_text(json.dumps(replay.as_dict(), indent=2))
+            click.echo(f"\nwrote {output} - JSON incident record")
+        if fail_on_drift and replay.summary["findings"]:
+            click.echo("DRIFT: deployment no longer matches the attested design", err=True)
+            sys.exit(1)
+        return
 
     def _emit(f) -> None:
         click.echo(f"  [{f.severity.value.upper():8}] {f.rule_id}  {f.title}  ({f.component_id})")
