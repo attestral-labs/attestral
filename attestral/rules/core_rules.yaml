@@ -986,6 +986,24 @@ rules:
     recommendation: Scope the skill's allowed-tools to the minimum read-only set it needs; never distribute a skill that grants shell or wildcard tool access.
     frameworks: ["OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6", "Agentic-SoK 2026 R6"]
 
+  - id: ATL-169
+    title: Agent skill claims read-only behavior while its grant hands it a shell
+    severity: high
+    target: agent_instruction
+    match: { attr_equals: { _skill_deceptive_readonly: true } }
+    description: The skill's frontmatter description promises read-only / no-side-effects behavior while its allowed-tools grant affirmatively includes shell, exec, or wildcard access. The description is the surface the operator and the invoking agent trust when deciding to load and run the skill; the grant is what actually executes - so the contradiction is a deceptive capability claim, the skill-manifest analogue of tool poisoning (permission understating, OWASP AST04). Distinct from ATL-116, which fires on the broad grant alone; this finding is the claim/grant mismatch, and a skill that lies about one capability should not be trusted on the rest.
+    recommendation: Make the manifest tell the truth - if the skill is genuinely read-only, drop shell/exec/wildcard from allowed-tools; if it needs a shell, say so in the description. Treat any skill whose stated behavior contradicts its declared grant as untrusted until re-reviewed, the same way you would a poisoned tool description.
+    frameworks: ["OWASP-AST04:2026 Insecure Metadata", "OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+
+  - id: ATL-170
+    title: Agent skill directs writes into standing agent-memory files
+    severity: medium
+    target: agent_instruction
+    match: { attr_equals: { _skill_persists_instructions: true } }
+    description: The skill body instructs the agent to write or append into an always-loaded instruction or memory file (CLAUDE.md, MEMORY.md, SOUL.md, .cursorrules, and the like). That escalates the skill from an invoked, per-task surface into persistent context that steers every future session - the self-persistence / memory-poisoning path a malicious skill uses to survive its own uninstall (OWASP AST01). A disclosed memory-write can be a legitimate capability, which is why this is a review-the-persistence-path finding, not an alarm.
+    recommendation: Confirm the memory write is a disclosed, intended capability of the skill; remove the directive if it is not. If it is, scope it - what may be written, into which file, with what approval - and protect the memory files themselves with restricted write access and version control, treating any skill request to touch them as elevated-risk.
+    frameworks: ["OWASP-AST01:2026 Malicious Skills", "OWASP-ASI06:2026", "MITRE ATLAS AML.T0070", "NIST CM-5"]
+
   - id: ATL-117
     title: MCP server pinned to a version with a known CVE
     severity: critical

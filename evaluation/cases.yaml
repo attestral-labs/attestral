@@ -119,6 +119,10 @@ positive:
     path: examples/remote-install-instruction
     expect: [ATL-155]
     cite: "Fetch-and-execute one-liner (curl|sh) baked into a standing instruction file; OWASP-ASI05 untrusted external instructions; CWE-494"
+  - id: deceptive-skill
+    path: examples/deceptive-skill
+    expect: [ATL-116, ATL-169, ATL-170]
+    cite: "Skill-manifest deception per the fixture README: read-only claim over a shell grant (OWASP AST04 permission understating) + a directed write into CLAUDE.md (AST01 persistence, ATLAS AML.T0070 memory poisoning); ATL-116 fires on the broad grant itself"
   - id: agent-fleet-flows
     path: examples/agent-fleet-flows
     expect: [ATL-104, ATL-107, ATL-108, ATL-112, ATL-114, ATL-125, ATL-202, ATL-214, ATL-215, ATL-216, ATL-217]
