@@ -30,7 +30,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from attestral.model import Component, SystemModel
+from attestral.model import Component, Edge, SystemModel
 
 _RESOURCE_RE = re.compile(r'resource\s+"([\w-]+)"\s+"([\w-]+)"\s*\{', re.MULTILINE)
 _VARIABLE_RE = re.compile(r'variable\s+"([\w-]+)"\s*\{', re.MULTILINE)
@@ -461,10 +461,89 @@ def _resolve_iam_admin(model: SystemModel) -> None:
             role.attributes["_role_arn"] = arn
 
 
+# --- declared reference edges -------------------------------------------------
+#
+# Terraform expresses architecture as attribute references: an instance names
+# its security groups, a policy attachment names its role, an instance names its
+# subnet. This post-pass turns each statically-visible reference into a real
+# component-to-component edge (kind "references"), so graph consumers - the
+# blast-radius adjacency, the cross-boundary topography mesh, the proof walker -
+# see the declared cloud structure instead of isolated nodes. Feeds the
+# agent-to-cloud reach chain: once a credential-holding surface reaches a cloud
+# component, these edges say what that component is wired to.
+#
+# Fail closed, like everything here: only a reference that names a resource
+# actually present in the same module scope of this scan emits an edge; an
+# unresolved or ambiguous string emits nothing. Derived (`_`-prefixed)
+# attributes are skipped so only what the design declares is linked.
+
+# A bare two-segment resource address (`aws_iam_role.agent`) - the depends_on
+# shape - matched against the WHOLE value only, never as a substring.
+_FULL_ADDR_RE = re.compile(r'([a-z][\w]*)\.([\w-]+)')
+
+
+def _iter_ref_strings(value):
+    """Every string inside a (possibly nested) attribute value."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list):
+        for v in value:
+            yield from _iter_ref_strings(v)
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from _iter_ref_strings(v)
+
+
+def _refs_in(value) -> set[tuple[str, str]]:
+    """(type, name) candidates referenced by an attribute value: embedded
+    `type.name.attr` addresses plus a whole-string `type.name` address. Pure
+    candidates - the caller filters them against the components that actually
+    exist, so a lookalike string that names nothing emits nothing."""
+    out: set[tuple[str, str]] = set()
+    for s in _iter_ref_strings(value):
+        t = s.strip()
+        if t.startswith("${") and t.endswith("}"):
+            t = t[2:-1].strip()
+        out.update(_TF_ADDR_RE.findall(t))
+        m = _FULL_ADDR_RE.fullmatch(t)
+        if m:
+            out.add((m.group(1), m.group(2)))
+    return out
+
+
+def _add_reference_edges(model: SystemModel, start: int) -> None:
+    """One `references` edge per (referrer, referenced) pair among the
+    components this ingest run emitted, with the declaring attribute keys in
+    the edge's `via`. Deterministic: components in emission order, attribute
+    keys and reference candidates sorted."""
+    emitted = model.components[start:]
+    by_id = {c.id: c for c in emitted}
+    for c in emitted:
+        # id = <module prefix> + <type>.<name>; the prefix scopes the lookup so
+        # a module-local reference never binds to a same-named root resource.
+        prefix = c.id[: len(c.id) - len(c.type) - len(c.name) - 1]
+        via: dict[str, list[str]] = {}
+        for key in sorted(c.attributes):
+            if key.startswith("_"):
+                continue
+            for rtype, rname in sorted(_refs_in(c.attributes[key])):
+                target_id = f"{prefix}{rtype}.{rname}"
+                target = by_id.get(target_id)
+                if target is None or target.type != rtype or target_id == c.id:
+                    continue
+                via.setdefault(target_id, []).append(key)
+        for target_id, keys in via.items():
+            model.edges.append(Edge(
+                source_id=c.id, target_id=target_id, kind="references",
+                attributes={"via": sorted(set(keys))},
+            ))
+
+
 # --- emission ------------------------------------------------------------------
 
 def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
     p = Path(path)
+    start = len(model.components)
     files = [p] if p.is_file() else sorted(p.rglob("*.tf"))
     dirs: dict[Path, _DirModule] = {}
     for f in files:
@@ -495,6 +574,8 @@ def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
         _emit(dm, model, dirs, prefix="", var_env=var_env, stack=(d,))
     # Cross-resource IAM join, run once every component in this ingest exists.
     _resolve_iam_admin(model)
+    # Declared reference edges, over exactly the components this run emitted.
+    _add_reference_edges(model, start)
     return model
 
 

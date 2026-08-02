@@ -7,6 +7,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **The system model now carries real component-to-component edges, not just sentinel endpoints.**
+  Three statically derived, fail-closed edge families: Terraform attribute references
+  (`references`: IAM attachments to roles, instances to security groups and profiles, ACL and IAM
+  members to buckets, resolved by resource address within the same module scope), Kubernetes links
+  (`routes_to`: Service selector to the workload it matches exactly; `uses_service_account`), and
+  inferred agent-to-cloud reach (`credential_reach`: from any surface holding cloud credentials to
+  each SAME-provider `aws_*`/`google_*`/`azurerm_*` component, capped per holder with the
+  `boundary:cloud` sentinel still attesting the full crossing). Kubernetes Services are now modeled
+  (`k8s_service` with `_selector`), and workloads expose `_pod_labels`. Existing sentinel edges are
+  preserved byte-identical, an ambiguous reference emits no edge, and output order is deterministic.
+  The payoff is downstream: blast-radius adjacency, the topography v2 cross-boundary mesh, and the
+  proof walker now see the declared graph node-to-node - a cloud-credentialed MCP server renders as
+  cross-boundary edges into the exact resources it reaches. New fixture `examples/agent-cloud-mesh`
+  exercises all three families across all three trust boundaries; 22 new tests; benchmark
+  byte-identical (158/158 recall, 0 FP). No rule change (pack stays 265).
 - **Threat topography v2: the interactive blast-radius map now draws trust boundaries and walked
   attack paths.** `scan --format html` renders one dashed zone per trust boundary present (agent
   runtime, cloud, cluster) instead of a single flat grid, so a cloud resource no longer renders as
