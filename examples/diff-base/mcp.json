@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "web": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
+    "ops": {
+      "command": "node",
+      "args": ["agents/deploy-runner.js"]
+    }
+  }
+}

@@ -805,6 +805,43 @@ def diff(base: str, head: str, output: str | None, fail_on: str | None) -> None:
             sys.exit(1)
 
 
+@main.command(name="design-diff")
+@click.argument("old_path", type=click.Path(exists=True))
+@click.argument("new_path", type=click.Path(exists=True))
+@click.option("--fail-on-widen", is_flag=True,
+              help="Exit 3 when the change widens the agent's reach "
+                   "(verdict WIDENED or MIXED) - the CI gate for PRs.")
+@click.option("-o", "--output", default=None, metavar="FILE",
+              help="Write the diff as JSON to FILE (nothing is written without it).")
+def design_diff(old_path: str, new_path: str, fail_on_widen: bool,
+                output: str | None) -> None:
+    """Diff the capability envelope of two design revisions (the PR widen-gate).
+
+    Builds the system model on OLD_PATH and NEW_PATH, runs the deterministic
+    rule pass on both, and reports what the change did to the agent's reach:
+    components added or removed, capabilities and standing credentials gained
+    or dropped, cross-boundary edges opened or closed, and the rules that
+    started or stopped firing - classified WIDENED / NARROWED / MIXED /
+    UNCHANGED. Offline and deterministic (no ML, no LLM), so the gate is fast
+    and reproducible. With --fail-on-widen, any widening exits 3: "this PR
+    quietly widened what the agent can reach" becomes a red build.
+    """
+    from attestral.designdiff import GATE_VERDICTS, diff_designs, render_design_diff
+
+    old_model, new_model = build_model(old_path), build_model(new_path)
+    diff = diff_designs(old_model, new_model,
+                        RuleEngine().evaluate(old_model),
+                        RuleEngine().evaluate(new_model))
+    click.echo(render_design_diff(diff))
+    if output:
+        Path(output).write_text(diff.to_json() + "\n")
+        click.echo(f"wrote {output}")
+    if fail_on_widen and diff.verdict in GATE_VERDICTS:
+        click.echo(f"Gate: the change widens the agent's reach "
+                   f"(verdict: {diff.verdict}).", err=True)
+        sys.exit(3)
+
+
 @main.command()
 @click.argument("report", type=click.Path(exists=True))
 @click.option("--public-key", type=click.Path(exists=True), default=None,
