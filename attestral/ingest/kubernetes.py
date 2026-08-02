@@ -23,7 +23,7 @@ from typing import Any
 
 import yaml
 
-from attestral.model import Component, SystemModel
+from attestral.model import Component, Edge, SystemModel
 
 # Kinds that carry a pod template we care about, and where the pod spec lives.
 _POD_KINDS = {
@@ -217,7 +217,8 @@ def _container_component(
 
 
 def _workload_component(
-    kind: str, wl_name: str, source: str, pod: dict, namespace: str = "default"
+    kind: str, wl_name: str, source: str, pod: dict, namespace: str = "default",
+    pod_labels: dict | None = None,
 ) -> Component:
     volumes = pod.get("volumes") or []
     vol_types = [t for v in volumes if isinstance(v, dict) for t in v if t != "name"]
@@ -233,6 +234,11 @@ def _workload_component(
         "service_account_name": str(sa_name),
         "_volume_types": vol_types,
     }
+    # Pod-template labels, kept for the Service-selector join (_link_services):
+    # a Service routes to the pods these labels describe, so they are the only
+    # statically-decidable way to bind a Service to its workload.
+    if pod_labels:
+        attrs["_pod_labels"] = {str(k): str(v) for k, v in pod_labels.items()}
     if "automountServiceAccountToken" in pod:
         attrs["automount_service_account_token"] = pod["automountServiceAccountToken"]
     return Component(
@@ -341,6 +347,88 @@ def _network_policy_component(doc: dict, source: str) -> Component:
     )
 
 
+def _service_component(doc: dict, source: str) -> Component:
+    """Flatten a Service into a routing component.
+
+    Feeds the exposure/reach chain: the selector (kept as `_selector`) is the
+    statically-decidable link from a Service to the workload it fronts, and
+    `service_type` says whether that route is cluster-internal (ClusterIP) or
+    an external surface (NodePort / LoadBalancer)."""
+    meta = doc.get("metadata") or {}
+    name = str(meta.get("name", "service"))
+    namespace = str(meta.get("namespace") or "default")
+    spec = doc.get("spec")
+    spec = spec if isinstance(spec, dict) else {}
+    selector = spec.get("selector")
+    selector = selector if isinstance(selector, dict) else {}
+    attrs: dict[str, Any] = {
+        "namespace": namespace,
+        "service_type": str(spec.get("type") or "ClusterIP"),
+        "_selector": {str(k): str(v) for k, v in selector.items()},
+    }
+    return Component(
+        id=f"k8s_service.{namespace}.{name}",
+        type="k8s_service",
+        name=name,
+        source=source,
+        attributes=attrs,
+        trust_boundary="cluster",
+    )
+
+
+def _link_services(model: SystemModel, start: int) -> None:
+    """Emit one `routes_to` edge from each Service to every workload whose pod
+    labels satisfy its selector, Kubernetes-style: every selector pair must
+    match a pod-template label exactly, within the same namespace. An empty
+    selector (a headless/ExternalName-style Service) or a workload without
+    labels emits nothing - fail closed, never guess a route. Scoped to the
+    components this ingest run emitted, so a re-ingest never duplicates."""
+    emitted = model.components[start:]
+    services = [c for c in emitted if c.type == "k8s_service"]
+    workloads = [c for c in emitted if c.type == "k8s_workload"]
+    for svc in services:
+        selector = svc.attr("_selector") or {}
+        if not selector:
+            continue
+        for wl in workloads:
+            if str(wl.attr("namespace") or "default") != str(svc.attr("namespace")):
+                continue
+            labels = wl.attr("_pod_labels") or {}
+            if all(labels.get(k) == v for k, v in selector.items()):
+                model.edges.append(Edge(
+                    source_id=svc.id, target_id=wl.id, kind="routes_to",
+                    attributes={"selector": dict(selector)},
+                ))
+
+
+def _link_service_accounts(model: SystemModel, start: int) -> None:
+    """Emit one `uses_service_account` edge from each workload to the modeled
+    ServiceAccount it runs as (same namespace, exact name). Feeds the
+    agent-to-cloud reach chain: the SA is where an IRSA role annotation lives,
+    so this edge is the identity hop between a pod and a cloud grant. No
+    modeled SA of that name => no edge (fail closed). Scoped to the components
+    this ingest run emitted, so a re-ingest never duplicates."""
+    emitted = model.components[start:]
+    by_key = {
+        (str(sa.attr("namespace") or "default"), sa.name): sa
+        for sa in emitted if sa.type == "k8s_service_account"
+    }
+    if not by_key:
+        return
+    for wl in emitted:
+        if wl.type != "k8s_workload":
+            continue
+        key = (
+            str(wl.attr("namespace") or "default"),
+            str(wl.attr("service_account_name") or "default"),
+        )
+        sa = by_key.get(key)
+        if sa is not None:
+            model.edges.append(Edge(
+                source_id=wl.id, target_id=sa.id, kind="uses_service_account",
+            ))
+
+
 # EKS IRSA binds a ServiceAccount to an AWS IAM role via this annotation.
 _IRSA_ANNOTATION = "eks.amazonaws.com/role-arn"
 
@@ -402,15 +490,18 @@ def _ingest_pod_doc(doc: dict, kind: str, source: str, model: SystemModel) -> No
     meta = doc.get("metadata") or {}
     wl_name = str(meta.get("name", kind.lower()))
     namespace = str(meta.get("namespace") or "default")
-    workload = _workload_component(kind, wl_name, source, pod, namespace)
+    # The pod template's metadata carries the labels a Service selector matches
+    # (and the legacy AppArmor annotation); for a bare Pod it is the doc's own.
+    pod_meta = _dig(doc, _POD_KINDS[kind][:-1] + ("metadata",)) or {}
+    pod_labels = pod_meta.get("labels")
+    pod_labels = pod_labels if isinstance(pod_labels, dict) else {}
+    workload = _workload_component(kind, wl_name, source, pod, namespace, pod_labels)
     model.add(workload)
     # Pod-level context inherited by every container that omits its own.
     pod_sec = pod.get("securityContext") or {}
     pod_seccomp = _seccomp_type(pod_sec)
     pod_run_as_user = pod_sec.get("runAsUser")
     pod_has_selinux = "seLinuxOptions" in pod_sec
-    # The AppArmor annotation lives on the pod template's metadata, not its spec.
-    pod_meta = _dig(doc, _POD_KINDS[kind][:-1] + ("metadata",)) or {}
     pod_annotations = pod_meta.get("annotations")
     pod_annotations = pod_annotations if isinstance(pod_annotations, dict) else {}
     containers = (pod.get("containers") or []) + (pod.get("initContainers") or [])
@@ -439,10 +530,13 @@ def _ingest_doc(doc: dict, source: str, model: SystemModel) -> None:
         model.add(_network_policy_component(doc, source))
     elif kind == "ServiceAccount":
         model.add(_service_account_component(doc, source))
+    elif kind == "Service":
+        model.add(_service_component(doc, source))
 
 
 def ingest_kubernetes(path: str | Path, model: SystemModel) -> SystemModel:
     p = Path(path)
+    start = len(model.components)
     files = [p] if p.is_file() else sorted(
         list(p.rglob("*.yaml")) + list(p.rglob("*.yml"))
     )
@@ -462,4 +556,8 @@ def ingest_kubernetes(path: str | Path, model: SystemModel) -> SystemModel:
             _ingest_doc(doc, str(f), model)
     # SA<->workload IRSA binding, resolved once every doc is ingested.
     _resolve_irsa(model)
+    # Declared link edges, joined once every doc is ingested: Service ->
+    # selected workload, workload -> its modeled ServiceAccount.
+    _link_services(model, start)
+    _link_service_accounts(model, start)
     return model
