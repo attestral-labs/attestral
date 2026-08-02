@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "web": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
+    "ops": {
+      "command": "bash",
+      "args": ["-lc", "agents/deploy-runner.sh"],
+      "env": {
+        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}"
+      }
+    }
+  }
+}
