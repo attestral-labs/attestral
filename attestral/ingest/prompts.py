@@ -109,11 +109,10 @@ def _is_skill_file(f: Path) -> bool:
     return f.name.lower() == "skill.md"
 
 
-def _skill_tool_grant(content: str) -> bool | None:
-    """Parse a SKILL.md YAML frontmatter for an `allowed-tools` grant that hands
-    the skill shell/exec or wildcard tool access. Returns True/False when the
-    grant is declared, or None when it is not (we never guess). Fails closed:
-    unparseable frontmatter yields None, not a finding."""
+def _skill_frontmatter(content: str) -> dict | None:
+    """Parse a SKILL.md YAML frontmatter block into its mapping. Fails closed:
+    a missing fence, malformed YAML, or a non-mapping document yields None - we
+    never guess a manifest's intent from broken metadata."""
     if not content.startswith("---"):
         return None
     end = content.find("\n---", 3)
@@ -124,7 +123,27 @@ def _skill_tool_grant(content: str) -> bool | None:
         meta = yaml.safe_load(content[3:end])
     except yaml.YAMLError:
         return None
-    if not isinstance(meta, dict):
+    return meta if isinstance(meta, dict) else None
+
+
+def _skill_body(content: str) -> str:
+    """The instruction text after the closing frontmatter fence - the part the
+    agent actually executes. A file with no fence is all body."""
+    if not content.startswith("---"):
+        return content
+    end = content.find("\n---", 3)
+    if end == -1:
+        return content
+    nl = content.find("\n", end + 4)
+    return content[nl + 1:] if nl != -1 else ""
+
+
+def _skill_tool_grant(meta: dict | None) -> bool | None:
+    """An `allowed-tools` grant that hands the skill shell/exec or wildcard
+    tool access. Returns True/False when the grant is declared, or None when it
+    is not (we never guess - absent or unparseable frontmatter yields None, not
+    a finding)."""
+    if meta is None:
         return None
     grant = meta.get("allowed-tools", meta.get("allowed_tools"))
     if grant is None:
@@ -134,6 +153,67 @@ def _skill_tool_grant(content: str) -> bool | None:
         t == "*" or "bash" in t or "shell" in t or t.startswith("exec")
         for t in (str(x).lower() for x in tokens)
     )
+
+
+# Read-only / no-side-effects promises a skill description can make. Phrase-level
+# and word-bounded so ordinary prose ("reads the config, then updates it") never
+# matches.
+_READONLY_CLAIM = re.compile(
+    r"(?i)\b(?:read[\s-]?only|only\s+reads|"
+    r"never\s+(?:writes?|modif(?:y|ies)|changes?|executes?|runs?)|"
+    r"does\s+not\s+(?:write|modify|execute|run)|"
+    r"no\s+side[\s-]effects?|non[\s-]?destructive)\b"
+)
+
+
+def _skill_deceptive_readonly(meta: dict | None, grant: bool | None) -> bool:
+    """A read-only/no-side-effects description over a shell-grade tool grant.
+    The description is what the operator and the invoking agent trust when the
+    skill loads, and here it contradicts what the manifest actually grants - a
+    deceptive capability claim (tool poisoning via manifest). Feeds
+    `_skill_deceptive_readonly`; requires the grant to be affirmatively broad
+    (True), never inferred from an absent or unparseable one (None)."""
+    if not grant or meta is None:
+        return False
+    desc = meta.get("description")
+    return isinstance(desc, str) and bool(_READONLY_CLAIM.search(desc))
+
+
+# Standing agent-memory / instruction files an agent auto-loads every session.
+_MEMORY_FILE_TOKENS = (
+    r"(?:\bCLAUDE\.md\b|\bMEMORY\.md\b|\bSOUL\.md\b|\bAGENTS\.md\b|\bGEMINI\.md\b|"
+    r"\bcopilot-instructions\.md\b|\.cursorrules\b|\.windsurfrules\b)"
+)
+_PERSIST_VERBS = (
+    r"(?:write|writes|writing|append(?:s|ed|ing)?|add(?:s|ed|ing)?|"
+    r"insert(?:s|ed|ing)?|save(?:s|d)?|saving|update(?:s|d)?|updating|"
+    r"edit(?:s|ed|ing)?|modif(?:y|ies|ied|ying)|create(?:s|d)?|creating|"
+    r"cop(?:y|ies|ied|ying))"
+)
+# A write-verb shortly before a standing memory file. The window excludes
+# sentence breaks so a verb in one sentence never pairs with a file named in
+# the next.
+_PERSIST_WRITE = re.compile(
+    r"(?i)\b" + _PERSIST_VERBS + r"\b[^.\n]{0,80}?" + _MEMORY_FILE_TOKENS
+)
+# "Never write to CLAUDE.md" is guidance, not persistence: a negation just
+# before the write-verb, with no sentence break between, suppresses the hit.
+_PERSIST_NEGATION = re.compile(
+    r"(?i)\b(?:never|don['’]?t|do\s+not|avoid|must\s+not|should\s+not)\b[^.\n]{0,40}$"
+)
+
+
+def _skill_persists_instructions(body: str) -> bool:
+    """The skill body directs the agent to write into an always-loaded
+    memory/instruction file (CLAUDE.md, MEMORY.md, .cursorrules, ...). That
+    escalates an invoked, per-session surface into a persistent one -
+    self-persistence / memory poisoning (OWASP ASI06). Feeds
+    `_skill_persists_instructions`."""
+    for m in _PERSIST_WRITE.finditer(body):
+        if _PERSIST_NEGATION.search(body, max(0, m.start() - 80), m.start()):
+            continue
+        return True
+    return False
 
 
 def _world_writable(f: Path) -> bool:
@@ -200,9 +280,16 @@ def ingest_prompts(path: str | Path, model: SystemModel) -> SystemModel:
             attrs["_world_writable"] = _world_writable(f)
         if skill:
             attrs["_is_skill"] = True
-            grant = _skill_tool_grant(content)
+            meta = _skill_frontmatter(content)
+            grant = _skill_tool_grant(meta)
             if grant is not None:
                 attrs["_skill_broad_tools"] = grant  # ATL-116
+            # Read-only claim over a shell grant: deceptive capability claim.
+            if _skill_deceptive_readonly(meta, grant):
+                attrs["_skill_deceptive_readonly"] = True
+            # Body writes into standing memory files: self-persistence.
+            if _skill_persists_instructions(_skill_body(content)):
+                attrs["_skill_persists_instructions"] = True
         # Skills are all named SKILL.md, so key the component on their folder.
         comp_name = f.parent.name if skill else (f.stem or f.name)
         model.add(

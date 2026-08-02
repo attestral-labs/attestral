@@ -7,6 +7,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Skill-manifest deception checks: ATL-169 + ATL-170 (pack 265 -> 267).** Two new derived
+  signals on SKILL.md skill surfaces close the claim-vs-capability gap the existing skill checks
+  could not see. ATL-169 (high) fires when a skill's frontmatter description promises read-only /
+  no-side-effects behavior while its allowed-tools grant affirmatively includes shell, exec, or a
+  wildcard - a deceptive capability claim, the skill-manifest analogue of tool poisoning, distinct
+  from ATL-116 which fires on the broad grant alone. ATL-170 (medium) fires when a skill body
+  directs the agent to write into an always-loaded instruction or memory file (CLAUDE.md,
+  MEMORY.md, SOUL.md, .cursorrules, and the like) - the self-persistence path a malicious skill
+  uses to outlive its own invocation; negation-aware parsing keeps guidance text ("never write to
+  CLAUDE.md") clean. Both attrs derive in the prompts ingester (frontmatter parsed once,
+  fail-closed), so the rules stay pure data. Cites the OWASP Agentic Skills Top 10 (2026): AST04
+  Insecure Metadata and AST01 Malicious Skills, verified against the published entries. New
+  fixture `examples/deceptive-skill` (deceptive skill fires ATL-116/169/170; honest scoped skill
+  stays clean), 14 new tests, benchmark recall 161/161 with 0 false positives.
 - **`attestral design-diff OLD NEW`: the capability-envelope diff between two design revisions,
   with `--fail-on-widen` as a CI gate.** Components added or removed with the reach they carry,
   capabilities, secrets, cloud credentials, and auto-approve gained or cleared per surviving
