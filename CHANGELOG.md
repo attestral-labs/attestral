@@ -7,6 +7,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Cross-server split-injection: a new chaos attack family and a new fleet-level ML detection
+  (ATL-ML-003).** The attack cuts one prompt-injection payload across two servers' tool
+  descriptions so each half reads benign alone - a continuation cue in the first half names the
+  second server, and only reassembling that named pair reconstitutes the injection; a per-server
+  scanner is structurally blind to it. The detector is marker-gated and precision-first, never
+  all-pairs: surfaces are scanned (homoglyph-normalized) for a cross-tool reference marker, the
+  marker must resolve to a real other component by name, and only that pair's concatenation is
+  scored - one model-level finding fires when the reassembled pair crosses the threshold while
+  neither half fires alone. Byte-identical finding schema across ML tiers, zero-dep on the
+  heuristic tier, `cross_server_scan` flag to disable. The chaos harness catches its own attack
+  (15 attacks, 14 caught; the only miss remains the tracked paraphrase frontier) and the
+  over-defense slice stays at 0/48 FP - benign cross-references do not fire. 13 new tests.
+  No rule change (pack stays 265): language-based risk lives in ml.py by design.
 - **Incident forensics: `attestral drift POLICY EVENTS --replay [--journal PATH]` reconstructs when
   the runtime diverged and what contained it.** The recorded stream replays through a fresh
   DriftMonitor so every finding lands at the exact event ordinal and timestamp where it crossed
