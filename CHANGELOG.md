@@ -7,6 +7,21 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral design-diff OLD NEW`: the capability-envelope diff between two design revisions,
+  with `--fail-on-widen` as a CI gate.** Components added or removed with the reach they carry,
+  capabilities, secrets, cloud credentials, and auto-approve gained or cleared per surviving
+  component, cross-boundary component-to-component edges opened or closed (sentinel edges never
+  count - fail closed), and the rules that started or stopped firing (reported as evidence; the
+  envelope, not the findings, moves the verdict). Verdict vocabulary echoes the compile-loop
+  narrowing check - WIDENED / NARROWED / MIXED / UNCHANGED - computed over the model itself,
+  before any policy exists. `--fail-on-widen` exits 3 on any widening signal, so "this PR quietly
+  widened what the agent can reach" becomes a red build; offline and deterministic (no ML or LLM),
+  so the gate is fast and reproducible. `-o` writes the JSON record for CI consumers; nothing is
+  written without it. Fixture pair `examples/diff-base` -> `examples/diff-widened` demonstrates
+  the red build (a server swaps its launcher for bash and gains standing AWS keys: four widening
+  signals and a new `credential_reach` crossing). 18 new tests. Named `design-diff` because
+  `attestral diff` (the report-level security-impact delta) already exists; the two answer
+  different questions. No rule change (pack stays 265).
 - **Cross-server split-injection: a new chaos attack family and a new fleet-level ML detection
   (ATL-ML-003).** The attack cuts one prompt-injection payload across two servers' tool
   descriptions so each half reads benign alone - a continuation cue in the first half names the
