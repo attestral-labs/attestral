@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Incident forensics: `attestral drift POLICY EVENTS --replay [--journal PATH]` reconstructs when
+  the runtime diverged and what contained it.** The recorded stream replays through a fresh
+  DriftMonitor so every finding lands at the exact event ordinal and timestamp where it crossed
+  (a rug-pull at the manifest flip, a budget at the crossing call). `--journal` merges the
+  hash-chained containment journal into the same chronological timeline, chain verified first:
+  a tampered journal is a headline of the reconstruction, earns no containment credit (final state
+  stays DRIFTED, gap stats withheld), and its entries render as claims - reported, never raised.
+  The summary answers the responder's questions: first drift, drift-to-containment gap (seconds,
+  or event count when timestamps are absent), refusals, chain verdict, and a final state of
+  CONFORM / DRIFTED / CONTAINED. Terminal-first: `-o` writes the JSON incident record, nothing else
+  touches disk; malformed event or journal lines are counted and reported, garbage timestamps
+  degrade to ordinals. 13 new tests. No rule change (pack stays 265).
 - **The system model now carries real component-to-component edges, not just sentinel endpoints.**
   Three statically derived, fail-closed edge families: Terraform attribute references
   (`references`: IAM attachments to roles, instances to security groups and profiles, ACL and IAM
