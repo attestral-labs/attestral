@@ -52,6 +52,26 @@ def test_split_payload_is_caught_only_by_fleet_scoring():
     assert by["split-payload"] == (True, "ml (fleet)")
 
 
+def test_split_injection_is_caught_by_cross_server_reassembly():
+    # The cross-server split cuts the payload across TWO servers, each half benign
+    # and surviving a per-server reassembly; only reassembling the pair the cue
+    # names (ATL-ML-003) reconstitutes it.
+    by = {r.attack.id: (r.caught, r.by) for r in run_chaos(build_model(FIXTURE))}
+    assert by["split-injection"] == (True, "ml (cross-server)")
+
+
+def test_split_injection_is_not_applicable_below_two_servers():
+    # With fewer than two servers the cross-server split cannot be staged, so the
+    # harness records a skip (the attack is absent from the results) rather than a
+    # miss - it must not trip --fail-on-miss on a single-server model.
+    from attestral.model import Component, SystemModel
+    one = SystemModel()
+    one.add(Component(id="mcp_server.solo", type="mcp_server", name="solo",
+                      source="mcp.json", attributes={}, trust_boundary="agent_runtime"))
+    ran = {r.attack.id for r in run_chaos(one)}
+    assert "split-injection" not in ran
+
+
 def test_schema_default_injection_is_caught_via_schema_enumeration():
     # The ingester enumerates every schema string, so an injection hidden in a
     # tool's schema default (not the top-level description) is scored and caught.
