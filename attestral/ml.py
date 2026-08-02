@@ -77,6 +77,13 @@ RULE_ID = "ATL-ML-001"
 # server's tool surface is scored as one text. Same origin="ml" schema as
 # ATL-ML-001, distinguished only by rule_id.
 RULE_ID_FLEET = "ATL-ML-002"
+# ATL-ML-003 is the cross-SERVER reassembly finding: a payload split across two
+# DIFFERENT servers, where one server's benign-reading description points the
+# agent at the other's ("consult the <tool> description ..."), and the two halves
+# only read as injection when concatenated in that reference order. Same
+# origin="ml" schema as ATL-ML-001/002; it is model-level (component_id "model")
+# because the risk is emergent from the pair, not owned by either server.
+RULE_ID_CROSS = "ATL-ML-003"
 _FRAMEWORKS = ["OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051", "OWASP-ASI01:2026"]
 # An MCP Apps HTML body renders inside the agent host, so instruction-bearing
 # text in it is aimed at the agent, not the human: ATLAS's agent-clickbait and
@@ -112,6 +119,10 @@ class MLConfig:
     fleet_scan: bool = True         # run the cross-tool reassembly pass
     fleet_gap: float = 0.25         # min union-vs-best-single gap to fire
     fleet_min_tools: int = 2        # min tool descriptions before a split is possible
+    # Cross-server reassembly (ATL-ML-003). Only the pairs a cross-tool reference
+    # marker names are concatenated and scored, so this never fans out to all
+    # server pairs. Shares ``fleet_gap`` as the emergent-signal floor.
+    cross_server_scan: bool = True  # run the cross-server reassembly pass
 
     @classmethod
     def from_env(cls, **overrides) -> "MLConfig":
@@ -330,6 +341,56 @@ def _fleet_finding(
             "override the agent's system instructions or drive tool-call decisions."
         ),
         source=component.source,
+        framework_refs=list(_FRAMEWORKS_FLEET),
+        origin="ml",
+        confidence=_confidence(union_score),
+    )
+
+
+def _cross_server_finding(
+    a: Component,
+    b: Component,
+    a_surface: TextSurface,
+    b_surface: TextSurface,
+    union_score: float,
+    evidence: list[str] | None,
+    best_single: float,
+    union_text: str,
+) -> Finding:
+    """Build the ATL-ML-003 cross-server reassembly finding.
+
+    Mirrors ``_finding`` / ``_fleet_finding`` field-for-field so the ml-layer
+    schema stays byte-identical across tiers; the only deltas are the rule id,
+    the model-level component (the risk is emergent from the pair, owned by
+    neither server), and a description that names both servers, the reference
+    marker that gated the pair, and the union-vs-best-half gap.
+    """
+    evidence = evidence or []
+    cats = ", ".join(sorted({e.split(":", 1)[0] for e in evidence})) or "-"
+    how = (
+        f"A prompt-injection payload split across two servers reassembles when their "
+        f"tool descriptions are read in reference order. '{a.name}' ({a_surface.label}) "
+        f"reads benign but points the agent to '{b.name}' ({b_surface.label}); '{b.name}' "
+        f"reads benign too. Neither half clears the threshold alone, but concatenated in "
+        f"the order the first description names, they score {union_score:.2f} (best half "
+        f"alone ={best_single:.2f}; categories: {cats}). Per-server scoring misses it; the "
+        f"cross-server reference is the gate, so only the named pair is reassembled - not "
+        f"every server pair. "
+    )
+    src = a.source if a.source == b.source else f"{a.source}, {b.source}"
+    return Finding(
+        rule_id=RULE_ID_CROSS,
+        title=f"Prompt-injection payload split across servers {a.name} and {b.name}",
+        severity=_severity(union_score),
+        component_id="model",
+        description=how + f'Reassembled snippet: "{_snippet(union_text)}"',
+        recommendation=(
+            "Treat the two servers' tool surfaces as one untrusted document, not "
+            "server by server. Review the referenced descriptions together, delete the "
+            "cross-server reference and the reassembled instruction, and never let one "
+            "server's tool text steer how the agent uses another server's tools."
+        ),
+        source=src,
         framework_refs=list(_FRAMEWORKS_FLEET),
         origin="ml",
         confidence=_confidence(union_score),
@@ -961,6 +1022,8 @@ def scan(
             findings.append(_finding(s, best_prob, best_ev))
     if cfg.fleet_scan:
         findings.extend(_fleet_pass(model, cfg, engine, groups))
+    if cfg.cross_server_scan:
+        findings.extend(_cross_server_pass(model, cfg, engine, groups))
     findings.sort(key=lambda f: f.severity.rank, reverse=True)
     return findings, notes
 
@@ -1039,4 +1102,159 @@ def _fleet_pass(
                     comp, u_prob, u_ev, best_single,
                     [s.label for s, _ in members], union_text, order=order,
                 ))
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Cross-server reassembly (ATL-ML-003): a payload split across TWO servers
+# --------------------------------------------------------------------------- #
+#
+# The per-server pass above reassembles the tool surfaces WITHIN one server. A
+# more evasive attacker spreads the payload across two servers so that even a
+# per-server reassembly sees only a benign half on each. The tell that pairs the
+# two is a CROSS-TOOL REFERENCE MARKER: a description that points the agent at
+# another tool's description/instructions ("consult the <tool> description
+# before answering ..."). That marker is a narrow, high-precision structural
+# signal - it is used ONLY to pick which pairs are worth concatenating, never as
+# a finding on its own. The firing decision is always the concatenation score,
+# so a benign cross-reference ("see the docs tool for examples") whose halves
+# reassemble to nothing never fires. This keeps the pass off any O(n^2)
+# all-pairs scan: only the pair a marker names is ever scored.
+
+# A directive to read/consult/follow ANOTHER tool or server's guidance surface.
+# Verb (consult/refer to/see/read/review/follow/check/look at) followed, within a
+# short window, by a reference object (description/instructions/tool/server/...).
+# Deliberately structural, not intent-bearing: precision comes from the score
+# gate below, not from this regex.
+_CROSS_REF_RE = re.compile(
+    r"\b(?:consult|refer\s+to|refer|see|read|review|follow|check|look\s+at)\b"
+    r"[^.\n]{0,50}?"
+    r"\b(?:description|instructions?|tool|server|manifest|guide|docs?)\b",
+    re.I,
+)
+
+
+def _server_name_tokens(model: SystemModel) -> list[tuple[str, str]]:
+    """(name-token, component-id) for every server and its tool names, lowercased.
+
+    Used to resolve a cross-tool reference against real other components, so a
+    marker only pairs the servers/tools it actually names. Tokens shorter than 3
+    chars are dropped as too generic to resolve on."""
+    idx: list[tuple[str, str]] = []
+    for c in model.components:
+        if c.type != "mcp_server":
+            continue
+        toks = {str(c.name).strip().lower()}
+        for key in ("_tool_descriptions", "_tool_schema_strings"):
+            for t in c.attr(key) or []:
+                if isinstance(t, dict) and t.get("name"):
+                    toks.add(str(t["name"]).strip().lower())
+        for tok in toks:
+            if len(tok) >= 3 and any(ch.isalnum() for ch in tok):
+                idx.append((tok, c.id))
+    return idx
+
+
+def _cross_ref_targets(
+    text: str, own_cid: str, name_index: list[tuple[str, str]]
+) -> set[str]:
+    """Component ids this surface points the reader to for further instructions.
+
+    Empty unless the text (homoglyph-normalized first, so a look-alike-obfuscated
+    marker still resolves) BOTH carries a cross-tool reference cue AND names
+    another server/tool as a whole word. That conjunction is the gate that keeps
+    the reassembly pass from scanning every server pair."""
+    canon = _deconfuse(text)
+    if not _CROSS_REF_RE.search(canon):
+        return set()
+    low = canon.lower()
+    targets: set[str] = set()
+    for token, cid in name_index:
+        if cid == own_cid:
+            continue
+        if re.search(rf"(?<!\w){re.escape(token)}(?!\w)", low):
+            targets.add(cid)
+    return targets
+
+
+def _best_over_chunks(
+    text: str, cfg: MLConfig, engine: _Engine
+) -> tuple[float, list[str], set[str]]:
+    """Best (prob, evidence, pooled-categories) over the windowed text - the same
+    windowing the per-surface loop uses, so a reassembled surface is scored the
+    same way any other surface is."""
+    best_prob, best_ev = 0.0, []  # type: tuple[float, list[str]]
+    cats: set[str] = set()
+    for chunk in _chunks(text, cfg.max_chars, cfg.overlap):
+        prob, ev = engine(chunk)
+        cats.update(e.split(":", 1)[0] for e in ev)
+        if prob > best_prob:
+            best_prob, best_ev = prob, ev
+    return best_prob, best_ev, cats
+
+
+def _cross_server_pass(
+    model: SystemModel,
+    cfg: MLConfig,
+    engine: _Engine,
+    groups: dict[str, list[tuple[TextSurface, float]]],
+) -> list[Finding]:
+    """Cross-server reassembly (ATL-ML-003): concatenate a marker-named pair of
+    tool descriptions from two DIFFERENT servers and flag the split that only
+    reads as injection once reassembled.
+
+    Marker-gated, never all-pairs: for each tool surface A that carries a
+    cross-tool reference marker naming another server B, and only then, the pass
+    scores ``A + "\\n" + B`` for each of B's tool surfaces. The newline join is
+    load-bearing exactly as in the per-server pass - the instruction-override
+    trigger reconstitutes across it while the looser exfil/poisoning patterns
+    (whose spans stop at a newline) do not accidentally combine two benign halves.
+
+    Fires ATL-ML-003 for a directed pair (A-server -> B-server) ONLY when every
+    gate holds, so the two findings partition the space with ATL-ML-001/002 and
+    never double-count:
+      1. A carries a cross-tool reference marker resolving to another server B;
+      2. neither half clears the threshold alone (``best_A``/``best_B`` < thr),
+         so a genuinely-poisoned single description stays ATL-ML-001;
+      3. the reassembled A+B clears the threshold;
+      4. ``union - max(best_A, best_B) >= fleet_gap``, so the injection signal is
+         materially emergent from the pair, not one loud half.
+    One finding per directed server pair (the strongest reassembly of it).
+    """
+    if len(groups) < 2:
+        return []
+    name_index = _server_name_tokens(model)
+    comp_by_id = {c.id: c for c in model.components}
+    # Strongest reassembly per directed (A-server, B-server) pair, so a server
+    # with several marker-bearing tools raises one finding for the pair, not many.
+    best_by_pair: dict[tuple[str, str], tuple] = {}
+    for cid_a, members_a in groups.items():
+        for s_a, best_a in members_a:
+            if best_a >= cfg.threshold:
+                continue  # A alone already fires -> ATL-ML-001, not a split
+            for cid_b in sorted(_cross_ref_targets(s_a.text, cid_a, name_index)):
+                for s_b, best_b in groups.get(cid_b, []):
+                    if best_b >= cfg.threshold:
+                        continue  # B alone already fires -> ATL-ML-001
+                    union_text = s_a.text + "\n" + s_b.text
+                    u_prob, u_ev, u_cats = _best_over_chunks(union_text, cfg, engine)
+                    if u_prob < cfg.threshold:
+                        continue
+                    if u_prob - max(best_a, best_b) < cfg.fleet_gap:
+                        continue
+                    if muted_on_surface("mcp_server", u_cats):
+                        continue
+                    key = (cid_a, cid_b)
+                    cur = best_by_pair.get(key)
+                    if cur is None or u_prob > cur[0]:
+                        best_by_pair[key] = (
+                            u_prob, u_ev, max(best_a, best_b), s_a, s_b, union_text)
+    out: list[Finding] = []
+    for (cid_a, cid_b), (u_prob, u_ev, best_half, s_a, s_b, union_text) in sorted(
+            best_by_pair.items()):
+        a, b = comp_by_id.get(cid_a), comp_by_id.get(cid_b)
+        if a is None or b is None:
+            continue
+        out.append(_cross_server_finding(
+            a, b, s_a, s_b, u_prob, u_ev, best_half, union_text))
     return out
