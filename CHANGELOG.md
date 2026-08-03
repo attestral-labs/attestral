@@ -6,6 +6,8 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-03
+
 ### Added
 - **`attestral incident`: the signed incident attestation - the replay forensics record, made
   audit-grade.** New incident.py binds one reconstructed incident into a DSSE-signable in-toto
