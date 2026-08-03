@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The review the runtime is held to - Attestral</title>
+<meta name="description" content="The runtime loop: the attested design compiles into a default-deny policy, every runtime event is judged against it, divergence is contained by a narrowing-verified lockdown, and the incident record is a signed, offline-verifiable attestation.">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F4F1; --ink:#171F1C; --seal:#96222E; --rule:#D3D6D0;
+    --muted:#5D6660; --verify:#1F6A4A; --card:#FBFBF9;
+    --term-bg:#171F1C; --code-bg:#E9EBE6;
+    --seal-tint:rgba(150,34,46,.06); --verify-tint:rgba(31,106,74,.09);
+    --display:'Libre Caslon Text',Georgia,serif;
+    --body:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+      --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+      --term-bg:#0B0E08; --code-bg:#232B1E;
+      --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --ink:#E9ECE4; --seal:#E06B76; --rule:#2B3129;
+    --muted:#9BA79C; --verify:#5FBE90; --card:#1A1F16;
+    --term-bg:#0B0E08; --code-bg:#232B1E;
+    --seal-tint:rgba(224,107,118,.10); --verify-tint:rgba(95,190,144,.12);
+  }
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)}
+  a:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .wordmark svg .p{fill:var(--seal)}
+  .wordmark svg .k{stroke:var(--paper)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--ink);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
+
+  /* runtime-loop sub-nav */
+  .layernav{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;font-family:var(--mono);font-size:.8rem;padding:13px 0;border-bottom:1px solid var(--rule)}
+  .layernav>span{color:var(--muted);letter-spacing:.09em;text-transform:uppercase;font-size:.66rem}
+  .layernav a{color:var(--ink);text-decoration:none}
+  .layernav a:hover{color:var(--seal)}
+  .layernav a[aria-current="page"]{color:var(--seal)}
+
+  /* Article */
+  article{max-width:760px;margin:0 auto;padding:56px 0 40px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);display:flex;align-items:center;gap:.6rem}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--seal)}
+  article h1{font-family:var(--display);font-weight:400;font-size:clamp(2.1rem,5vw,3rem);line-height:1.12;margin:16px 0 14px;text-wrap:balance}
+  .standfirst{color:var(--muted);font-size:1.15rem;max-width:56ch;margin-bottom:26px;text-wrap:pretty}
+  .meta{font-family:var(--mono);font-size:.73rem;color:var(--muted);letter-spacing:.03em;display:flex;gap:22px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  section{padding:44px 0;border-bottom:1px solid var(--rule)}
+  section:last-of-type{border-bottom:none}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,3.4vw,1.9rem);line-height:1.16;margin:8px 0 14px;text-wrap:balance}
+  h3{font-size:1.02rem;font-weight:600;margin:24px 0 6px}
+  p{margin:0 0 14px;max-width:66ch;text-wrap:pretty}
+  p:last-child{margin-bottom:0}
+  .lede{font-size:1.1rem}
+  em{font-style:italic}
+  strong{font-weight:600}
+  code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:2px}
+  ul{margin:0 0 14px;padding-left:20px;max-width:66ch}
+  li{margin:0 0 6px}
+
+  .pull{font-family:var(--display);font-size:1.35rem;line-height:1.36;border-left:3px solid var(--seal);padding:2px 0 2px 20px;margin:22px 0;max-width:60ch;text-wrap:pretty}
+
+  /* Diagram figure */
+  figure{margin:20px 0 6px}
+  .diagram{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:20px;overflow-x:auto}
+  .diagram svg{display:block;width:100%;height:auto;min-width:460px;overflow:visible}
+  figcaption{font-size:.88rem;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--rule);max-width:70ch;text-wrap:pretty}
+  figcaption b{color:var(--ink);font-weight:600}
+
+  /* SVG shared */
+  svg text{font-family:var(--mono);fill:var(--ink)}
+  .t-mut{fill:var(--muted)} .t-seal{fill:var(--seal)} .t-verify{fill:var(--verify)}
+  .tok{fill:var(--card);stroke:var(--rule)}
+  .tok-ink{fill:var(--paper);stroke:var(--ink)}
+  .chip{fill:var(--seal-tint);stroke:color-mix(in srgb,var(--seal) 40%,transparent)}
+  .chip-v{fill:var(--verify-tint);stroke:color-mix(in srgb,var(--verify) 40%,transparent)}
+  .stroke-rule{stroke:var(--rule)} .stroke-ink{stroke:var(--ink)} .stroke-seal{stroke:var(--seal)} .stroke-verify{stroke:var(--verify)}
+  .fill-seal{fill:var(--seal)}
+
+  /* good/bad split */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0;max-width:66ch}
+  .split>div{border:1px solid var(--rule);border-radius:2px;padding:14px 16px;background:var(--card)}
+  .split h4{margin:0 0 6px;font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+  .split.bad h4{color:var(--seal)} .split.good h4{color:var(--verify)}
+  .split .good h4{color:var(--verify)} .split .bad h4{color:var(--seal)}
+  .split p{font-size:.92rem;margin:0;color:var(--muted)}
+  @media(max-width:600px){.split{grid-template-columns:1fr}}
+
+  /* DRF table */
+  .mtable{border-collapse:collapse;margin:20px 0;font-size:.88rem;max-width:66ch}
+  .mtable th{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:8px 18px 8px 0}
+  .mtable td{border-top:1px solid var(--rule);padding:9px 18px 9px 0;vertical-align:top}
+  .mtable td.n{font-family:var(--mono);font-size:.84rem;white-space:nowrap}
+
+  /* Terminal / code */
+  pre{background:var(--term-bg);color:#DDE2DD;font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:16px 18px;overflow-x:auto;margin:18px 0;border-radius:2px;max-width:66ch}
+  pre .c{color:#8FA398} pre .s{color:#E5697A} pre .g{color:#7CC7A1} pre .y{color:#E2A65B} pre .k{color:#9FC7EA}
+
+  footer{border-top:1px solid var(--rule);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+  .refs{font-family:var(--mono);font-size:.8rem;line-height:1.95;margin:8px 0 0}
+  .refs a{text-decoration:none} .refs a:hover{text-decoration:underline}
+  @media(prefers-reduced-motion:no-preference){a,figure{transition:border-color .15s}}
+  ::selection{background:var(--seal);color:var(--paper)}
+  [id]{scroll-margin-top:24px}
+</style>
+<script>
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect class="p" x="8" y="8" width="84" height="84" rx="18"/><g class="k" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="research.html">Research</a>
+      <a href="pipeline.html">Pipeline</a>
+      <a href="capabilities.html">Capabilities</a>
+      <a href="system.html">System</a>
+      <a href="index.html#how">Review layers</a>
+      <a href="index.html#start">Get started</a>
+      <a href="proof.html">Proof</a>
+      <a href="runtime.html" aria-current="page">Runtime</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">&#9790;</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="layernav" aria-label="Runtime loop">
+    <span>Runtime loop</span>
+    <a href="#compile">1 &#183; compile</a>
+    <a href="#drift">2 &#183; drift</a>
+    <a href="#remediate">3 &#183; remediate</a>
+    <a href="#lockdown">4 &#183; lockdown</a>
+    <a href="#replay">5 &#183; replay</a>
+    <a href="#incident">6 &#183; incident</a>
+  </nav>
+</div>
+
+<div class="wrap">
+<article>
+
+  <p class="eyebrow">Field notes / The runtime loop</p>
+  <h1>The review is not a report. It is the policy.</h1>
+  <p class="standfirst">A design review that ends at a PDF stops mattering the day the deployment changes. Attestral compiles the attested design into the runtime's own policy, judges every runtime event against it, contains divergence live, and signs the incident record. This page walks the loop end to end.</p>
+  <div class="meta">
+    <span>Loop: compile &#8594; drift &#8594; contain &#8594; attest</span>
+    <span>Checks: DRF-001..011</span>
+    <span>Needs: no API key, offline</span>
+  </div>
+
+  <section>
+    <p class="lede">Every stage of the loop is built on the same three invariants, and they are worth stating before any command. <strong>Detection never moves</strong>: every runtime event is judged against the original attested policy, never against whatever the runtime has become. <strong>Enforcement only ever narrows</strong>: every automatic action carries a machine-checked proof that it removes capability and grants none, and an action that would widen is refused. <strong>Everything lands on a hash chain</strong>: pushes, refusals, and the final incident record are tamper-evident, the same discipline as the scan's evidence chain.</p>
+    <figure>
+      <div class="diagram">
+      <svg viewBox="0 0 620 250" role="img" aria-label="The runtime loop: the attested design compiles to a default-deny policy that the guard reads; runtime events flow to drift detection, which is always judged against the original policy; containment narrows only, is journaled, and closes into a signed incident attestation that returns to review.">
+        <g font-size="11.5">
+          <rect class="tok-ink" x="20" y="30" width="150" height="44" rx="7" stroke-width="1.6"/><text x="95" y="49" text-anchor="middle" font-weight="600">attested design</text><text x="95" y="65" text-anchor="middle" font-size="9.5" class="t-mut">the review</text>
+          <rect class="chip-v" x="235" y="30" width="150" height="44" rx="7"/><text x="310" y="49" text-anchor="middle" font-weight="600" class="t-verify">default-deny policy</text><text x="310" y="65" text-anchor="middle" font-size="9.5" class="t-mut">mcp-guard / cedar / gateway</text>
+          <rect class="tok" x="450" y="30" width="150" height="44" rx="7"/><text x="525" y="49" text-anchor="middle" font-weight="600">runtime</text><text x="525" y="65" text-anchor="middle" font-size="9.5" class="t-mut">the guard reads it</text>
+          <rect class="tok" x="450" y="160" width="150" height="44" rx="7"/><text x="525" y="179" text-anchor="middle" font-weight="600">drift</text><text x="525" y="195" text-anchor="middle" font-size="9.5" class="t-mut">DRF-001..011</text>
+          <rect class="chip" x="235" y="160" width="150" height="44" rx="7"/><text x="310" y="179" text-anchor="middle" font-weight="600" class="t-seal">contain</text><text x="310" y="195" text-anchor="middle" font-size="9.5" class="t-mut">narrows only, journaled</text>
+          <rect class="tok-ink" x="20" y="160" width="150" height="44" rx="7" stroke-width="1.6"/><text x="95" y="179" text-anchor="middle" font-weight="600">incident</text><text x="95" y="195" text-anchor="middle" font-size="9.5" class="t-mut">signed attestation</text>
+        </g>
+        <g class="stroke-rule" stroke-width="1.4" fill="none">
+          <path d="M170,52 L233,52" marker-end="url(#lr)"/>
+          <path d="M385,52 L448,52" marker-end="url(#lr)"/>
+          <path d="M525,74 L525,158" marker-end="url(#lr)"/>
+          <path d="M450,182 L387,182" marker-end="url(#lr)"/>
+          <path d="M235,182 L172,182" marker-end="url(#lr)"/>
+        </g>
+        <text x="202" y="42" text-anchor="middle" font-size="9.5" class="t-mut">compile</text>
+        <text x="545" y="120" font-size="9.5" class="t-mut">events</text>
+        <path d="M330,74 C360,110 430,140 470,158" class="stroke-seal" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#ls)"/>
+        <text x="368" y="105" font-size="9.5" class="t-seal">judged against the</text>
+        <text x="368" y="117" font-size="9.5" class="t-seal">ORIGINAL policy</text>
+        <path d="M95,160 C95,120 95,110 95,76" class="stroke-verify" stroke-width="1.5" fill="none" marker-end="url(#lv)"/>
+        <text x="88" y="120" text-anchor="end" font-size="9.5" class="t-verify">the loop closes</text>
+        <defs>
+          <marker id="lr" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-rule" stroke-width="1.5"/></marker>
+          <marker id="ls" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-seal" stroke-width="1.5"/></marker>
+          <marker id="lv" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" class="stroke-verify" stroke-width="1.5"/></marker>
+        </defs>
+      </svg>
+      </div>
+      <figcaption>The dashed edge is the load-bearing one. Enforcement acts on the runtime, but detection keeps reading the <b>original</b> attested policy, so a compromised runtime can trip its own containment and can never drive its own policy.</figcaption>
+    </figure>
+    <p class="pull">The review is the source of truth the runtime is held to. Not a snapshot of what was once true; the policy that decides what is allowed to be true.</p>
+  </section>
+
+  <section id="compile">
+    <p class="eyebrow">Stage one</p>
+    <h2>compile: the review becomes the policy</h2>
+    <p><code>attestral compile</code> turns the attested design into a <strong>default-deny</strong> runtime policy: every MCP server the review allowed becomes an explicit allow with its attested capability envelope, filesystem roots, and manifest pin; everything else is denied. A finding raised to critical by a reachable attack chain denies its server here too, so the policy inherits the review's judgment, not just its inventory.</p>
+    <p>Three targets share one policy model: <code>mcp-guard</code> (the default, and the format the drift stage reads back), <code>cedar</code> (an AWS Cedar authorization policy; lossy and one-way, it cannot serve as a prior), and <code>agentgateway</code> (a CB4A credential-broker config, so a server that held a standing secret is re-issued short-lived, per-call, provider-scoped tokens instead).</p>
+    <pre aria-label="Compiling the attested design"><span class="c"># attestral compile examples/attested-agent -o mcp-guard-policy.yaml</span>
+wrote mcp-guard-policy.yaml  &#183;  target mcp-guard  &#183;  <span class="g">default deny</span>  &#183;  2 allowed, 0 denied
+  [<span class="g">ALLOW</span>] internal-tools
+  [<span class="g">ALLOW</span>] web-fetch</pre>
+    <p>The gate that makes re-attestation safe is <code>--against</code>. Point a new compile at the prior policy and Attestral classifies the change: <strong>NARROWING</strong>, <strong>UNCHANGED</strong>, or <strong>EXPANSION</strong>. An expansion, any new server, capability, or dropped constraint, exits non-zero, because a design that grants more than the reviewed one must go back through a human, never silently through CI.</p>
+    <pre aria-label="A re-attestation that widens is refused"><span class="c"># attestral compile . -o policy.yaml --against mcp-guard-policy.yaml</span>
+re-attestation vs mcp-guard-policy.yaml: <span class="s">EXPANSION</span>
+  this design grants more ambient capability than the
+  reviewed one; a human must approve it before it runs:
+    <span class="s">+ internal-tools: gained capability ['shell']</span>
+<span class="c"># exit 1 - the widened design does not ship</span></pre>
+    <p>For the properties that must hold regardless of what the design says, <code>--verify</code> (or <code>--fail-on-violation</code> as a CI gate) proves them over the compiled policy directly, no secret exfiltration, no code-exec egress, default-deny, TLS-only, and prints a counterexample for any that fail.</p>
+  </section>
+
+  <section id="drift">
+    <p class="eyebrow">Stage two</p>
+    <h2>drift: every event, judged against the original</h2>
+    <p><code>attestral drift POLICY EVENTS</code> diffs runtime telemetry against the compiled policy. Batch mode reads a recorded JSONL file; <code>--stdin</code> runs as a continuous sidecar on a live mcp-guard telemetry pipe; <code>--watch</code> tails the events file and streams drift as lines append. In every mode the reference never moves: each event is evaluated against the <em>original</em> attested policy, so detection is always a comparison to the reviewed design, not to the runtime's own recent behavior.</p>
+    <p>Eleven checks make up the DRF family. The ones that carry the story:</p>
+    <table class="mtable">
+      <thead><tr><th>Check</th><th>Severity</th><th>What it catches</th></tr></thead>
+      <tbody>
+        <tr><td class="n">DRF-001</td><td>critical</td><td>a server observed at runtime that the attested design does not contain</td></tr>
+        <tr><td class="n">DRF-002</td><td>critical</td><td>a server the policy denies, invoked anyway</td></tr>
+        <tr><td class="n">DRF-005</td><td>critical</td><td>the served tool manifest no longer matches the attested pin (a rug-pull)</td></tr>
+        <tr><td class="n">DRF-006 / 007</td><td>high / medium</td><td>a runaway identical-call loop; a server crossing its attested call-volume budget</td></tr>
+        <tr><td class="n">DRF-011</td><td>critical</td><td>a credential-brokered server reached without the broker (bypass)</td></tr>
+      </tbody>
+    </table>
+    <pre aria-label="Batch drift over a recorded stream"><span class="c"># attestral drift mcp-guard-policy.yaml runtime-events.jsonl --fail-on-drift</span>
+  [<span class="s">CRITICAL</span>] DRF-001  Unattested server observed at runtime  (mcp_server.helper-x)
+  [<span class="s">CRITICAL</span>] DRF-005  Tool manifest changed since attestation (rug-pull)  (mcp_server.web-fetch)
+  [<span class="y">HIGH    </span>] DRF-006  Runaway tool-call loop (resource drain)  (mcp_server.web-fetch)
+42 events &#183; 3 drift findings
+<span class="s">DRIFT: deployment no longer matches the attested design</span>
+<span class="c"># exit 1 - the CI / cron gate</span></pre>
+  </section>
+
+  <section id="remediate">
+    <p class="eyebrow">Stage three</p>
+    <h2>drift --remediate: propose the narrowing, never the widening</h2>
+    <p>A drift finding means the runtime diverged from the reviewed design. <code>--remediate</code> answers with the <strong>minimal tightening that would have prevented each finding</strong>: quarantine the offending server toward denial, re-emitted for both compiled targets. It is a proposal, a human reviews and re-compiles. And it is one-directional by construction: the proposal is re-classified through the same narrowing check as <code>--against</code>, and a result that would widen is refused outright. The tool will never "fix" drift by amending the design to match what the runtime started doing.</p>
+    <pre aria-label="A proposed tightening"><span class="c"># attestral drift mcp-guard-policy.yaml runtime-events.jsonl --remediate</span>
+  [<span class="s">CRITICAL</span>] DRF-008  Unauthorized runtime capability / process spawn  (mcp_server.internal-tools)
+5 events &#183; 1 drift findings
+
+PROPOSED tightening - a human reviews and re-compiles.
+  <span class="y">PROPOSE</span> DRF-008  internal-tools: allow True-&gt;False  (quarantine: exercised
+          capability 'shell' outside its attested envelope ['filesystem'])
+  narrowing check: <span class="g">narrowing</span></pre>
+  </section>
+
+  <section id="lockdown">
+    <p class="eyebrow">Stage four</p>
+    <h2>drift --lockdown --enforce: containment, live</h2>
+    <p>When drift is an incident in progress, a proposal is too slow. <code>--lockdown</code> builds the containment action, the enforcement policy with every drifted server quarantined, and <code>--enforce</code> pushes it atomically (temp file plus rename, so the guard never reads a torn write) to the live policy file a running mcp-guard reads. <code>--reload-cmd</code> can nudge the guard to re-read it. The exit code is part of the interface: a pushed lockdown exits <code>2</code>, the responder signal, distinct from the generic drift gate's <code>1</code>.</p>
+    <p>What licenses automation here, and what a bare kill-the-server script cannot claim, is the <strong>narrowing proof</strong>. The locked-down policy is verified to only remove capability from the reviewed design, so applying it can at worst deny a server, never escalate one. That is why lockdown is the one drift response safe to run without a human in the loop, and it is enforced, not assumed:</p>
+    <div class="split">
+      <div class="good"><h4>Narrowing verified</h4><p>The lockdown is pushed to the enforcement point and appended to the hash-chained journal. A compromised runtime that triggers it can, at worst, deny itself.</p></div>
+      <div class="bad"><h4>Would widen</h4><p>REFUSED. Nothing is pushed, the refusal itself is journaled, and the monitor keeps running. The enforcement point never receives a policy that could widen the attested design.</p></div>
+    </div>
+    <pre aria-label="Live containment from a telemetry stream"><span class="c"># mcp-guard telemetry | attestral drift mcp-guard-policy.yaml --stdin \
+#     --lockdown --enforce live-policy.yaml</span>
+  [<span class="s">CRITICAL</span>] DRF-008  Unauthorized runtime capability / process spawn  (mcp_server.internal-tools)
+  <span class="g">LOCKDOWN pushed</span>: quarantined internal-tools -&gt; live-policy.yaml
+5 events &#183; 1 drift findings (stream ended)
+<span class="c"># exit 2 - the responder signal; trail in live-policy.yaml.journal.jsonl</span></pre>
+    <p>Every push and every refusal is appended to <code>&lt;ENFORCE&gt;.journal.jsonl</code>, a hash-chained, append-only journal in which each entry commits to the whole chain behind it. Altering, removing, inserting, or reordering any line breaks verification. The journal is not logging; it is the containment trail the next two stages are built on.</p>
+  </section>
+
+  <section id="replay">
+    <p class="eyebrow">Stage five</p>
+    <h2>drift --replay: when did it diverge, and what contained it</h2>
+    <p>After the incident, the questions change tense. <code>--replay</code> re-runs a recorded stream through a fresh monitor so every finding lands at the exact event ordinal and timestamp where it crossed, and <code>--journal</code> merges the containment trail into the same chronological timeline, chain verified first. The summary answers what a responder actually asks: when was first drift, how long until containment, does the journal hold, and did the run end <strong>CONFORM</strong>, <strong>DRIFTED</strong>, or <strong>CONTAINED</strong>.</p>
+    <pre aria-label="Incident reconstruction"><span class="c"># attestral drift mcp-guard-policy.yaml events.jsonl --replay \
+#     --journal live-policy.yaml.journal.jsonl</span>
+REPLAY - incident reconstruction: 5 event(s) against the attested design
+
+    #4 09:00:12  <span class="s">DRF-008 </span> internal-tools: exercised capability 'shell'
+                 outside its attested envelope ['filesystem']
+    #5 09:00:14  <span class="g">LOCKDOWN pushed</span>  quarantined: internal-tools
+
+  incident summary
+  events             5
+  drift findings     1 (DRF-008 x1)
+  first drift        #4 at 09:00:12 (DRF-008)
+  containment        pushed at 09:00:14 - 2s after first drift
+  journal chain      <span class="g">intact (1 entry)</span>
+  final state        <span class="g">CONTAINED</span></pre>
+    <p>The fail-closed rule carries through: a journal whose hash chain does not verify is a <strong>headline of the reconstruction</strong>, not a footnote. It earns no containment credit, the final state stays DRIFTED, the gap stats are withheld, and its entries render as claims, reported but never trusted. A rewritten trail cannot launder an incident into a contained one.</p>
+  </section>
+
+  <section id="incident">
+    <p class="eyebrow">Stage six</p>
+    <h2>incident: the reconstruction, signed</h2>
+    <p>A replay on a terminal convinces the person who ran it. <code>attestral incident</code> makes it convince everyone else. It performs the same reconstruction as <code>--replay</code> and binds it into a DSSE-signable in-toto Statement (predicate <code>attestation/incident/v1</code>): the digest of the compiled policy the stream was judged against, the event stream's digest, the containment journal's verdict and chain head, and a digest of the full replay timeline, so an edit to any moment, not just the headline verdict, breaks the binding.</p>
+    <pre aria-label="Producing and verifying the incident attestation"><span class="c"># attestral incident mcp-guard-policy.yaml events.jsonl \
+#     --journal live-policy.yaml.journal.jsonl --key signer.key -o incident.json</span>
+wrote incident.json
+Incident attestation  <span class="y">CONTAINED</span>
+  first drift: DRF-008 at event #4 at 2026-07-18T09:00:12Z
+  findings 1 &#183; pushes 1 &#183; refusals 0 &#183; journal <span class="g">intact</span>
+  signed &#183; binds policy digest, event stream, journal chain head, and the full reconstruction
+
+<span class="c"># attestral incident ... --verify --public-key signer.pub -o incident.json</span>
+<span class="g">incident attestation VERIFIED</span> - the supplied policy, events, and journal
+reproduce exactly this reconstruction</pre>
+    <p><code>--verify</code> re-derives everything offline from the supplied policy, events, and journal: a doctored event line, a rewritten journal, or an edited verdict fails by recomputation, never by trust. A tampered journal is attested <em>as</em> tampered. Optional <code>--rekor</code> anchors the signed attestation in Sigstore Rekor, a public transparency log outside your control, so a later rewrite has an external witness to contradict it. An unsigned bundle still binds every digest; the signature adds authorship, not integrity.</p>
+    <p class="pull">The loop closes: attested design, compiled policy, live containment, attested incident. The record of the incident carries the same tamper-evidence as the design review it descends from.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Honest limits</p>
+    <h2>What the loop does and does not claim</h2>
+    <div class="split">
+      <div class="good"><h4>What it holds</h4><p>Any event that reaches the telemetry stream is judged against the reviewed design, contained by a provable narrowing, and reconstructable offline to the byte. Conformance is checkable by a third party.</p></div>
+      <div class="bad"><h4>What it cannot see</h4><p>An event that never reaches the stream. The loop polices the MCP surface the guard mediates, not arbitrary processes beside it, and conformance to a design is not proof the design itself is safe. That is the scan's job.</p></div>
+    </div>
+    <p>One more limit is deliberate. Because remediation and lockdown only ever narrow, a legitimate capability expansion cannot enter through the runtime loop at all; it must go back through review and re-attestation, where <code>--against</code> will classify it and a human will sign off. That friction is the point: the runtime can lose capability automatically and can gain it only on purpose.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Keep reading</p>
+    <h2>Where the attested design comes from</h2>
+    <p>Everything this loop enforces is produced upstream by the review: <a href="deterministic.html">the deterministic layer</a> that builds the system model and the findings, <a href="proof.html">the reachability walker</a> that proves which attack paths are traversable, and the optional <a href="ml-deberta.html">ML</a> and <a href="judge.html">judge</a> layers. The runtime loop is what makes that review permanent.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">References</p>
+    <div class="refs">
+      <a href="https://github.com/in-toto/attestation">in-toto attestation framework</a> and <a href="https://github.com/secure-systems-lab/dsse">DSSE</a> (the envelope the incident statement signs into)<br>
+      <a href="https://www.cedarpolicy.com/">AWS Cedar</a> policy language (the second compile target)<br>
+      <a href="https://docs.sigstore.dev/logging/overview/">Sigstore Rekor</a> transparency log (the optional public witness)<br>
+      The code: <code>attestral/compile.py</code>, <code>attestral/drift.py</code>, <code>attestral/lockdown.py</code>, <code>attestral/incident.py</code>, <code>attestral/narrowing.py</code>
+    </div>
+  </section>
+
+</article>
+</div>
+
+<footer>
+  <div class="wrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> &#183; An Attestral Labs project &#183; &#169; 2026 &#183; Apache 2.0</div>
+</footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, KEY='attestral-theme';
+    var mq=window.matchMedia('(prefers-color-scheme: dark)');
+    var btn=document.getElementById('themeToggle');
+    function active(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}
+    function paint(){if(btn)btn.textContent=active()==='dark'?'☀':'☾';}
+    if(btn)btn.addEventListener('click',function(){
+      var next=active()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      try{localStorage.setItem(KEY,next);}catch(e){}
+      paint();
+    });
+    mq.addEventListener('change',paint);
+    paint();
+  })();
+</script>
+
+</body>
+</html>
