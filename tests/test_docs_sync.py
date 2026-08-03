@@ -70,6 +70,7 @@ DIAGRAM_KEYWORDS = {
     "drift.py": "drift",
     "lockdown.py": "lockdown",
     "attest.py": "conformance attestation",
+    "incident.py": "incident attestation",
 }
 # Wiring, not pipeline stages: no diagram box expected.
 EXEMPT_BASENAMES = {"__init__.py", "cli.py"}
