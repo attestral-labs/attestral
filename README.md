@@ -294,6 +294,8 @@ flowchart LR
     C --> D["attestral drift<br/><b>detect</b><br/>+ --remediate: propose the tightening<br/>+ --lockdown: instant narrowing-verified containment<br/>+ --enforce: push it to the live enforcement point"]
     D --> AT["attestral attest<br/><b>signed conformance attestation</b><br/>+ --log: append-only transparency log<br/>+ --rekor: public Sigstore Rekor witness"]
     AT -->|"verify offline"| B
+    D --> INC["attestral incident<br/><b>signed incident attestation</b><br/>replay + containment journal bound;<br/>an auditor re-derives the whole reconstruction"]
+    INC -->|"verify offline"| B
     D -->|"design changed?<br/>re-attest"| A
     A --> V["attestral validate<br/><b>show the path is reachable</b><br/>+ proof-of-exploit per path (gated)"]
     A --> DF["attestral diff<br/><b>PR security-impact delta</b>"]
@@ -312,6 +314,40 @@ Two commands answer "so what do I do about this finding" from both ends. `attest
 `attestral drift --remediate` closes the loop the other way, the self-healing half: **detect -> propose the tightening -> a human approves -> re-compile.** A drift finding means the runtime diverged from the *reviewed* design, so remediation synthesizes the minimal policy delta that would have prevented each finding - quarantine the offending server (`allow: false`, carrying the DRF id as the reason) - and re-emits it to **both** compiled targets (mcp-guard and Cedar). The safety principle is load-bearing and non-negotiable: it only ever **narrows** the policy toward denial, and it **never widens** the design to match the drift, because widening would rubber-stamp the very attack the drift caught. A compromised runtime cannot drive its own policy. Every proposed delta is verified a narrowing (`narrowing.classify` must return NARROWING or UNCHANGED, never EXPANSION) *before* it is emitted, and it is a **proposal** only - nothing is applied until a human re-compiles. Terminal-first: the proposed ops and the narrowing verdict print to the terminal; the re-emitted policies are written only with `-o`.
 
 `attestral drift --watch --lockdown --enforce <path>` is the same loop run live, with the human moved to review-after: **detect the moment it happens -> prove the narrowing -> push the containment.** The streaming monitor keeps evaluating every event against the *original attested* policy (drift is always measured against the reviewed design, never against its own containment), and when drift crosses it rebuilds the quarantine lockdown, re-verifies the narrowing proof, and atomically pushes the tightened policy to the file the enforcement point - a running mcp-guard - actually reads; `--reload-cmd` runs a hook after each push (say, a container HUP). A push happens only when the quarantine set grows, so repeat drift is idempotent and new drift escalates. A lockdown that fails the narrowing proof is **refused**, never written, and the monitor keeps running. Every push and every refusal is appended to a hash-chained, append-only `<enforce>.journal.jsonl` (before/after policy digests, triggers, narrowing verdict); `verify_journal` detects any edited, removed, or reordered entry - the evidence-chain contract applied to containment actions themselves. The narrowing proof is what makes auto-apply defensible: the only drift response safe to automate is one that provably removes capability. And because the journal *is* the containment record, `drift --replay --journal` later reconstructs the whole incident on one timeline: when the runtime first diverged, what contained it, how long the gap was, and whether the journal chain is still intact - a tampered journal earns no containment credit.
+
+### The runtime loop end-to-end (what we are building right now)
+
+The thread we keep pulling: the review is not a report, it is the **source of
+truth the runtime is held to** - and every stage of holding it there produces
+the same kind of tamper-evident record the review itself does. This is the
+full lifecycle, containment and forensics included:
+
+```mermaid
+flowchart TB
+    DES["Design<br/>(Terraform · K8s · MCP · prompts · skills)"] --> SCAN["scan -> findings + evidence chain<br/>(SHA-256, Ed25519-signable)"]
+    SCAN --> ATT["attest: signed conformance statement<br/>design + policies + runtime verdict"]
+    SCAN --> CMP["compile: default-deny policy<br/>mcp-guard · Cedar · agentgateway (CB4A)"]
+    CMP --> ENF["enforcement point<br/>(a running mcp-guard)"]
+    ENF -->|telemetry| DRIFT["drift: every event judged against the<br/>ORIGINAL attested policy - detection never moves"]
+    DRIFT -->|"drift crosses"| LOCK["lockdown: narrowing-verified quarantine<br/>pushed atomically; a widening is REFUSED"]
+    LOCK --> JRNL["hash-chained containment journal<br/>every push + refusal, tamper-evident"]
+    DRIFT --> RPL["replay: incident forensics<br/>first drift · containment gap ·<br/>CONFORM / DRIFTED / CONTAINED"]
+    JRNL --> RPL
+    RPL --> INC2["incident: signed incident attestation<br/>the reconstruction itself becomes<br/>audit-grade, offline-verifiable evidence"]
+    INC2 --> AUD["auditor: re-derives everything<br/>from policy + events + journal<br/>(+ Rekor public witness, opt-in)"]
+    style DES fill:#96222E11,stroke:#96222E
+    style ENF fill:#0a7d3611,stroke:#0a7d36
+    style INC2 fill:#96222E,color:#fff
+```
+
+The invariants that hold at every stage: detection is always measured against
+the *reviewed* design (a compromised runtime cannot drive its own policy),
+enforcement only ever *narrows* (the one drift response safe to automate is
+one that provably removes capability), and every action lands in a
+hash-chained record (chain, journal, attestation) an auditor can re-derive
+offline. `attestral incident` is the newest stage: it closes the loop by
+giving the incident record the same signature-grade standing as the design
+review it descends from.
 
 ### The four commands
 
@@ -372,6 +408,12 @@ attestral drift policy.yaml events.jsonl --replay --journal live.yaml.journal.js
 # verdict into ONE signed conformance attestation a third party can verify offline
 attestral attest ./my-project --runtime events.jsonl --gen-key demo --signer "Ada L" -o attestation.json
 attestral attest --verify ./my-project --runtime events.jsonl --public-key demo.pub -o attestation.json
+
+# INCIDENT: after a drift incident, bind the replay reconstruction - policy digest,
+# event stream, containment-journal chain head, final verdict - into ONE signed
+# attestation; --verify re-derives the whole reconstruction from the inputs
+attestral incident policy.yaml events.jsonl --journal live.yaml.journal.jsonl --key reviewer.key -o incident.json
+attestral incident policy.yaml events.jsonl --journal live.yaml.journal.jsonl -o incident.json --verify --public-key reviewer.pub
 
 # MEMORY: bind an agent-memory entry's trust label to its content with a signature,
 # so a relabelled or tampered entry is caught cryptographically (not by hoping)

@@ -1769,5 +1769,142 @@ def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key:
                "the runtime observed to the design reviewed.")
 
 
+@main.command()
+@click.argument("policy_file", type=click.Path(exists=True))
+@click.argument("events_file", type=click.Path(exists=True))
+@click.option("--journal", "journal_file", type=click.Path(exists=True), default=None,
+              help="The hash-chained containment journal (<ENFORCE>.journal.jsonl) to bind. "
+                   "Its verdict and chain head become part of the attestation; a tampered "
+                   "journal is attested AS tampered, never laundered into containment credit.")
+@click.option("--key", "key_path", type=click.Path(exists=True), default=None,
+              help="Ed25519 private key (PEM) to sign the incident attestation with.")
+@click.option("--gen-key", "gen_key", default=None, metavar="STEM",
+              help="Generate a keypair to STEM.key + STEM.pub and sign with it.")
+@click.option("--signer", default="", help="Identity to record in the attestation.")
+@click.option("--verify", "do_verify", is_flag=True,
+              help="Verify an existing incident bundle against the supplied policy, events, "
+                   "and journal (recompute the whole reconstruction offline).")
+@click.option("--public-key", type=click.Path(exists=True), default=None,
+              help="Ed25519 public key (PEM) to check the bundle's signature against (--verify).")
+@click.option("-o", "--output", default="incident.json",
+              help="Incident bundle file (default: incident.json).")
+@click.option("--rekor", "rekor_flag", is_flag=True,
+              help="Anchor a SIGNED incident attestation in Sigstore Rekor and write the "
+                   "receipt to <output>.rekor.json. Opt-in and online. With --verify: check "
+                   "the receipt binds this bundle.")
+@click.option("--rekor-url", default=None,
+              help="Rekor instance to anchor to (default: https://rekor.sigstore.dev).")
+def incident(policy_file: str, events_file: str, journal_file: str | None,
+             key_path: str | None, gen_key: str | None, signer: str, do_verify: bool,
+             public_key: str | None, output: str, rekor_flag: bool,
+             rekor_url: str | None) -> None:
+    """Produce or verify a signed incident attestation from a drift replay.
+
+    Reconstructs the incident exactly as `drift --replay` does - every event
+    through a fresh monitor, the containment journal's hash chain verified
+    first - then binds the reconstruction into a DSSE-signable in-toto
+    Statement: the policy digest the stream was judged against, the event
+    stream's digest, the journal verdict and chain head, and a digest of the
+    full timeline. `--verify` recomputes everything from the supplied inputs,
+    so a doctored event line, a rewritten journal, or an edited verdict makes
+    verification FAIL.
+
+    This closes the runtime loop: the attested design became the runtime
+    policy (`compile`), the runtime was policed against it (`drift`), and now
+    the incident record itself carries the same tamper-evidence as the design
+    review it descends from.
+    """
+    import yaml as _yaml
+
+    from attestral.drift import load_jsonl
+    from attestral.incident import (
+        build_incident_bundle, render_incident, verify_incident_bundle,
+    )
+    from attestral.signing import generate_keypair
+
+    policy = _yaml.safe_load(Path(policy_file).read_text())
+    if not isinstance(policy, dict):
+        raise click.UsageError(f"{policy_file} is not a policy mapping")
+    events, malformed_events = load_jsonl(events_file)
+    journal_entries: list | None = None
+    malformed_journal = 0
+    if journal_file:
+        journal_entries, malformed_journal = load_jsonl(journal_file)
+
+    if do_verify:
+        bundle = json.loads(Path(output).read_text())
+        pub = Path(public_key).read_text() if public_key else None
+        ok, failures = verify_incident_bundle(
+            bundle, policy, events, journal_entries,
+            malformed_events=malformed_events,
+            malformed_journal_lines=malformed_journal,
+            public_pem=pub,
+        )
+        if ok:
+            click.echo("incident attestation VERIFIED - the supplied policy, events, and "
+                       "journal reproduce exactly this reconstruction")
+            click.echo(render_incident(bundle))
+            if public_key is None:
+                click.echo("  (signature not checked; pass --public-key to verify "
+                           "authenticity)")
+            if rekor_flag:
+                from attestral.rekor import verify_receipt
+                receipt_path = Path(f"{output}.rekor.json")
+                if not receipt_path.exists():
+                    click.echo(f"Rekor receipt FAILED - {receipt_path} not found", err=True)
+                    sys.exit(1)
+                receipt = json.loads(receipt_path.read_text())
+                rok, rnotes = verify_receipt(receipt, bundle.get("envelope") or {})
+                if not rok:
+                    click.echo(f"Rekor receipt FAILED - {rnotes[0]}", err=True)
+                    sys.exit(1)
+                click.echo(f"  Rekor receipt: {rnotes[-1]}")
+            sys.exit(0)
+        click.echo(f"incident attestation FAILED - first failing step: {failures[0]}",
+                   err=True)
+        click.echo(f"  all failing steps: {', '.join(failures)}", err=True)
+        sys.exit(1)
+
+    private_pem = None
+    if gen_key:
+        priv, pub_pem = generate_keypair()
+        Path(f"{gen_key}.key").write_text(priv)
+        Path(f"{gen_key}.pub").write_text(pub_pem)
+        click.echo(f"wrote {gen_key}.key (private, keep secret) and {gen_key}.pub (public)")
+        private_pem = priv
+    elif key_path:
+        private_pem = Path(key_path).read_text()
+
+    now = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+    bundle = build_incident_bundle(
+        policy, Path(events_file).name, events, journal_entries,
+        malformed_events=malformed_events,
+        malformed_journal_lines=malformed_journal,
+        private_pem=private_pem, signer=signer, generated_at=now,
+    )
+    Path(output).write_text(json.dumps(bundle, indent=2))
+
+    if rekor_flag:
+        if not bundle.get("envelope"):
+            click.echo("Rekor anchoring FAILED - needs a signed incident attestation "
+                       "(pass --key or --gen-key)", err=True)
+            sys.exit(1)
+        from attestral.rekor import DEFAULT_REKOR, anchor, receipt_line
+        from attestral.signing import public_key_of
+        try:
+            receipt = anchor(bundle["envelope"], public_key_of(private_pem),
+                             rekor_url=rekor_url or DEFAULT_REKOR)
+        except Exception as exc:  # noqa: BLE001 - the network is the failure surface
+            click.echo(f"Rekor anchoring FAILED - {exc}", err=True)
+            sys.exit(1)
+        Path(f"{output}.rekor.json").write_text(json.dumps(receipt, indent=2))
+        click.echo(f"  {receipt_line(receipt)}")
+        click.echo(f"  receipt written to {output}.rekor.json - a public witness "
+                   "a rewrite cannot contradict")
+
+    click.echo(f"wrote {output}")
+    click.echo(render_incident(bundle))
+
+
 if __name__ == "__main__":
     main()

@@ -7,6 +7,27 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral incident`: the signed incident attestation - the replay forensics record, made
+  audit-grade.** New incident.py binds one reconstructed incident into a DSSE-signable in-toto
+  Statement (predicate `attestation/incident/v1`): the digest of the compiled policy the stream
+  was judged against (same digest scheme the containment journal records, so the two artifacts
+  correlate), the event stream's digest, the containment journal's verdict and chain head, and a
+  digest of the full replay timeline. `--verify` re-derives the entire reconstruction from the
+  supplied policy + events + journal, so a doctored event line, a rewritten journal, or an edited
+  verdict fails by recomputation, never by trust. A tampered journal is attested AS tampered
+  (final state stays DRIFTED, no containment credit) - the fail-closed replay contract carried
+  into the attestation. Signing and `--rekor` public-witness anchoring reuse the existing
+  Ed25519/DSSE machinery; unsigned bundles still bind every digest (zero-dep graceful degrade).
+  The runtime loop closes: attested design -> compiled policy -> live containment -> attested
+  incident. 14 tests. No rule change (pack stays 267).
+- **Site: website/runtime.html - the runtime loop, end to end.** New deep-dive page walking
+  compile -> drift -> remediate -> lockdown -> replay -> incident with the three invariants as
+  the through-line (detection never moves, enforcement only narrows, every action is a chained
+  record), a DRF reference table, and code-verified terminal snippets; linked from every page's
+  nav. ml-deberta.html gains the fleet-level ATL-ML-003 section (cross-server split-injection
+  reassembly: marker-gated, never all-pairs; 14/15 chaos catches, 0/48 over-defense). README
+  gains the runtime-loop end-to-end mermaid breakdown. NOTE: the page documents post-0.19.0
+  commands - deploy to prod only with (or after) the next release.
 - **Skill-manifest deception checks: ATL-169 + ATL-170 (pack 265 -> 267).** Two new derived
   signals on SKILL.md skill surfaces close the claim-vs-capability gap the existing skill checks
   could not see. ATL-169 (high) fires when a skill's frontmatter description promises read-only /
