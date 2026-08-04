@@ -1038,17 +1038,24 @@ def remediate(path: str, rule_id: str | None) -> None:
               help="Only compile the fix for this rule id (e.g. ATL-103).")
 @click.option("-o", "--output", default=None,
               help="Write the merged fix controls to this mcp-guard policy file.")
-def fix(path: str, rule_id: str | None, output: str | None) -> None:
+@click.option("--broker-output", "broker_output", default=None,
+              help="Write the CB4A broker routes that replace the stripped "
+                   "standing credentials to this agentgateway config file.")
+def fix(path: str, rule_id: str | None, output: str | None,
+        broker_output: str | None) -> None:
     """Compile the enforceable control that neutralizes each finding.
 
     For every active finding, emit the exact mcp-guard control that closes it,
     an explanation, and a verification verdict (re-synthesized over the model,
     or enforced at the proxy), bound to the review's evidence-chain head. A
     remediation that is also an enforceable runtime control is the payoff of the
-    attest-compile-drift loop. `--rule` narrows to one rule; `-o` writes the
-    merged controls as a policy slice you can hand to mcp-guard.
+    attest-compile-drift loop. Standing-credential findings compile to a
+    broker-backed fix: the exact env keys to strip plus the CB4A route that
+    replaces them (`--broker-output` writes the routes as one agentgateway
+    config). `--rule` narrows to one rule; `-o` writes the merged controls as a
+    policy slice you can hand to mcp-guard.
     """
-    from attestral.fix import fixes_for, render_fixes
+    from attestral.fix import broker_plans_for, fixes_for, render_fixes
     from attestral.reachability import annotate_reachability
     model = build_model(path)
     findings = RuleEngine().evaluate(model)
@@ -1062,6 +1069,16 @@ def fix(path: str, rule_id: str | None, output: str | None) -> None:
     chain = audit_chain(findings)
     head = chain[-1]["hash"] if chain else ""
     click.echo(render_fixes(model, findings, chain_head=head))
+    if broker_output:
+        from attestral.broker import render_broker_config
+        plans = broker_plans_for(fixes_for(model, findings, head))
+        if plans:
+            Path(broker_output).write_text(render_broker_config(plans))
+            click.echo(f"\nwrote {broker_output} - agentgateway broker route(s) "
+                       f"replacing the stripped credentials ({len(plans)} route(s))")
+        else:
+            click.echo("\nno standing-credential fixes here - no broker config "
+                       "to write.")
     if output:
         import yaml as _yaml
         fixes = fixes_for(model, findings, head)

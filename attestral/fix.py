@@ -90,6 +90,10 @@ class PolicyFix:
     verification: str = ""     # "re-synthesized" | "enforced-at-proxy"
     verified: bool = False
     chain_head: str = ""
+    # Broker-backed fixes only: the exact standing-credential env keys to remove
+    # and the CB4A route plan that replaces them (written via --broker-output).
+    strip_env: list[str] = field(default_factory=list)
+    broker_plan: object | None = None   # attestral.broker.BrokerPlan
 
     @property
     def title(self) -> str:
@@ -117,11 +121,48 @@ def _finding_fires(model: SystemModel, rule_id: str) -> bool:
     return any(f.rule_id == rule_id for f in RuleEngine().evaluate(model))
 
 
+def _broker_fix(model: SystemModel, finding: Finding, chain_head: str) -> PolicyFix | None:
+    """The broker-backed fix for a standing-credential finding: strip the exact
+    env keys and front the server with the generated CB4A route. Verification is
+    re-synthesized for real - the model copy has the keys removed and its
+    credential attributes re-derived through the ingester's own classifiers, and
+    the rule engine confirms the finding no longer fires."""
+    from attestral.broker import plan_for, strip_standing_credentials
+    plan = plan_for(model, finding.component_id)
+    if plan is None:
+        return None
+    rid = finding.rule_id
+    closed = not _finding_fires(
+        strip_standing_credentials(model, finding.component_id), rid
+    )
+    # The mcp-guard slice stays a valid backstop (the proxy strips any secret
+    # that survives the migration); the route is the replacement path itself.
+    control = {"servers": {plan.name: {"constraints": {"forbid_env_secrets": True}}}}
+    why = (
+        f"The standing credential is removed, not just guarded: strip "
+        f"{', '.join(plan.stripped)} from the server's env and route it through "
+        f"the generated CB4A broker route (strict inbound auth, per-call scoped "
+        f"token, secret by reference), so the agent process holds no reusable "
+        f"key. Re-synthesizing the model without those keys confirms {rid} no "
+        f"longer fires; forbid_env_secrets stays on as the proxy backstop."
+    )
+    return PolicyFix(rid, plan.name, control, why, "re-synthesized", closed,
+                     chain_head, strip_env=list(plan.stripped), broker_plan=plan)
+
+
 def fix_for_finding(model: SystemModel, finding: Finding, chain_head: str = "") -> PolicyFix | None:
     """The enforceable control that neutralizes `finding`, or None when the rule
     has no compilable runtime control (it is a design change only)."""
+    from attestral.broker import BROKER_FIX_RULES
     rid = finding.rule_id
     name = _server_named(model, finding.component_id)
+
+    # Standing-credential findings get the broker-backed fix (strip + JIT route)
+    # ahead of the generic proxy constraint - remediation, not just containment.
+    if rid in BROKER_FIX_RULES:
+        fix = _broker_fix(model, finding, chain_head)
+        if fix is not None:
+            return fix
 
     if rid in _PROXY_CONTROLS:
         key, value, why = _PROXY_CONTROLS[rid]
@@ -171,6 +212,17 @@ def fixes_for(model: SystemModel, findings: list[Finding], chain_head: str = "")
     return out
 
 
+def broker_plans_for(fixes: list[PolicyFix]) -> list:
+    """The deduplicated broker route plans behind a fix set, in fix order - what
+    `attestral fix --broker-output` writes as one agentgateway config."""
+    plans, seen = [], set()
+    for fx in fixes:
+        if fx.broker_plan is not None and fx.broker_plan.name not in seen:
+            seen.add(fx.broker_plan.name)
+            plans.append(fx.broker_plan)
+    return plans
+
+
 def render_fixes(model: SystemModel, findings: list[Finding], *,
                  chain_head: str = "", color: bool | None = None) -> str:
     from attestral.report_terminal import _bold, _dim, _paint, supports_color
@@ -179,10 +231,8 @@ def render_fixes(model: SystemModel, findings: list[Finding], *,
         color = supports_color()
     fixes = fixes_for(model, findings, chain_head)
     active = [f for f in findings if not f.waived]
-    no_control = sorted({
-        f.rule_id for f in active
-        if f.rule_id not in _PROXY_CONTROLS and f.rule_id not in _CAP_TO_STRIP
-    })
+    fixed_ids = {fx.rule_id for fx in fixes}
+    no_control = sorted({f.rule_id for f in active} - fixed_ids)
     if not fixes:
         return _paint("No compilable fixes: these findings are design changes, not "
                       "runtime controls. See each finding's recommendation.", "33", color)
@@ -197,6 +247,10 @@ def render_fixes(model: SystemModel, findings: list[Finding], *,
         lines.append("")
         lines.append(f"  {_paint(fx.rule_id, '1;31', color)}  {_bold(fx.component, color)}  {verdict}")
         lines.append(f"    {_dim('why:', color)} {fx.explanation}")
+        if fx.strip_env:
+            lines.append(f"    {_dim('strip:', color)} {', '.join(fx.strip_env)}")
+            lines.append(f"    {_dim('route:', color)} CB4A broker route "
+                         f"'{fx.component}' (write it with --broker-output)")
         frag = yaml.safe_dump(fx.control, sort_keys=False).rstrip().splitlines()
         lines.append(f"    {_dim('control:', color)}")
         for ln in frag:

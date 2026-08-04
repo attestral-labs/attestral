@@ -40,6 +40,7 @@ DRIFT_RULES = {
     "DRF-009": ("Portable handle replayed by a different principal", Severity.CRITICAL),
     "DRF-010": ("Portable handle spent with unknown provenance", Severity.HIGH),
     "DRF-011": ("Credential-brokered server reached without the broker (bypass)", Severity.CRITICAL),
+    "DRF-012": ("Standing credential still present in the server's runtime environment", Severity.HIGH),
 }
 
 # The concrete fix for the handle findings (DRF-009/010). MCP SEP-2567/2575
@@ -236,6 +237,35 @@ def _per_event(servers: dict, ev: dict, event_no: int) -> list[Finding]:
             "scoping, and audit were bypassed",
             event_no,
         ))
+
+    # DRF-012 - the standing key never actually left (CB4A TM-2's tail risk).
+    # The attested design says this server's environment must be credential-free
+    # (`broker_required`: the broker carries the traffic; or the
+    # `forbid_env_secrets` constraint: the proxy strips at spawn), yet the
+    # runtime positively reports standing credential names still present in the
+    # server's process env. A broker in front of a still-present raw key is a
+    # bypass waiting to happen - ATL-221 sees the static half; this is the
+    # runtime half. Fail-closed in the DRF-008 style: only a well-formed,
+    # non-empty `env_secrets` list of names fires; an absent key is unknown
+    # telemetry, and an empty list is a positively-observed clean environment.
+    expects_clean_env = (
+        entry.get("broker_required")
+        or constraints.get("forbid_env_secrets")
+    )
+    observed_secrets = ev.get("env_secrets")
+    if (expects_clean_env and isinstance(observed_secrets, list)
+            and observed_secrets
+            and all(isinstance(k, str) for k in observed_secrets)):
+        names = ", ".join(sorted(set(observed_secrets)))
+        why = ("the broker carries its traffic" if entry.get("broker_required")
+               else "the policy strips env secrets at the proxy")
+        out.append(_mk(
+            "DRF-012", name,
+            f"server '{name}' still holds standing credential(s) {names} in its "
+            f"runtime environment although {why} - the raw key is pure blast "
+            "radius and its theft would never touch the broker's audit",
+            event_no,
+        ))
     return out
 
 
@@ -272,6 +302,8 @@ _DRF_NOTES = {
     "DRF-006": "blocked, but the alarm persists - a clean clear needs a human budget decision",
     "DRF-009": "revoke the replayed handle and rotate the session that leaked it before re-allowing",
     "DRF-010": "confirm log coverage from session start before trusting handle provenance",
+    "DRF-012": "rotate and delete the reported keys - the brokered/stripped path already "
+               "carries the traffic, so the standing key is pure blast radius",
 }
 
 

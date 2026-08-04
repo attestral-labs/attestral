@@ -17,10 +17,18 @@ plan prints; the broker config is written only with `-o`.
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 
-from attestral.ingest.mcp import _SECRET_HINTS
+from attestral.ingest.mcp import _CLOUD_CRED_HINTS, _SECRET_HINTS, _credential_provider_families
 from attestral.model import SystemModel
+
+# The per-server credential findings whose root cause is a standing key in an
+# mcp_server's env - the family `attestral fix` can close by stripping the keys
+# and fronting the server with the generated broker route. Deliberately NOT
+# ATL-110 (the credential is in argv, not env) and NOT ATL-221 (model-level: its
+# fix IS the per-server strips these produce).
+BROKER_FIX_RULES = frozenset({"ATL-104", "ATL-112", "ATL-115", "ATL-149", "ATL-164"})
 
 # The token endpoint / OAuth host are environment-specific; emit obvious
 # placeholders so the operator wires their own IdP and nothing runs by accident.
@@ -39,33 +47,84 @@ class BrokerPlan:
     concentration: bool = False                          # >= 4 providers in one process
 
 
-def _secret_env_keys(env_keys) -> list[str]:
-    """The secret-shaped env keys on a server - the standing credentials to strip.
-    Mirrors the ingester's own secret test so the two never disagree."""
+def _standing_env_keys(env_keys) -> list[str]:
+    """The standing-credential env keys on a server - the keys to strip. The
+    union of the ingester's own secret test (_SECRET_HINTS) and its cloud-cred
+    test (_CLOUD_CRED_HINTS), because cloud keys like KUBECONFIG or
+    AZURE_CLIENT_ID are standing credentials that carry no secret-shaped token.
+    Mirrors the ingester so the two never disagree."""
     return sorted(
         str(k) for k in (env_keys or [])
-        if any(h in str(k).upper() for h in _SECRET_HINTS)
+        if any(h in str(k).upper() for h in _SECRET_HINTS + _CLOUD_CRED_HINTS)
     )
+
+
+def _plan_for_component(c) -> BrokerPlan | None:
+    """The broker plan for one mcp_server component, or None when it holds no
+    standing credential in its env."""
+    if not (c.attr("_env_has_secrets") or c.attr("_has_cloud_credentials")):
+        return None
+    stripped = _standing_env_keys(c.attr("env_keys"))
+    if not stripped:
+        return None
+    return BrokerPlan(
+        component_id=c.id, name=c.name, stripped=stripped,
+        providers=list(c.attr("_credential_providers") or []),
+        cloud=bool(c.attr("_has_cloud_credentials")),
+        concentration=bool(c.attr("_credential_concentration")),
+    )
+
+
+def plan_for(model: SystemModel, component_id: str) -> BrokerPlan | None:
+    """The broker plan for the named component, or None when it is not an
+    mcp_server holding a standing credential."""
+    c = model.get(component_id)
+    if c is None or c.type != "mcp_server":
+        return None
+    return _plan_for_component(c)
 
 
 def broker_plans(model: SystemModel) -> list[BrokerPlan]:
     """A plan for every MCP server that holds a standing credential in its env,
     ordered widest-blast-first (concentration, then cloud, then the rest)."""
-    plans: list[BrokerPlan] = []
-    for c in model.by_type("mcp_server"):
-        if not c.attr("_env_has_secrets"):
-            continue
-        stripped = _secret_env_keys(c.attr("env_keys"))
-        if not stripped:
-            continue
-        plans.append(BrokerPlan(
-            component_id=c.id, name=c.name, stripped=stripped,
-            providers=list(c.attr("_credential_providers") or []),
-            cloud=bool(c.attr("_has_cloud_credentials")),
-            concentration=bool(c.attr("_credential_concentration")),
-        ))
+    plans = [p for c in model.by_type("mcp_server") if (p := _plan_for_component(c))]
     plans.sort(key=lambda p: (not p.concentration, not p.cloud, p.name))
     return plans
+
+
+def strip_standing_credentials(model: SystemModel, component_id: str) -> SystemModel:
+    """A deep copy of the model with the component's standing-credential env keys
+    removed and every env-derived credential attribute RE-DERIVED through the
+    same classifiers the ingester used - not hand-cleared, so re-evaluating the
+    rules over the copy is a real proof that the strip closes the finding.
+    `_remote_unauthed` is deliberately left untouched: post-broker, inbound auth
+    is the route's strict jwtAuth, so the env secret's disappearance does not
+    make the endpoint unauthenticated."""
+    m = copy.deepcopy(model)
+    c = m.get(component_id)
+    if c is None:
+        return m
+    stripped = set(_standing_env_keys(c.attr("env_keys")))
+    kept = [k for k in (c.attr("env_keys") or []) if str(k) not in stripped]
+    a = c.attributes
+    a["env_keys"] = kept
+    a["_env_has_secrets"] = any(
+        any(h in str(k).upper() for h in _SECRET_HINTS) for k in kept
+    )
+    if c.attr("url"):
+        a["_confused_deputy"] = bool(a["_env_has_secrets"])
+    caps = set(c.attr("_capabilities") or [])
+    if not (a["_env_has_secrets"] and caps & {"database", "memory", "saas_data"}):
+        a.pop("_shared_static_credential", None)
+    if not (a["_env_has_secrets"] and "memory" in caps):
+        a.pop("_shared_memory_credential", None)
+    cred = [k for k in kept if any(h in str(k).upper() for h in _CLOUD_CRED_HINTS)]
+    a["_cloud_credential_keys"] = cred
+    a["_has_cloud_credentials"] = bool(cred)
+    providers = _credential_provider_families(kept)
+    a["_credential_providers"] = providers
+    a["_credential_concentration"] = len(providers) >= 4
+    return m
 
 
 def _scope(plan: BrokerPlan) -> str:
