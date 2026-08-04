@@ -222,6 +222,17 @@ def _workload_component(
 ) -> Component:
     volumes = pod.get("volumes") or []
     vol_types = [t for v in volumes if isinstance(v, dict) for t in v if t != "name"]
+    # The concrete node paths behind each hostPath volume (not just the type key),
+    # so a rule can tell a benign /var/log mount from the container-runtime
+    # socket. Trailing slashes are normalised; a malformed hostPath (non-dict,
+    # or one without a path) contributes nothing - fail closed, never guess.
+    hostpath_paths = [
+        str(v["hostPath"].get("path")).rstrip("/") or "/"
+        for v in volumes
+        if isinstance(v, dict)
+        and isinstance(v.get("hostPath"), dict)
+        and v["hostPath"].get("path")
+    ]
     # serviceAccountName resolves to "default" when unset (both are the risky case);
     # `serviceAccount` is the deprecated spelling. Feeds the default-SA risk chain.
     sa_name = pod.get("serviceAccountName") or pod.get("serviceAccount") or "default"
@@ -233,6 +244,7 @@ def _workload_component(
         "host_ipc": bool(pod.get("hostIPC", False)),
         "service_account_name": str(sa_name),
         "_volume_types": vol_types,
+        "_hostpath_paths": hostpath_paths,
     }
     # Pod-template labels, kept for the Service-selector join (_link_services):
     # a Service routes to the pods these labels describe, so they are the only
@@ -272,6 +284,10 @@ def _rbac_role_component(doc: dict, source: str) -> Component:
     attrs: dict[str, Any] = {
         "kind": kind,
         "_is_cluster_role": is_cluster,
+        # Every verb the role grants, deduplicated in first-seen order, so a
+        # rule can flag the privilege-escalation verbs (escalate/bind/
+        # impersonate, CIS 5.1.8) by exact token - never substring.
+        "_verbs": list(dict.fromkeys(verbs)),
         "_wildcard_verbs": "*" in verbs,
         "_wildcard_resources": "*" in resources,
         "_grants_secrets": "secrets" in resources,

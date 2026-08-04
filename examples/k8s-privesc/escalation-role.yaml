@@ -1,0 +1,22 @@
+# Fires ATL-537 (high) twice: a ClusterRole granting bind + escalate over
+# clusterroles, and a namespaced Role granting impersonate over users/groups.
+# Neither role uses wildcards or touches secrets, so the escalation-verb rule
+# is the only RBAC finding either raises.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-operator
+rules:
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles"]
+    verbs: ["get", "list", "bind", "escalate"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: support-impersonator
+  namespace: ci
+rules:
+  - apiGroups: [""]
+    resources: ["users", "groups"]
+    verbs: ["impersonate"]

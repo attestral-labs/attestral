@@ -31,4 +31,5 @@ kubernetes ingester does not yet emit the needed signal:
 - secrets referenced via `env` value vs `secretKeyRef` (CIS 5.4.1)
 - image pinned by digest vs tag (no negation matcher; needs `_image_has_digest`)
 - container-runtime-socket / sensitive host mounts (only the `hostPath` type key
-  is emitted, not the mounted path)
+  is emitted, not the mounted path) - **closed**: the ingester now emits
+  `_hostpath_paths` and ATL-536 rules on it (`examples/k8s-privesc/`)

@@ -1,0 +1,65 @@
+# The negative control for the wave: a hardened log agent that mounts a benign
+# hostPath (/var/log, read-only) and a read-only RBAC role. ATL-510 still fires
+# on the hostPath (a real, pre-existing finding), but neither ATL-536 (path is
+# not a runtime socket) nor ATL-537 (get/list/watch only) may fire here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-agent
+  namespace: ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-agent
+  template:
+    metadata:
+      labels:
+        app: log-agent
+    spec:
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
+            type: Directory
+      containers:
+        - name: agent
+          image: registry.internal/ops/log-agent@sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: log-reader
+  namespace: ops
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
