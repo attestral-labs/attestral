@@ -7,6 +7,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral chaos --generate`: an optional LLM-driven adversarial attack tier (closes #154,
+  P3 v2).** The deterministic attack library is the CI-stable regression floor; its ceiling is that
+  it only mutates in ways we already imagined. `--generate` asks a model to author NOVEL poisoning
+  payloads against the scanned design's own tool/server surfaces, runs them through the same
+  mutate -> rescan -> report loop, and records each payload VERBATIM so a slip-through is
+  reproducible. Opt-in (needs ANTHROPIC_API_KEY), never a gate by default: generated misses do not
+  fail `--fail-on-miss` unless `--fail-on-generated-miss` is also passed, so the deterministic
+  library stays the stable floor. The transport is injectable (the whole tier is tested with no key
+  and no network), the `anthropic` import is lazy (a missing extra is a clean no-op, never an
+  error), a declined request degrades to zero attacks, and the generator is handed surface NAMES
+  only - never a committed secret value. Model output is treated as untrusted data: a generated
+  payload only ever becomes a tool-description string on a synthetic server, never anything
+  executed. The frontier it exists to probe is the semantic paraphrase the heuristic tier cannot
+  see. No pack change (language risk lives in ml.py).
 - **Kubernetes privilege-escalation wave (closes #151, rule wave C): ATL-536 + ATL-537.** The two
   signals earlier waves flagged as ingester gaps, now ingested. **ATL-536** (critical): a hostPath
   volume mounts the node's container-runtime socket (docker.sock / containerd.sock / crio.sock and

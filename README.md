@@ -457,6 +457,7 @@ attestral fix examples/demo-project                   # fix     -> enforceable c
 attestral fix examples/vulnerable-agent --broker-output broker.yaml  # + the CB4A routes replacing the stripped keys
 attestral broker examples/vulnerable-agent            # broker  -> strip standing creds, generate a per-call broker
 attestral chaos examples/demo-project                 # chaos   -> simulate poisoning attacks, report caught vs missed
+attestral chaos examples/demo-project --generate      # + an LLM tier authoring novel payloads (opt-in, ANTHROPIC_API_KEY)
 attestral compile examples/demo-project -o policy.yaml # enforce -> default-deny policy
 attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on-drift  # detect
 ```

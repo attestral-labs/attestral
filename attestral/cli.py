@@ -1196,8 +1196,18 @@ def broker(path: str, output: str | None) -> None:
 @click.option("-o", "--output", default=None,
               help="Write the chaos report JSON here. Terminal-first: nothing is written without -o.")
 @click.option("--fail-on-miss", is_flag=True,
-              help="Exit non-zero if any simulated poisoning attack slips through (CI robustness gate).")
-def chaos(path: str, output: str | None, fail_on_miss: bool) -> None:
+              help="Exit non-zero if any DETERMINISTIC poisoning attack slips through (CI robustness gate). "
+                   "Generated attacks never gate here - use --fail-on-generated-miss for those.")
+@click.option("--generate", is_flag=True,
+              help="Add an LLM-authored attack tier: propose novel poisoning payloads against this "
+                   "design's own surfaces and run them through the same loop. Opt-in, needs ANTHROPIC_API_KEY.")
+@click.option("--generate-count", default=5, show_default=True,
+              help="How many payloads the --generate tier authors.")
+@click.option("--fail-on-generated-miss", is_flag=True,
+              help="Also gate on LLM-generated misses (off by default - generated attacks are exploratory, "
+                   "not a stable CI floor).")
+def chaos(path: str, output: str | None, fail_on_miss: bool, generate: bool,
+          generate_count: int, fail_on_generated_miss: bool) -> None:
     """Simulate poisoning attacks against PATH's design and report what the review catches.
 
     Chaos engineering for agents: applies a deterministic library of poisoning
@@ -1206,16 +1216,28 @@ def chaos(path: str, output: str | None, fail_on_miss: bool) -> None:
     secret-holding server) to a copy of the attested model, re-runs Attestral's
     own rules and ML injection tier over each mutant, and reports CAUGHT vs
     slipped-through. Offline and deterministic - no API key, no eval.
+
+    `--generate` layers on an optional LLM tier that authors NOVEL payloads
+    against this design's own tool/server surfaces (opt-in, needs
+    ANTHROPIC_API_KEY); each generated payload is recorded verbatim so a
+    slip-through is reproducible. The deterministic library stays the CI-stable
+    floor: generated misses do not fail the gate unless --fail-on-generated-miss.
     """
-    from attestral.chaos import chaos_report, render_chaos, run_chaos
+    from attestral.chaos import chaos_report, generate_attacks, render_chaos, run_chaos
     model = build_model(path)
-    results = run_chaos(model)
+    extra = generate_attacks(model, generate_count) if generate else []
+    if generate and not extra:
+        click.echo("Generator tier produced no payloads: set ANTHROPIC_API_KEY and install "
+                   "the anthropic extra (`pip install attestral[llm]`).", err=True)
+    results = run_chaos(model, extra_attacks=extra)
     click.echo(render_chaos(results))
     if output:
         Path(output).write_text(json.dumps(chaos_report(results), indent=2))
         click.echo(f"\nwrote {output}")
-    if fail_on_miss and any(not r.caught for r in results):
-        missed = ", ".join(r.attack.id for r in results if not r.caught)
+    gated = [r for r in results if not r.caught
+             and (not r.attack.generated or fail_on_generated_miss)]
+    if fail_on_miss and gated:
+        missed = ", ".join(r.attack.id for r in gated)
         click.echo(f"\nGate: simulated attack(s) slipped through: {missed}", err=True)
         sys.exit(1)
 
