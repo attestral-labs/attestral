@@ -12,7 +12,7 @@ has a full injection-to-cloud path, and the model-level rules light up.
 attestral scan examples/diff-widened
 ```
 
-3 components · 10 findings · 1 critical · 8 high · 1 info
+3 components · 11 findings · 1 critical · 9 high · 1 info
 
 | Rule | Severity | Why |
 |---|---|---|

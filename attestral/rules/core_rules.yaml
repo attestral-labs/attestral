@@ -1472,6 +1472,15 @@ rules:
     recommendation: Route every credentialed egress through the broker and remove standing credentials from the tool servers and workloads it fronts, so the broker is the only path to a credential. A broker beside a raw key gives an attacker the key and skips the broker.
     frameworks: ["CB4A TM-11 (draft-hartman-credential-broker-4-agents-00)", "NIST SP 800-207 ZTA", "OWASP-ASI03:2026", "NIST AC-6"]
 
+  - id: ATL-222
+    title: Injectable agent surface reaches named cloud infrastructure via a confused deputy
+    severity: high
+    target: model
+    match: { model_cross_boundary_reach: true }
+    description: An injectable tool surface that holds no credential of its own is co-resident with a server that carries cloud credentials, and that credential reaches specific Terraform or Kubernetes resources in the same model, so a prompt injection in the benign surface can be laundered through the co-resident deputy's standing credential to reach named infrastructure. This is the agent-to-cloud confused deputy as a graph property, and it crosses the trust boundary into concrete IaC sinks a per-server scanner never sees, because the sink lives in the cloud model, not in the MCP server. It is distinct from ATL-115 (a single server that is itself a confused deputy) and ATL-112 (a server that merely holds a cloud credential); this names the reachable resource at the end of the laundered path.
+    recommendation: Break the co-residence or the credential path. Isolate the injectable surface into its own agent session (mcp-guard capability isolation) so it cannot induce the credentialed deputy, or move the deputy's egress behind a per-call credential broker so an injection reaches no standing key, or scope the credential so it no longer reaches the named resources. A benign fetcher beside a cloud-privileged server is a cloud breach one injection away.
+    frameworks: ["OWASP-ASI01:2026", "OWASP-LLM01:2025", "NIST AC-4", "NIST AC-6", "CWE-441"]
+
   - id: ATL-217
     title: Information-flow lattice violation across the tool fleet
     severity: high

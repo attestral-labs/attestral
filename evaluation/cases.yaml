@@ -27,6 +27,10 @@ positive:
     path: examples/agentic-risks
     expect: [ATL-101, ATL-103, ATL-104, ATL-107, ATL-108, ATL-109, ATL-110, ATL-111, ATL-112, ATL-114, ATL-115, ATL-116, ATL-117, ATL-202, ATL-203, ATL-207, ATL-214, ATL-216, ATL-217]
     cite: "OWASP ASI02/03/04/05; the lethal trifecta (Willison 2025); fleet flows per the fixture README"
+  - id: agent-cloud-confused-deputy
+    path: examples/agent-cloud-confused-deputy
+    expect: [ATL-104, ATL-112, ATL-222]
+    cite: "Agent->cloud confused deputy into a NAMED IaC sink; OWASP ASI01; CWE-441; the whole-system-model moat"
   - id: tool-shadowing
     path: examples/tool-shadowing
     expect: [ATL-106, ATL-204, ATL-205, ATL-206]

@@ -7,6 +7,23 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **ATL-222: the agent-to-cloud confused deputy, into a NAMED infrastructure sink.** New cloudreach.py
+  walks the system model's `credential_reach` and `references` edges to answer the question a
+  per-server scanner structurally cannot: from an injectable agent surface that holds no credential of
+  its own, WHICH specific Terraform/Kubernetes resource is reachable, and through which co-resident
+  deputy. It fires only when the injectable entry and the cloud-credential holder are DIFFERENT
+  components (distinct from ATL-115's single-server deputy and ATL-112's mere credential holder), and
+  the finding names the resource at the end of the laundered path (`aws_s3_bucket.customer_data`, ...).
+  The named cross-boundary sink lives in the cloud model, not in any MCP server, so only the whole
+  system model sees it - this is the reachability moat competitors' per-server scanners cannot express.
+  Model-level rule (`model_cross_boundary_reach`, fail-closed), fixture examples/agent-cloud-confused-deputy,
+  8 tests, benchmark case. Pack 269 -> 270.
+- **`attestral reach`: name what each agent surface can touch in your cloud.** The demoable view in
+  front of ATL-222: for every agent surface - especially an injectable one that holds no credential of
+  its own - it lists the named Terraform/Kubernetes resources reachable and how (directly, or laundered
+  through a co-resident deputy), worst-first. "web-fetch [injectable] reaches aws_s3_bucket.customer_data
+  (via aws-deploy)" is a sentence a per-server scanner cannot produce, because the named resource lives
+  in the cloud model, not in any MCP server. Terminal-first; `-o` writes the JSON report. 3 tests.
 - **`attestral chaos --generate`: an optional LLM-driven adversarial attack tier (closes #154,
   P3 v2).** The deterministic attack library is the CI-stable regression floor; its ceiling is that
   it only mutates in ways we already imagined. `--generate` asks a model to author NOVEL poisoning

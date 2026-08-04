@@ -727,6 +727,31 @@ def blast_radius_cmd(path: str, limit: int) -> None:
 
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
+@click.option("-o", "--output", default=None,
+              help="Write the reach report JSON here. Terminal-first: nothing is written without -o.")
+def reach(path: str, output: str | None) -> None:
+    """Show which named cloud/Kubernetes resources each agent surface can reach.
+
+    Every per-server scanner stops at 'this MCP server holds a cloud credential.'
+    Attestral ingests the Terraform/Kubernetes resources into the SAME model, so
+    it answers the question that decides the blast radius: from an agent surface -
+    especially an injectable one that holds no credential of its own - WHICH named
+    infrastructure resource is reachable, directly or laundered through a
+    co-resident deputy, and by what path. The named resource lives in the cloud
+    model, not in any MCP server, so no per-file scanner can name it. This is the
+    evidence behind ATL-222. Reach is over the modeled edges: a prioritisation
+    signal, not proof an injection would succeed.
+    """
+    from attestral.cloudreach import reach_report, render_reach
+    model = build_model(path)
+    click.echo(render_reach(model))
+    if output:
+        Path(output).write_text(json.dumps(reach_report(model), indent=2))
+        click.echo(f"\nwrote {output}")
+
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
 @click.option("--remove", "remove", default=None, metavar="NAME",
               help="Counterfactual: remove the component named NAME.")
 @click.option("--deny", "deny", default=None, metavar="NAME:CAPABILITY",
