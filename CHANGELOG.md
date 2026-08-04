@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **Kubernetes privilege-escalation wave (closes #151, rule wave C): ATL-536 + ATL-537.** The two
+  signals earlier waves flagged as ingester gaps, now ingested. **ATL-536** (critical): a hostPath
+  volume mounts the node's container-runtime socket (docker.sock / containerd.sock / crio.sock and
+  the `/run` spellings) into a pod - root on the host behind one API call; the ingester now carries
+  the concrete path (`_hostpath_paths`) so a benign `/var/log` mount stays ATL-510 and only the
+  socket paths fire. **ATL-537** (high): an RBAC Role/ClusterRole grants a privilege-transcending
+  verb (`escalate`/`bind`/`impersonate`) - the ingester flattens the verb list (`_verbs`) for exact-
+  token matching, with wildcard `*` left to ATL-533. Fixtures under examples/k8s-privesc, 12 tests.
+  Tier-1/2 candidates that already had rules (allowPrivilegeEscalation, hostIPC, dangerous caps,
+  generic hostPath) added no redundant ids; the cross-boundary tier-3 rule was dropped for precision
+  (no egress modeling exists yet, so "unrestricted metadata egress" would be absence-of-evidence).
+  Pack 267 -> 269.
 - **The broker-backed fix: standing-credential findings compile to their removal, not a
   recommendation string (closes #153, P2 v2).** `attestral fix` now compiles ATL-104/112/115/149/164
   to the exact env keys to strip plus the CB4A broker route that replaces them; `--broker-output`

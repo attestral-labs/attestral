@@ -234,3 +234,25 @@ rules:
     description: The binding points at the built-in cluster-admin ClusterRole, granting its subjects unrestricted control over every resource in the cluster. A single compromised or over-shared subject with this binding is a full cluster takeover, which is why CIS treats it as the highest-priority RBAC finding.
     recommendation: Remove the cluster-admin binding and grant a purpose-built role with only the permissions the subject needs; reserve cluster-admin for break-glass human access, never for a service account or CI identity.
     frameworks: ["CIS K8s 5.1.1", "NIST AC-6", "SOC2 CC6.3"]
+
+  # --- Privilege-escalation wave (ATL-536..537): the two signals the earlier
+  # --- waves flagged as ingester gaps, now ingested - the concrete hostPath
+  # --- path behind a volume (_hostpath_paths) and the full verb list on a
+  # --- Role/ClusterRole (_verbs). Fixtures: examples/k8s-privesc/.
+  - id: ATL-536
+    title: Pod mounts the container runtime socket from the host
+    severity: critical
+    target: k8s_workload
+    match: { attr_list_any_of: { _hostpath_paths: ["/var/run/docker.sock", "/run/docker.sock", "/var/run/containerd/containerd.sock", "/run/containerd/containerd.sock", "/var/run/crio/crio.sock", "/run/crio/crio.sock", "/var/run/dockershim.sock", "/run/k3s/containerd/containerd.sock"] } }
+    description: A hostPath volume mounts the node's container runtime socket (docker.sock / containerd.sock / crio.sock) into the pod, and whoever can talk to that socket can start a privileged container, read every other pod's filesystem and secrets on the node, and take the node over - it is root on the host behind one API call, no kernel exploit needed.
+    recommendation: Remove the runtime-socket mount; build images with a rootless builder (kaniko, BuildKit rootless) and manage workloads through the Kubernetes API instead of driving the runtime directly.
+    frameworks: ["NSA-CISA K8s Hardening v1.2", "CIS K8s 5.2.x", "NIST AC-6"]
+
+  - id: ATL-537
+    title: RBAC role grants escalate, bind, or impersonate
+    severity: high
+    target: k8s_rbac_role
+    match: { attr_list_any_of: { _verbs: ["escalate", "bind", "impersonate"] } }
+    description: The Role or ClusterRole grants a privilege-transcending verb - escalate lets a subject edit roles beyond its own permissions, bind lets it attach more powerful roles to itself, and impersonate lets it act as any other user or group - so any subject bound to this role can quietly become more privileged than it was ever granted.
+    recommendation: Remove the escalate/bind/impersonate verbs from application roles; where a controller genuinely needs them, scope the grant with resourceNames to the specific roles or identities it manages.
+    frameworks: ["CIS K8s 5.1.8", "NIST AC-6", "SOC2 CC6.3"]

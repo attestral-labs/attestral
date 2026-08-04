@@ -1,0 +1,54 @@
+# Fires ATL-536 (critical): the pod mounts the node's container runtime socket.
+# The container itself is deliberately hardened on every other axis, so the two
+# findings this file raises are exactly the hostPath pair: the generic
+# hostPath-volume finding (ATL-510) and the runtime-socket finding (ATL-536).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ci-runner
+  namespace: ci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ci-runner
+  template:
+    metadata:
+      labels:
+        app: ci-runner
+    spec:
+      volumes:
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+      containers:
+        - name: runner
+          image: registry.internal/ci/runner@sha256:8f4e2a1b9c0d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+          volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
