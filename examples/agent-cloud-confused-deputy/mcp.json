@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "web-fetch": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch@1.0.0"]
+    },
+    "aws-deploy": {
+      "command": "uvx",
+      "args": ["mcp-server-aws"],
+      "env": {
+        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}

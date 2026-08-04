@@ -666,6 +666,28 @@ class RuleEngine:
                 f"env: {named}. The broker is not the exclusive credential path."
             )
             return [self._finding(rule, "model:broker_bypass", "system model", detail=detail)]
+        elif "model_cross_boundary_reach" in match:
+            # The confused-deputy-into-named-cloud graph property: an injectable
+            # agent surface with NO credential of its own is co-resident with a
+            # cloud-credential holder that reaches named Terraform/K8s resources,
+            # so a prompt injection in the benign surface can be laundered through
+            # the deputy's standing credential to that infrastructure. Only the
+            # whole system model sees the agent surface, the deputy, and the named
+            # cloud resource at once. Fires per injectable entry.
+            if match["model_cross_boundary_reach"] is not True:
+                return []  # malformed spec: fail closed
+            from attestral.cloudreach import cross_boundary_reaches, entry_detail
+            reaches = cross_boundary_reaches(model)
+            if not reaches:
+                return []
+            by_entry: dict[str, list] = {}
+            for r in reaches:
+                by_entry.setdefault(r.entry_id, []).append(r)
+            return [
+                self._finding(rule, entry_id, "system model",
+                              detail=entry_detail(rs))
+                for entry_id, rs in sorted(by_entry.items())
+            ]
         return []
 
     @staticmethod

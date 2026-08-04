@@ -101,7 +101,7 @@ attestral explain ATL-103    # title, severity, description, fix, and framework 
 
 Every finding in the terminal output carries a `run: attestral explain <RULE_ID>` pointer, so the reasoning and the fix are one command away. Rule ids are matched case-insensitively.
 
-## What it catches (269-rule pack)
+## What it catches (270-rule pack)
 
 | Area | Examples |
 |---|---|
@@ -138,7 +138,7 @@ flowchart TB
     end
     M --> L1
     subgraph REV["2 · Review (layered, each finding tagged by origin)"]
-        L1["<b>L1 Deterministic rules</b><br/>269 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
+        L1["<b>L1 Deterministic rules</b><br/>270 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-boundary reach into named cloud/IaC sinks<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
         L2["<b>L2 ML classifier</b> (optional)<br/>DeBERTa prompt-injection on agentic surfaces<br/>origin: ml"]
         L3["<b>L3 LLM</b> (optional)<br/>elicitation + LLM-as-judge verifier<br/>origin: llm"]
         L1 --> L2 --> L3
@@ -160,7 +160,7 @@ flowchart TB
 
 | Layer | What it does | Reproducible? | Cost |
 |---|---|---|---|
-| **L1 Deterministic** | 269 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
+| **L1 Deterministic** | 270 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
 | **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts, embedded MCP Apps HTML bodies) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
 | **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
 
@@ -431,6 +431,10 @@ attestral validate ./my-project -o proof --fail-on-reachable   # write proof.md 
 # hardening prioritises itself (the lethal-trifecta host rises to the top)
 attestral blast-radius ./my-project
 
+# REACH: name the cloud/Kubernetes resources each agent surface can touch - the
+# agent->cloud crossing a per-server scanner cannot see (evidence behind ATL-222)
+attestral reach ./my-project     # e.g. "web-fetch [injectable] reaches aws_s3_bucket.customer_data"
+
 # DIFF: post the security-impact delta between two design revisions - the
 # engine behind the PR-review bot (examples/github-actions/security-delta.yml)
 attestral diff ./base ./head
@@ -464,7 +468,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on
 
 ## Real-world benchmark
 
-Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **269 rules** today; this table shows the historical progression, not the current pack size):
+Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **270 rules** today; this table shows the historical progression, not the current pack size):
 
 | | TerraGoat AWS | TerraGoat Azure | TerraGoat GCP | Distinct rules |
 |---|---|---|---|---|

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The terminal cut - one in three MCP servers ships the lethal trifecta - Attestral</title>
+<meta name="description" content="A CRT terminal replays our study of 390 popular open-source MCP servers: one in three assembles the lethal trifecta - private data, untrusted input, and an outbound channel in one agent session. Watch it type, then scan your own machine in one command.">
+<link rel="canonical" href="https://attestral.vercel.app/terminal.html">
+<meta name="theme-color" content="#14120f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Attestral">
+<meta property="og:title" content="Watch the terminal tell it: one in three MCP servers ships the lethal trifecta.">
+<meta property="og:description" content="A CRT terminal replays our 390-server study - boot, scan, alert, the finding. Then scan your own machine: pip install attestral && attestral scan --local">
+<meta property="og:url" content="https://attestral.vercel.app/terminal.html">
+<meta property="og:image" content="https://attestral.vercel.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Watch the terminal tell it: one in three MCP servers ships the lethal trifecta.">
+<meta name="twitter:description" content="A CRT terminal replays our 390-server study - boot, scan, alert, the finding. Then scan your own machine in one command.">
+<meta name="twitter:image" content="https://attestral.vercel.app/assets/og.png">
+<style>
+  :root {
+    --room: #14120f;
+    --room-glow: #1d1a14;
+    --putty: #cfc7b2;
+    --putty-hi: #e4ddca;
+    --putty-lo: #a49b84;
+    --putty-shadow: #6f6752;
+    --tube: #061007;
+    --phos: #7dff9e;
+    --phos-dim: #4ea75c;
+    --phos-bright: #dfffe6;
+    --phos-glow: rgba(125, 255, 158, 0.55);
+    --led: #ff4d3d;
+    --caption: #7a7466;
+  }
+  .amber {
+    --tube: #100b04;
+    --phos: #ffb000;
+    --phos-dim: #a06f10;
+    --phos-bright: #ffe0a3;
+    --phos-glow: rgba(255, 176, 0, 0.5);
+  }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(60% 50% at 50% 38%, var(--room-glow) 0%, var(--room) 70%);
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 32px 16px 40px;
+    box-sizing: border-box;
+    min-height: 100%;
+  }
+
+  /* ---------- monitor ---------- */
+  .monitor {
+    width: min(880px, 100%);
+    border-radius: 26px;
+    background: linear-gradient(160deg, var(--putty-hi) 0%, var(--putty) 42%, var(--putty-lo) 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.45),
+      inset 0 -4px 8px rgba(0,0,0,0.28),
+      0 22px 60px rgba(0,0,0,0.6);
+    padding: 26px 26px 14px;
+    box-sizing: border-box;
+  }
+
+  .screen-frame {
+    border-radius: 16px;
+    background: linear-gradient(180deg, #55503f, #2c2920);
+    padding: 12px;
+    box-shadow: inset 0 3px 10px rgba(0,0,0,0.75);
+  }
+
+  .screen {
+    position: relative;
+    border-radius: 12px;
+    background:
+      radial-gradient(120% 90% at 50% 15%, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 40%),
+      var(--tube);
+    height: min(62vh, 560px);
+    min-height: 380px;
+    overflow: hidden;
+    container-type: inline-size;
+    transform: scaleY(0.004);
+    filter: brightness(4);
+  }
+  .screen.on {
+    animation: power-on 0.7s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+  }
+  @keyframes power-on {
+    0%   { transform: scaleY(0.004); filter: brightness(6); }
+    45%  { transform: scaleY(0.02);  filter: brightness(4); }
+    70%  { transform: scaleY(1.02);  filter: brightness(1.6); }
+    100% { transform: scaleY(1);     filter: brightness(1); }
+  }
+
+  .tty {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 20px 26px 28px;
+    box-sizing: border-box;
+    color: var(--phos);
+    text-shadow:
+      0 0 6px var(--phos-glow),
+      0 0 1px var(--phos),
+      -1px 0 rgba(255, 60, 120, 0.13),
+      1px 0 rgba(60, 160, 255, 0.13);
+    font-size: clamp(12.5px, 1.7vw, 15.5px);
+    line-height: 1.62;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    animation: hum 4s infinite steps(2, jump-none);
+  }
+  .tty::-webkit-scrollbar { display: none; }
+  .tty:focus-visible { outline: 1px solid var(--phos-dim); outline-offset: -4px; }
+  @keyframes hum {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.965; }
+  }
+
+  .statusline {
+    color: var(--phos-dim);
+    text-shadow: 0 0 4px var(--phos-glow);
+    font-size: 0.78em;
+    letter-spacing: 0.08em;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--phos-dim);
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+    opacity: 0.85;
+  }
+
+  .dim    { color: var(--phos-dim); }
+  .bright { color: var(--phos-bright); text-shadow: 0 0 8px var(--phos-glow), 0 0 2px var(--phos-bright); }
+  .link   { color: var(--phos-bright); text-shadow: 0 0 8px var(--phos-glow); text-decoration: underline; text-underline-offset: 3px; }
+  .inv    { background: var(--phos); color: var(--tube); text-shadow: none; padding: 0 5px; font-weight: 700; }
+  .ascii  { white-space: pre; display: block; font-size: clamp(7px, 2.3cqw, 13px); line-height: 1.4; }
+  .center { display: block; text-align: center; }
+
+  .fresh { animation: cool 0.55s ease-out forwards; }
+  @keyframes cool {
+    from {
+      color: #ffffff;
+      text-shadow: 0 0 14px var(--phos-bright), 0 0 5px #ffffff;
+    }
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.1em;
+    vertical-align: text-bottom;
+    background: var(--phos);
+    box-shadow: 0 0 8px var(--phos-glow);
+    animation: blink 1.06s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* CRT overlays */
+  .scanlines, .glass, .band {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 12px;
+  }
+  .scanlines {
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0)   0px,
+      rgba(0,0,0,0)   2px,
+      rgba(0,0,0,0.22) 3px,
+      rgba(0,0,0,0)   4px
+    );
+    mix-blend-mode: multiply;
+  }
+  .glass {
+    background:
+      radial-gradient(120% 160% at 18% 0%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 34%),
+      radial-gradient(150% 120% at 50% 50%, rgba(0,0,0,0) 62%, rgba(0,0,0,0.5) 100%);
+  }
+  .band {
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255,0.035) 48%,
+      rgba(255,255,255,0.07) 50%,
+      rgba(255,255,255,0.035) 52%,
+      rgba(255,255,255,0) 100%
+    );
+    background-size: 100% 240px;
+    background-repeat: no-repeat;
+    animation: sweep 7s linear infinite;
+  }
+  @keyframes sweep {
+    from { background-position: 0 -240px; }
+    to   { background-position: 0 calc(100% + 240px); }
+  }
+
+  /* ---------- bezel controls ---------- */
+  .bezel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 6px 6px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--putty-shadow);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    font-weight: 700;
+    user-select: none;
+  }
+  .led {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--led);
+    box-shadow: 0 0 8px var(--led), inset 0 -1px 1px rgba(0,0,0,0.4);
+  }
+  .keys { display: flex; gap: 8px; flex-wrap: wrap; }
+  .key {
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    color: #4c4638;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.55);
+    background: linear-gradient(180deg, var(--putty-hi), var(--putty) 55%, var(--putty-lo));
+    border: 1px solid var(--putty-shadow);
+    border-radius: 7px;
+    padding: 9px 13px 8px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 var(--putty-shadow), 0 4px 6px rgba(0,0,0,0.35);
+    transition: transform 60ms ease, box-shadow 60ms ease;
+  }
+  .key:active, .key[aria-pressed="true"] {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--putty-shadow), 0 2px 3px rgba(0,0,0,0.3);
+  }
+  .key:focus-visible { outline: 2px solid #4c4638; outline-offset: 2px; }
+
+  .note {
+    max-width: 660px;
+    color: var(--caption);
+    font-size: 12.5px;
+    line-height: 1.8;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .note a {
+    color: #a59d8a;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .note a:hover { color: #cfc7b2; }
+  .note code {
+    font-family: inherit;
+    color: #a59d8a;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .screen { transform: none; filter: none; }
+    .screen.on { animation: none; }
+    .band, .tty { animation: none; }
+    .cursor { animation: none; }
+    .fresh { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="monitor" id="monitor">
+  <div class="screen-frame" id="frame">
+    <div class="screen" id="screen">
+      <div class="tty" id="tty" tabindex="0"><div class="statusline"><span>ATTESTRAL DT-390</span><span id="statusR">TTY1 &middot; 80&times;24 &middot; PHOSPHOR P1</span></div><span id="out"></span><span class="cursor" id="cursor"></span></div>
+      <div class="scanlines"></div>
+      <div class="band"></div>
+      <div class="glass"></div>
+    </div>
+  </div>
+  <div class="bezel">
+    <div class="badge"><span class="led"></span>ATTESTRAL&nbsp;LABS</div>
+    <div class="keys">
+      <button class="key" id="replay">REPLAY</button>
+      <button class="key" id="skip">SKIP</button>
+      <button class="key" id="speed" aria-live="polite">SPEED 1&times;</button>
+      <button class="key" id="phos">PHOSPHOR</button>
+      <button class="key" id="sound" aria-pressed="false">SOUND OFF</button>
+      <button class="key" id="copy">COPY TEXT</button>
+    </div>
+  </div>
+</div>
+
+<p class="note">
+  The terminal cut of our study of 390 popular open-source MCP servers. One in three assembles the lethal trifecta.<br>
+  <a href="/research.html">Read the full write-up</a> &middot;
+  <a href="https://github.com/attestral-labs/attestral">Source on GitHub (Apache 2.0)</a> &middot;
+  see your own machine: <code>pip install attestral &amp;&amp; attestral scan --local</code>
+</p>
+
+<script>
+  var PROMPT = "attestral@labs:~$ ";
+
+  var BANNER =
+    "▄▀█ ▀█▀ ▀█▀ █▀▀ █▀ ▀█▀ █▀█ ▄▀█ █\n" +
+    "█▀█  █   █  ██▄ ▄█  █  █▀▄ █▀█ █▄▄";
+
+  var GRAPH =
+    "   [PRIVATE DATA]      [UNTRUSTED INPUT]\n" +
+    "         │                    │\n" +
+    "         └────────┬───────────┘\n" +
+    "                  ▼\n" +
+    "          ( AGENT SESSION )\n" +
+    "                  │\n" +
+    "                  ▼\n" +
+    "         [OUTBOUND CHANNEL]\n" +
+    "                  │\n" +
+    "                  ▼\n" +
+    "         silent exfiltration";
+
+  var BODY = [
+    ["For a decade, security tools have read one file at a time. A linter reads a file, a scanner reads a resource, a policy checks a setting. AI agents broke that model: the risk is almost never in a single line. It is in what the agent can reach once you connect the pieces.\n\n", ""],
+    ["So we built something different. Instead of linting configs, it builds a system model of each MCP server, its tools, the data and networks they reach, the trust boundaries they cross, and reasons about the architecture. Then we pointed it at 390 of the most popular open-source MCP servers.\n\n", ""],
+    ["One in three (", ""],
+    ["32.6%", "bright"],
+    [") assembles the lethal trifecta: private data, untrusted input, and an outbound channel, all live in one agent session. One indirect prompt injection turns that into silent exfiltration. And here is the part that matters: this finding is not in any one file. It only exists in the graph of the whole session, which is exactly why a per-file scanner, however many rules it carries, cannot see it.\n\n", ""],
+    ["The rate held from 222 servers to 390, and every finding reproduced on a clean re-scan. We were just as ruthless about noise: when we made our own \"no auth\" check OAuth-aware, its hit rate fell from 48% to under 1%. The loud per-server alarms washed out. The compositional one is what survived.\n\n", ""],
+    ["Full write-up, the system model explained, and the open-source tool (Apache 2.0):\n", ""],
+    ["https://attestral.vercel.app/research.html", "link"],
+    ["\n\nSee what your own machine is running, in one command:\n\n  ", ""],
+    ["pip install attestral && attestral scan --local", "bright"],
+    ["\n\nIf you deploy agents or MCP servers, I would genuinely like to hear what it misses. That feedback is what moves it forward.", ""]
+  ];
+
+  var POST_TEXT = BODY.map(function (s) { return s[0]; }).join("");
+
+  var tty = document.getElementById("tty");
+  var out = document.getElementById("out");
+  var screen = document.getElementById("screen");
+  var frame = document.getElementById("frame");
+
+  var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var speedSteps = [1, 2, 4];
+  var speedIdx = 0;
+  var soundOn = false;
+  var runToken = 0;
+  var audioCtx = null;
+
+  function sp() { return speedSteps[speedIdx]; }
+
+  /* ---------- sound ---------- */
+  function ac() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+  function blip(freq, dur, gain, type, sweepTo) {
+    if (!soundOn) return;
+    try {
+      var ctx = ac(), t = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var g = ctx.createGain();
+      osc.type = type || "square";
+      osc.frequency.setValueAtTime(freq, t);
+      if (sweepTo) osc.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+      g.gain.setValueAtTime(gain, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(t); osc.stop(t + dur + 0.01);
+    } catch (e) { /* audio unavailable; visuals continue */ }
+  }
+  function keyclick() { blip(1400 + Math.random() * 900, 0.02, 0.018); }
+  function powerThunk() { blip(160, 0.35, 0.06, "sine", 45); }
+  function alertBeep() { blip(880, 0.09, 0.05); setTimeout(function () { blip(1318, 0.14, 0.05); }, 110); }
+
+  /* ---------- typing engine ---------- */
+  function rawSleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function sleep(ms) { return rawSleep(ms / sp()); }
+
+  function delayFor(ch, next) {
+    var base = 17;
+    if (ch === "," || ch === ";") base += 90;
+    if (ch === "." || ch === ":" || ch === "?" || ch === ")") base += 200;
+    if (ch === "\n") base += next === "\n" ? 90 : 240;
+    base += Math.random() * 22;
+    return base / sp();
+  }
+
+  /* Stick to the bottom while typing, like a real terminal, but let go the
+     moment the user scrolls up; re-latch when they return to the bottom. */
+  var stick = true;
+  tty.addEventListener("scroll", function () {
+    stick = tty.scrollHeight - tty.scrollTop - tty.clientHeight < 60;
+  });
+  function scroll() { if (stick) tty.scrollTop = tty.scrollHeight; }
+
+  /* Types text into a new span. per = fixed ms/char (fast blocks); omit for prose pacing.
+     The last few chars live in .fresh spans so the newest glyphs bloom white and cool
+     down to phosphor, the persistence trail. */
+  function typeSeg(token, text, cls, per) {
+    return new Promise(function (resolve) {
+      var seg = document.createElement("span");
+      if (cls) seg.className = cls;
+      out.appendChild(seg);
+      var base = document.createTextNode("");
+      seg.appendChild(base);
+      var trail = [];
+      var i = 0;
+
+      function flush() {
+        while (trail.length) {
+          var old = trail.shift();
+          base.textContent += old.textContent;
+          old.remove();
+        }
+      }
+      function step() {
+        if (token !== runToken) { resolve(false); return; }
+        if (i >= text.length) { flush(); resolve(true); return; }
+        var ch = text[i++];
+        if (reducedMotion) {
+          base.textContent += ch;
+        } else {
+          var f = document.createElement("span");
+          f.className = "fresh";
+          f.textContent = ch;
+          seg.appendChild(f);
+          trail.push(f);
+          if (trail.length > 7) {
+            var old = trail.shift();
+            base.textContent += old.textContent;
+            old.remove();
+          }
+        }
+        if (ch !== " " && ch !== "\n") keyclick();
+        scroll();
+        var d = per != null ? (per + Math.random() * per) / sp() : delayFor(ch, text[i] || "");
+        setTimeout(step, d);
+      }
+      step();
+    });
+  }
+
+  function progressBar(token, total, ms) {
+    return new Promise(function (resolve) {
+      var seg = document.createElement("span");
+      out.appendChild(seg);
+      var frames = 70, f = 0;
+      function step() {
+        if (token !== runToken) { resolve(false); return; }
+        var frac = f / frames;
+        var filled = Math.round(20 * frac);
+        var n = Math.round(total * frac);
+        seg.textContent = "scanning  [" +
+          new Array(filled + 1).join("█") +
+          new Array(20 - filled + 1).join("░") +
+          "] " + n + "/" + total;
+        if (f % 4 === 0) blip(2200, 0.012, 0.012);
+        scroll();
+        if (f++ >= frames) { seg.textContent += "\n"; resolve(true); return; }
+        setTimeout(step, ms / frames / sp());
+      }
+      step();
+    });
+  }
+
+  function clearOut() { out.textContent = ""; }
+
+  /* ---------- scenes ---------- */
+  async function run() {
+    var token = ++runToken;
+    function ok(v) { return v !== false && token === runToken; }
+    clearOut();
+    stick = true;
+
+    /* boot */
+    if (!ok(await typeSeg(token, "ATTESTRAL DT-390 SELF TEST\n", "dim", 6))) return;
+    if (!ok(await typeSeg(token,
+      "  cpu 8mhz .............. ok\n" +
+      "  memory 64k ............ ok\n" +
+      "  phosphor .............. ok\n" +
+      "  uplink /dev/mcp ....... ok\n\n", "dim", 3))) return;
+    if (!ok(await typeSeg(token, BANNER + "\n", "ascii bright", 2))) return;
+    if (!ok(await typeSeg(token, "the security scanner built for the agentic era\n\n", "dim", 8))) return;
+    await sleep(500);
+    if (token !== runToken) return;
+
+    /* scan montage */
+    if (!ok(await typeSeg(token, PROMPT, "dim", 4))) return;
+    if (!ok(await typeSeg(token, "attestral scan mcp-ecosystem/\n", "bright", 28))) return;
+    if (!ok(await typeSeg(token, "building system model ......... done\nmapping trust boundaries ...... done\n", "", 6))) return;
+    if (!ok(await progressBar(token, 390, 3200))) return;
+    if (token !== runToken) return;
+    await sleep(350);
+    alertBeep();
+    if (!ok(await typeSeg(token, "\n", "", 2))) return;
+    if (!ok(await typeSeg(token, " ALERT ", "inv", 30))) return;
+    if (!ok(await typeSeg(token, " lethal trifecta assembled in 32.6% of servers. one in three.\n\n", "bright", 12))) return;
+    if (!ok(await typeSeg(token, GRAPH + "\n\n", "ascii", 3))) return;
+    await sleep(1400);
+    if (token !== runToken) return;
+
+    /* the post */
+    if (!ok(await typeSeg(token, PROMPT, "dim", 4))) return;
+    if (!ok(await typeSeg(token, "clear\n", "bright", 40))) return;
+    await sleep(300);
+    if (token !== runToken) return;
+    clearOut();
+    if (!ok(await typeSeg(token, PROMPT, "dim", 4))) return;
+    if (!ok(await typeSeg(token, "cat the_finding.txt\n\n", "bright", 30))) return;
+    for (var b = 0; b < BODY.length; b++) {
+      if (!ok(await typeSeg(token, BODY[b][0], BODY[b][1]))) return;
+    }
+    await sleep(2200);
+    if (token !== runToken) return;
+
+    /* end card */
+    clearOut();
+    if (!ok(await typeSeg(token, "\n\n", "", 1))) return;
+    if (!ok(await typeSeg(token, BANNER + "\n\n", "ascii bright center", 2))) return;
+    if (!ok(await typeSeg(token, "the security scanner built for the agentic era\n\n\n", "dim center", 6))) return;
+    if (!ok(await typeSeg(token, "pip install attestral && attestral scan --local\n\n", "bright center", 14))) return;
+    if (!ok(await typeSeg(token, "attestral.vercel.app/research.html\n\n\n", "link center", 14))) return;
+    if (!ok(await typeSeg(token, "apache 2.0 · open source", "dim center", 10))) return;
+  }
+
+  function renderPost() {
+    runToken++;
+    clearOut();
+    var SEGS = [[PROMPT, "dim"], ["cat the_finding.txt\n\n", "bright"]]
+      .concat(BODY)
+      .concat([["\n\n", ""], [PROMPT, "dim"]]);
+    SEGS.forEach(function (seg) {
+      var span = document.createElement("span");
+      if (seg[1]) span.className = seg[1];
+      span.textContent = seg[0];
+      out.appendChild(span);
+    });
+    tty.scrollTop = 0;
+  }
+
+  function start() {
+    if (reducedMotion) { renderPost(); return; }
+    run();
+  }
+
+  /* ---------- vertical-hold glitch ---------- */
+  setInterval(function () {
+    if (reducedMotion || Math.random() < 0.4) return;
+    frame.style.transform = "translateY(-1.5px) skewX(-0.4deg)";
+    setTimeout(function () { frame.style.transform = "translateY(1px)"; }, 45);
+    setTimeout(function () { frame.style.transform = ""; }, 95);
+  }, 9000);
+
+  /* ---------- bezel keys ---------- */
+  document.getElementById("replay").addEventListener("click", function () {
+    powerThunk();
+    screen.classList.remove("on");
+    void screen.offsetWidth;
+    screen.classList.add("on");
+    runToken++;
+    clearOut();
+    setTimeout(start, reducedMotion ? 0 : 750);
+  });
+
+  document.getElementById("skip").addEventListener("click", renderPost);
+
+  document.getElementById("speed").addEventListener("click", function () {
+    speedIdx = (speedIdx + 1) % speedSteps.length;
+    this.innerHTML = "SPEED " + speedSteps[speedIdx] + "&times;";
+  });
+
+  document.getElementById("phos").addEventListener("click", function () {
+    var monitor = document.getElementById("monitor");
+    monitor.classList.toggle("amber");
+    var amber = monitor.classList.contains("amber");
+    document.getElementById("statusR").innerHTML =
+      "TTY1 &middot; 80&times;24 &middot; PHOSPHOR " + (amber ? "P3" : "P1");
+  });
+
+  document.getElementById("sound").addEventListener("click", function () {
+    soundOn = !soundOn;
+    this.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
+    this.setAttribute("aria-pressed", String(soundOn));
+    if (soundOn) { try { ac().resume(); } catch (e) {} }
+  });
+
+  document.getElementById("copy").addEventListener("click", function () {
+    var btn = this;
+    navigator.clipboard.writeText(POST_TEXT).then(function () {
+      btn.textContent = "COPIED";
+      setTimeout(function () { btn.textContent = "COPY TEXT"; }, 1400);
+    });
+  });
+
+  screen.classList.add("on");
+  setTimeout(start, reducedMotion ? 0 : 800);
+</script>
+</body>
+</html>

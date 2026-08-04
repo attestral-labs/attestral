@@ -35,6 +35,7 @@ DIAGRAM_KEYWORDS = {
     "fleet.py": "cross-repo fleet",
     "reachability.py": "Reachability-based severity",
     "blast_radius.py": "Blast-radius scoring",
+    "cloudreach.py": "cross-boundary reach",
     "injection_reach.py": "Injection-reachability fusion",
     "trust_asymmetry.py": "Trust-asymmetry",
     "delta.py": "security-impact delta",
