@@ -19,6 +19,10 @@ route fronts it. Then `attestral drift` diffs two runtime event streams:
 - `runtime-events-benign.jsonl` - `github` called with `brokered: true`: clean.
 - `runtime-events-malicious.jsonl` - `github` called with `brokered: false`: the
   call reached the server directly and skipped the broker, so **DRF-011** fires.
+- `runtime-events-stale-key.jsonl` - `github` called with `brokered: true` but
+  `env_secrets: ["GITHUB_TOKEN"]`: the broker carries the traffic, yet the raw
+  standing key never left the server's environment, so **DRF-012** fires. The
+  key is pure blast radius - its theft would never touch the broker's audit.
 
 This is the runtime complement to the static ATL-221: even a design that looks
 brokered can be bypassed at run time, and only diffing the live events against the

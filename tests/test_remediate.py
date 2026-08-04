@@ -84,3 +84,18 @@ def test_remediate_cli_rule_filter_and_unknown():
     assert r.exit_code == 0 and "ATL-101" in r.output and "ATL-004" not in r.output
     r = CliRunner().invoke(main, ["remediate", FIXTURE, "--rule", "ATL-999"])
     assert r.exit_code == 1 and "does not fire" in r.output
+
+
+def test_standing_credential_suggestion_is_the_exact_keys_to_delete():
+    # Broker-family findings match ingester-derived attrs, but their edit IS
+    # mechanically derivable: the exact env keys to delete, with the generated
+    # broker route as the replacement - not a prose fallback.
+    engine = RuleEngine()
+    model = build_model("examples/vulnerable-agent")
+    findings = [f for f in engine.evaluate(model) if f.rule_id == "ATL-104"]
+    assert findings
+    s = suggest(model, findings[0], next(r for r in engine.rules if r["id"] == "ATL-104"))
+    assert s.derived
+    assert s.attribute == "env"
+    assert "JIRA_API_TOKEN" in s.before
+    assert "--broker-output" in s.edit

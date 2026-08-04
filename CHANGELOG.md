@@ -6,6 +6,24 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Added
+- **The broker-backed fix: standing-credential findings compile to their removal, not a
+  recommendation string (closes #153, P2 v2).** `attestral fix` now compiles ATL-104/112/115/149/164
+  to the exact env keys to strip plus the CB4A broker route that replaces them; `--broker-output`
+  writes the routes as one agentgateway config, and `attestral remediate` prints the same keys as
+  the concrete source edit. Verification is honest re-synthesis: the model copy has the keys removed
+  and its credential attributes re-derived through the ingester's own classifiers (never
+  hand-cleared), then the rule engine confirms the finding no longer fires. `attestral broker` also
+  now strips cloud-credential keys that carry no secret-shaped token (KUBECONFIG, AZURE_CLIENT_ID),
+  so a kubeconfig-only server gets a plan instead of slipping the union.
+- **DRF-012: the standing key never actually left.** The runtime tail of the credential loop - a
+  server whose attested policy requires a credential-free environment (`broker_required`, or the
+  `forbid_env_secrets` constraint) that positively reports standing credential names still present
+  in its runtime env (`env_secrets`) is drift: the broker carries the traffic, but the raw key is
+  pure blast radius whose theft would never touch the broker's audit. Fail-closed in the DRF-008
+  style: absent telemetry never fires, an empty list is a positively-observed clean environment.
+  Fixture stream `runtime-events-stale-key.jsonl`; quarantine remediation verified a narrowing.
+
 ## [0.20.0] - 2026-08-03
 
 ### Added

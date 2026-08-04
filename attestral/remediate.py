@@ -72,6 +72,24 @@ def suggest(model: SystemModel, finding: Finding, rule: dict | None) -> Suggesti
         return fallback
     match = rule.get("match") or {}
 
+    # Standing-credential findings have a mechanically derivable edit even though
+    # they match ingester-derived attributes: the exact env keys to delete, with
+    # the generated broker route as the replacement. This is the source-side half
+    # of the broker-backed fix (`attestral fix --broker-output`).
+    from attestral.broker import BROKER_FIX_RULES, plan_for
+    if finding.rule_id in BROKER_FIX_RULES:
+        plan = plan_for(model, finding.component_id)
+        if plan is not None:
+            keys = ", ".join(plan.stripped)
+            return Suggestion(
+                finding.rule_id, finding.component_id, source, "env",
+                keys, "(brokered per-call token)",
+                f"delete env key(s) {keys} from server '{plan.name}' in {source}; "
+                f"replace them with the generated CB4A broker route "
+                f"(`attestral fix --broker-output broker.yaml`)",
+                True,
+            )
+
     # Ingester-derived attributes (prefixed `_`, e.g. `_cidr_blocks`,
     # `_confused_deputy`) are not literal source fields, so a single-field edit
     # would be misleading. Fall back to the rule's recommendation for those.
