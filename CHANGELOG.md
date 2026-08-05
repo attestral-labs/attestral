@@ -7,6 +7,12 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **The cross-boundary reach path is now a clickable overlay in the HTML topography
+  (`scan --format html`).** The ATL-222 confused-deputy path - an injectable surface, its co-resident
+  credentialed deputy, and the NAMED cloud/cluster resource it can be laundered into - renders as a
+  cross-boundary chain you can click to light up: "web-fetch -> aws-deploy -> aws_s3_bucket.customer_data".
+  The agent-to-cloud picture no per-file scanner can draw, made legible in one screenshot. Reuses the
+  existing path-overlay engine; no new dependency, self-contained/offline/injection-safe invariants held.
 - **`attestral admit`: admission control for the agent loadout - may this agent load this tool, and
   prove why.** New admit.py answers the question one step before the scan: before you add an MCP
   server, it builds the current design, builds it WITH the proposed server added (re-deriving the
