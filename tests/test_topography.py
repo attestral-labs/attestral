@@ -217,3 +217,29 @@ def test_full_render_on_cloud_plus_agent_fixture_is_offline_and_deterministic():
         assert url == "http://www.w3.org/2000/svg", url
     # stable sort orders everywhere: a second render is byte-identical
     assert doc == render_topography(model, findings, CLOUD_AGENT_FIXTURE)
+
+
+def test_cross_boundary_reach_path_is_a_clickable_overlay():
+    # ATL-222's confused-deputy path renders as a named cross-boundary chain:
+    # injectable surface -> co-resident deputy -> the NAMED cloud resource. This
+    # is the agent->cloud picture no per-file scanner can draw.
+    model = build_model("examples/agent-cloud-confused-deputy")
+    data = build_topography(model, RuleEngine().evaluate(model))
+    xb = [p for p in data["paths"] if p["kind"] == "cross-boundary"]
+    assert xb, "expected a cross-boundary reach path"
+    steps = xb[0]["steps"]
+    assert [s["role"] for s in steps] == ["entry", "deputy", "cloud sink"]
+    assert steps[0]["id"] == "mcp_server.web-fetch"
+    assert steps[1]["id"] == "mcp_server.aws-deploy"
+    assert steps[2]["id"].startswith("aws_")          # a NAMED cloud resource node
+    # every step id is a rendered node, so the overlay never points at a gap
+    rendered = {c["id"] for c in data["components"]}
+    assert all(s["id"] in rendered for s in steps)
+
+
+def test_cross_boundary_overlay_survives_html_render():
+    model = build_model("examples/agent-cloud-confused-deputy")
+    doc = render_topography(model, RuleEngine().evaluate(model), "confused-deputy")
+    assert "cross-boundary" in doc                      # the overlay is in the payload
+    assert "aws_s3_bucket.customer_data" in doc         # the named cloud sink is drawn
+    assert "<!doctype html>" in doc.lower()             # one self-contained document

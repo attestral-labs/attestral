@@ -118,6 +118,23 @@ def build_topography(model: SystemModel, findings: list[Finding]) -> dict:
         if steps:
             paths.append({"kind": p.kind, "sev": p.severity.value, "steps": steps})
 
+    # Cross-boundary reach paths (ATL-222): an injectable surface -> its co-resident
+    # credentialed deputy -> the NAMED cloud/cluster resource it can be laundered
+    # into. This is the agent-to-cloud crossing no per-file scanner can draw; as a
+    # clickable overlay it is the picture that makes the moat legible. The sink
+    # label from cloudreach ("type.name") is the cloud resource's own node id.
+    from attestral.cloudreach import cross_boundary_reaches
+    rendered_ids = {c["id"] for c in comps}
+    for r in cross_boundary_reaches(model):
+        sink_id = next((s for s in r.sinks if s in rendered_ids), None)
+        if r.entry not in name_to_id or r.deputy not in name_to_id or sink_id is None:
+            continue
+        paths.append({"kind": "cross-boundary", "sev": "high", "steps": [
+            {"id": name_to_id[r.entry], "role": "entry"},
+            {"id": name_to_id[r.deputy], "role": "deputy"},
+            {"id": sink_id, "role": "cloud sink"},
+        ]})
+
     # Which capability classes any rendered surface reaches -> the impact rail.
     reached_classes = {k for c in comps for k in c["reached"]}
     sinks = [_sink_meta(k) for k in _SINK_ORDER if k in reached_classes]
