@@ -38,6 +38,7 @@ DIAGRAM_KEYWORDS = {
     "cloudreach.py": "cross-boundary reach",
     "injection_reach.py": "Injection-reachability fusion",
     "trust_asymmetry.py": "Trust-asymmetry",
+    "admit.py": "admit",
     "delta.py": "security-impact delta",
     "designdiff.py": "design-diff",
     "whatif.py": "what-if",

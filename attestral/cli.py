@@ -793,6 +793,40 @@ def whatif(path: str, remove: str | None, deny: str | None) -> None:
 
 
 @main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--add", "add_path", required=True, metavar="CONFIG", type=click.Path(exists=True),
+              help="An MCP config (or project) describing the server(s) you propose to add.")
+@click.option("--fail-on-deny", is_flag=True,
+              help="Exit non-zero when the verdict is DENY (a PR-time / install-time gate).")
+@click.option("-o", "--output", default=None,
+              help="Write the admission verdict JSON here. Terminal-first: nothing is written without -o.")
+def admit(path: str, add_path: str, fail_on_deny: bool, output: str | None) -> None:
+    """Decide whether an agent may load a proposed tool, and prove why.
+
+    Admission control for the agent loadout: before you add an MCP server, this
+    builds your current design, builds it WITH the proposed server added
+    (re-deriving the credential-reach and taint edges so the new tool's
+    interactions with the existing fleet appear), diffs the two, and returns
+    ALLOW or DENY with the evidence. The risk of a new tool is almost never in
+    the tool itself: a read-only fetcher is harmless alone, but dropped into a
+    runtime that already holds a cloud credential it becomes the injectable entry
+    of a confused-deputy path into named infrastructure. The verdict is the
+    security DELTA of admitting it - new findings, new attack paths, new
+    cross-boundary reach, the blast-radius shift - with the deny reasons named, so
+    the gate proves itself. Deterministic and offline.
+    """
+    from attestral.admit import admit as run_admit
+    from attestral.admit import admit_report, render_admit
+    verdict = run_admit(path, add_path)
+    click.echo(render_admit(verdict))
+    if output:
+        Path(output).write_text(json.dumps(admit_report(verdict), indent=2))
+        click.echo(f"\nwrote {output}")
+    if fail_on_deny and not verdict.allowed:
+        sys.exit(1)
+
+
+@main.command()
 @click.argument("base", type=click.Path(exists=True))
 @click.argument("head", type=click.Path(exists=True))
 @click.option("-o", "--output", default=None, metavar="FILE",

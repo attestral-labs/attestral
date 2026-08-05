@@ -300,6 +300,7 @@ flowchart LR
     A --> V["attestral validate<br/><b>show the path is reachable</b><br/>+ proof-of-exploit per path (gated)"]
     A --> DF["attestral diff<br/><b>PR security-impact delta</b>"]
     A --> WI["attestral whatif<br/><b>counterfactual: what-if I change this</b>"]
+    A --> AD["attestral admit<br/><b>may this agent load this tool? prove why</b>"]
     A --> DD["attestral design-diff<br/><b>did this revision widen the agent's reach</b>"]
     A --> CH["attestral chaos<br/><b>simulate poisoning attacks, report what the review catches</b>"]
     style A fill:#96222E,color:#fff
@@ -434,6 +435,10 @@ attestral blast-radius ./my-project
 # REACH: name the cloud/Kubernetes resources each agent surface can touch - the
 # agent->cloud crossing a per-server scanner cannot see (evidence behind ATL-222)
 attestral reach ./my-project     # e.g. "web-fetch [injectable] reaches aws_s3_bucket.customer_data"
+
+# ADMIT: decide whether an agent may load a proposed tool, and prove why - the
+# security delta of adding it (new findings, new reach, blast shift). PR-time gate.
+attestral admit ./my-project --add ./new-server.json --fail-on-deny
 
 # DIFF: post the security-impact delta between two design revisions - the
 # engine behind the PR-review bot (examples/github-actions/security-delta.yml)
