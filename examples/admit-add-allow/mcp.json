@@ -1,0 +1,1 @@
+{ "mcpServers": { "clock": { "command": "npx", "args": ["mcp-server-time@1.0.0"] } } }

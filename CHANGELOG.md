@@ -7,6 +7,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Added
+- **`attestral admit`: admission control for the agent loadout - may this agent load this tool, and
+  prove why.** New admit.py answers the question one step before the scan: before you add an MCP
+  server, it builds the current design, builds it WITH the proposed server added (re-deriving the
+  credential-reach and taint edges so the new tool's interactions with the existing fleet appear),
+  diffs the two, and returns ALLOW or DENY. The risk of a new tool is almost never in the tool: a
+  read-only fetcher is harmless alone, but dropped into a runtime that already holds a cloud
+  credential it becomes the injectable entry of a confused-deputy path into named infrastructure
+  (ATL-222). So the verdict is the security DELTA of admitting it - new findings, new attack paths,
+  new cross-boundary reach it grants, the blast-radius shift - with the deny reasons named, so the
+  gate proves itself rather than asserting. `--fail-on-deny` makes it a PR-time / install-time gate;
+  `-o` writes the verdict JSON. Reuses whatif.py's counterfactual engine + the cloudreach reach
+  analysis. Fixtures examples/admit-base + admit-add-deny/allow, 6 tests. No pack change.
 - **ATL-222: the agent-to-cloud confused deputy, into a NAMED infrastructure sink.** New cloudreach.py
   walks the system model's `credential_reach` and `references` edges to answer the question a
   per-server scanner structurally cannot: from an injectable agent surface that holds no credential of
