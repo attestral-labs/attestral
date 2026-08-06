@@ -287,8 +287,17 @@ def _binds_all_interfaces(args: list, cfg: dict) -> bool:
 # classify what a tool server can reach. Deliberately coarse: they feed the
 # fleet-level combination rules (ATL-202/203), not per-server findings, so a
 # missed class costs one cross-cutting finding rather than a false alarm.
+#
+# The bank covers the npx/uvx launch forms AND the `mcp/<name>` docker-image and
+# `mcp-server-<name>` package forms of the canonical reference servers, because a
+# server packaged as a docker image (`docker run ... mcp/memory`) reaches exactly
+# what its npx form does - missing the docker form silently under-classified the
+# fleet and made the lethal-trifecta rule (ATL-202) under-fire on real corpora.
+# Every token stays specific (never a bare `git`, which would match a github URL
+# or a `.git` path); `server-git` / `mcp-server-git` / `mcp/git` only.
 _CAPABILITY_HINTS = {
-    "filesystem": ("server-filesystem", "filesystem", "file-system"),
+    "filesystem": ("server-filesystem", "filesystem", "file-system",
+                   "server-git", "mcp-server-git", "mcp/git"),  # git = repo file r/w
     "network": ("server-fetch", "fetch", "puppeteer", "playwright", "browser",
                 "scrape", "webcrawl", "http"),
     "messaging": ("slack", "gmail", "smtp", "sendgrid", "discord", "telegram", "twilio"),
@@ -299,9 +308,9 @@ _CAPABILITY_HINTS = {
     # Persistent agent memory / vector stores: the target of memory-poisoning
     # (Kim et al. 2026, V6) and a source of private data the agent reads back
     # across sessions, so it also counts toward the exfiltration trifecta.
-    "memory": ("mem0", "server-memory", "memory-server", "knowledge-graph",
-               "chroma", "pinecone", "weaviate", "qdrant", "milvus", "vectorstore",
-               "pgvector", "faiss"),
+    "memory": ("mem0", "server-memory", "memory-server", "mcp/memory",
+               "knowledge-graph", "chroma", "pinecone", "weaviate", "qdrant",
+               "milvus", "vectorstore", "pgvector", "faiss"),
 }
 
 # Embedded advisory DB: MCP packages with a KNOWN CVE, and the inclusive maximum

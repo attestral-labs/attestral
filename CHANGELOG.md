@@ -6,6 +6,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+### Fixed
+- **Capability classification now recognizes docker-image and package launch forms, closing a
+  silent under-classification of the fleet.** The `_CAPABILITY_HINTS` bank keyed only on the npx/uvx
+  launch names, so a canonical reference server packaged as a docker image (`docker run ... mcp/memory`)
+  or a git server (`uvx mcp-server-git`) classified as *no capability* - and since the lethal-trifecta
+  rule (ATL-202) needs a data leg and an egress leg in the fleet, those servers contributed nothing and
+  the trifecta under-fired on real corpora (the observatory caught this: the ecosystem trifecta rate had
+  dropped far below the measured baseline). Added the `mcp/memory` docker form to `memory` and the
+  `server-git` / `mcp-server-git` / `mcp/git` forms to `filesystem` (git = repository file read/write).
+  Tokens stay specific - never a bare `git`, which would misread a github URL or a `.git` path.
+  Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
+
 ### Added
 - **The cross-boundary reach path is now a clickable overlay in the HTML topography
   (`scan --format html`).** The ATL-222 confused-deputy path - an injectable surface, its co-resident
