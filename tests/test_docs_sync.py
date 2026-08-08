@@ -70,6 +70,7 @@ DIAGRAM_KEYWORDS = {
     "broker.py": "per-call broker",
     "remediate.py": "concrete source edit",
     "drift.py": "drift",
+    "guard.py": "attestral guard",
     "lockdown.py": "lockdown",
     "attest.py": "conformance attestation",
     "incident.py": "incident attestation",

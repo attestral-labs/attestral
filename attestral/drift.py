@@ -269,6 +269,19 @@ def _per_event(servers: dict, ev: dict, event_no: int) -> list[Finding]:
     return out
 
 
+def evaluate_event(policy: dict, event: dict, event_no: int = 1) -> list[Finding]:
+    """The stateless per-event verdict for one telemetry event against a policy.
+
+    Public entry to the same `_per_event` checks (DRF-001..005, DRF-008,
+    DRF-011/012) the batch detector runs, so an enforcement point (`attestral
+    guard`) blocks EXACTLY what the detector would later flag: detection and
+    enforcement share one decision function and can never diverge. It omits the
+    cross-event checks (handle replay DRF-009/010, budgets DRF-006/007), which
+    are only meaningful over a stream, not a single call.
+    """
+    return _per_event(policy.get("servers", {}), event, event_no)
+
+
 def detect_drift(policy: dict, events: list[dict]) -> list[Finding]:
     servers: dict[str, dict] = policy.get("servers", {})
     findings: list[Finding] = []

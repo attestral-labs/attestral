@@ -117,7 +117,7 @@ Every finding in the terminal output carries a `run: attestral explain <RULE_ID>
 
 Every finding maps to NIST 800-53, ASVS, SOC 2, CIS (AWS/Azure/GCP/K8s), OWASP LLM/Agentic, and MITRE ATLAS references. The agentic checks are additionally mapped to the attack/risk taxonomy of the agent-security SoK (Kim et al. 2026) in [docs/agentic-threat-model.md](docs/agentic-threat-model.md).
 
-**Recall you cannot self-grade.** The in-repo benchmark scores 116/116, but its labels come from our own fixtures. So we also measure against eleven published 2025-2026 CVE advisories labelled from the advisory, not our output ([`evaluation/external-recall.md`](evaluation/external-recall.md)): that number is allowed to fall below 100% and does, with every miss itemised and a concrete path to close it.
+**Recall you cannot self-grade.** The in-repo benchmark scores 164/164, but its labels come from our own fixtures. So we also measure against eleven published 2025-2026 CVE advisories labelled from the advisory, not our output ([`evaluation/external-recall.md`](evaluation/external-recall.md)): that number is allowed to fall below 100% and does, with every miss itemised and a concrete path to close it.
 
 ## How a scan works (the pipeline)
 
@@ -318,6 +318,8 @@ Standing-credential findings (ATL-104/112/115/149/164) go one step further: they
 
 `attestral drift --watch --lockdown --enforce <path>` is the same loop run live, with the human moved to review-after: **detect the moment it happens -> prove the narrowing -> push the containment.** The streaming monitor keeps evaluating every event against the *original attested* policy (drift is always measured against the reviewed design, never against its own containment), and when drift crosses it rebuilds the quarantine lockdown, re-verifies the narrowing proof, and atomically pushes the tightened policy to the file the enforcement point - a running mcp-guard - actually reads; `--reload-cmd` runs a hook after each push (say, a container HUP). A push happens only when the quarantine set grows, so repeat drift is idempotent and new drift escalates. A lockdown that fails the narrowing proof is **refused**, never written, and the monitor keeps running. Every push and every refusal is appended to a hash-chained, append-only `<enforce>.journal.jsonl` (before/after policy digests, triggers, narrowing verdict); `verify_journal` detects any edited, removed, or reordered entry - the evidence-chain contract applied to containment actions themselves. The narrowing proof is what makes auto-apply defensible: the only drift response safe to automate is one that provably removes capability. And because the journal *is* the containment record, `drift --replay --journal` later reconstructs the whole incident on one timeline: when the runtime first diverged, what contained it, how long the gap was, and whether the journal chain is still intact - a tampered journal earns no containment credit.
 
+`attestral guard` is the enforcement point that makes the whole loop stand on its own. `compile` writes a default-deny policy and `drift` reads events back against it, but between them the review needed something a user *already runs* to actually consult the verdict. `guard` is that something: a standard-library stdio Model Context Protocol proxy you drop in front of a server by wrapping its launch command (`attestral guard policy.yaml --server files -- npx ... /srv`, or let `--print-config` write the `.mcp.json` stanza). A server the review **denied** - or one absent from the attested design - never starts, so "may this agent load this tool" is answered by the tool not running. Every `tools/call` and `resources/read` is judged before it reaches the server, by the *same* `drift.evaluate_event` the detector uses, so what the guard blocks is exactly what drift would flag: a call (or a resource read, `file:///etc/passwd`) that escapes the attested filesystem roots (DRF-003) or downgrades a TLS-only transport (DRF-004) comes back as a JSON-RPC error and is never forwarded. And because the guard writes every decision - plus the live tool surface it sees on `tools/list` - as telemetry in the exact schema `drift`, `lockdown`, and `incident` consume, running it is what finally gives the runtime half of the loop a real event source instead of a hand-written fixture. It is *an* enforcement point, not the only one: the same compiled policy still drives a running mcp-guard or a Cedar evaluator, but with `guard` the loop closes with zero external dependencies.
+
 ### The runtime loop end-to-end (what we are building right now)
 
 The thread we keep pulling: the review is not a report, it is the **source of
@@ -330,7 +332,7 @@ flowchart TB
     DES["Design<br/>(Terraform · K8s · MCP · prompts · skills)"] --> SCAN["scan -> findings + evidence chain<br/>(SHA-256, Ed25519-signable)"]
     SCAN --> ATT["attest: signed conformance statement<br/>design + policies + runtime verdict"]
     SCAN --> CMP["compile: default-deny policy<br/>mcp-guard · Cedar · agentgateway (CB4A)"]
-    CMP --> ENF["enforcement point<br/>(a running mcp-guard)"]
+    CMP --> ENF["attestral guard<br/>enforcement point: a stdio MCP proxy that<br/>refuses a denied server + gates every call<br/>(or any policy consumer: mcp-guard, Cedar)"]
     ENF -->|telemetry| DRIFT["drift: every event judged against the<br/>ORIGINAL attested policy - detection never moves"]
     DRIFT -->|"drift crosses"| LOCK["lockdown: narrowing-verified quarantine<br/>pushed atomically; a widening is REFUSED"]
     LOCK --> JRNL["hash-chained containment journal<br/>every push + refusal, tamper-evident"]
@@ -396,6 +398,13 @@ attestral compile ./my-project --target cedar -o attested.cedar
 attestral compile ./my-project --target agentgateway -o gw-policy.yaml  # CB4A default-deny broker
 # and verify a later design still NARROWS the reviewed one (fails on an expansion)
 attestral compile ./my-project --against policy.yaml
+
+# GUARD: enforce the compiled policy live - a stdio MCP proxy in front of a server.
+# A denied (or unattested) server never loads; every tools/call is gated by the SAME
+# function drift uses; every decision is written as the telemetry drift then reads.
+attestral guard policy.yaml --server files -- npx @modelcontextprotocol/server-filesystem /srv/docs
+attestral guard policy.yaml --server files --observe -- npx ... /srv/docs  # dry-run: record, don't block
+attestral guard policy.yaml --server files --print-config -- npx ... /srv/docs  # wrapped .mcp.json stanza
 
 # DRIFT: diff runtime telemetry against the attested design
 attestral drift policy.yaml events.jsonl --fail-on-drift

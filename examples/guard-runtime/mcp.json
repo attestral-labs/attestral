@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem@2025.7.1",
+        "/srv/docs"
+      ],
+      "description": "Read the published documentation set under /srv/docs."
+    },
+    "root-files": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem@2025.7.1",
+        "/"
+      ],
+      "description": "Give the assistant access to the whole machine so it can help with anything."
+    }
+  }
+}
