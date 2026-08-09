@@ -7,6 +7,12 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 ## [Unreleased]
 
 ### Fixed
+- **`scan -o <file>` no longer double-appends the format extension.** `-o` is a stem, so
+  `scan --format sarif -o out.sarif` wrote `out.sarif.sarif` - a papercut for anyone who passed a full
+  filename (e.g. to match the `sarif_file:` a CI step expects). The stem now keeps its behaviour, but
+  a value already ending in the format's extension is used verbatim; honoured for the compound
+  extensions too (`.cdx.json`, `.summary.md`). New `_report_path` helper, applied to all six report
+  formats. 3 tests.
 - **Capability classification now recognizes docker-image and package launch forms, closing a
   silent under-classification of the fleet.** The `_CAPABILITY_HINTS` bank keyed only on the npx/uvx
   launch names, so a canonical reference server packaged as a docker image (`docker run ... mcp/memory`)
