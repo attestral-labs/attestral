@@ -1621,6 +1621,74 @@ def drift(policy_file: str, events_file: str | None, fail_on_drift: bool,
         sys.exit(1)
 
 
+@main.command(context_settings={"ignore_unknown_options": True})
+@click.argument("policy_file", type=click.Path(exists=True))
+@click.option("--server", "server", required=True,
+              help="Which attested server this proxy fronts (the key in the compiled "
+                   "policy). A server absent from the design, or one the review denied, "
+                   "never launches.")
+@click.option("--telemetry", "telemetry", type=click.Path(), default=None,
+              help="Append the decision journal here as JSONL (default: "
+                   "<POLICY_FILE>.telemetry.jsonl). This is the event stream "
+                   "`attestral drift`, `lockdown`, and `incident` consume.")
+@click.option("--observe", "observe", is_flag=True,
+              help="Dry-run: record the verdict every call WOULD get, but forward it "
+                   "anyway. Run this first to see what enforcement would block before "
+                   "you switch it on.")
+@click.option("--print-config", "print_config", is_flag=True,
+              help="Do not run. Print the `.mcp.json` server stanza that reroutes this "
+                   "server through the guard, so installing enforcement is a one-line "
+                   "config rewrite the MCP client already understands.")
+@click.argument("command", nargs=-1, type=click.UNPROCESSED)
+def guard(policy_file: str, server: str, telemetry: str | None, observe: bool,
+          print_config: bool, command: tuple) -> None:
+    """Enforce a compiled POLICY_FILE as a stdio MCP proxy in front of COMMAND.
+
+    The enforcement point the loop was missing. `compile` writes the default-deny
+    policy and `drift` reads runtime events back against it; `guard` sits in the
+    live path between an MCP client and the server it wraps and makes the verdict
+    bite. A server the review DENIED (or one absent from the attested design)
+    never starts. Every `tools/call` is judged - by the SAME function `drift`
+    uses, so the guard blocks exactly what drift would flag - and a call that
+    escapes the attested filesystem roots or downgrades a TLS-only transport is
+    refused with a JSON-RPC error before it reaches the server. Every decision,
+    plus the live tool surface seen on `tools/list`, is appended to the telemetry
+    JSONL, so the guard is also the runtime loop's first real event source.
+
+    Put it in front of a server by wrapping its launch command:
+
+        attestral guard policy.yaml --server files -- npx @modelcontextprotocol/server-filesystem /srv
+
+    or let `--print-config` write the wrapped `.mcp.json` stanza for you. Standard
+    library only; no new dependency. Exit code: 3 if the server was refused at
+    load, 2 if the session ran but at least one call was blocked, else the wrapped
+    server's own code.
+    """
+    from attestral.guard import (default_telemetry_path, load_policy, run_guard,
+                                  wrapped_config_stanza)
+    cmd = list(command)
+    # Click leaves a leading `--` separator in COMMAND; drop it so the real
+    # launch argv starts at the program name.
+    if cmd and cmd[0] == "--":
+        cmd = cmd[1:]
+    policy = load_policy(policy_file)
+
+    if print_config:
+        if not cmd:
+            raise click.UsageError("--print-config needs the wrapped command after --.")
+        stanza = wrapped_config_stanza(policy_file, server, cmd)
+        click.echo(json.dumps({"mcpServers": stanza}, indent=2))
+        return
+
+    if not cmd:
+        raise click.UsageError(
+            "Give the server launch command after `--`, e.g. "
+            "`attestral guard policy.yaml --server files -- npx server-filesystem /srv`.")
+    tpath = telemetry or default_telemetry_path(policy_file)
+    code = run_guard(policy, server, cmd, telemetry_path=tpath, enforce=not observe)
+    sys.exit(code)
+
+
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option("-o", "--output", default=None,

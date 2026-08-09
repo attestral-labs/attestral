@@ -1,6 +1,6 @@
 # External recall, measured (M-EVAL v2)
 
-The [agentic-detection benchmark](./RESULTS.md) reports recall 116/116 (100%).
+The [agentic-detection benchmark](./RESULTS.md) reports recall 164/164 (100%).
 That number is honest about what it is - a **regression guard** whose positive
 labels come from each fixture's own README - but a skeptic is right to discount a
 perfect score graded on cases we wrote to trip our own rules. This page answers
@@ -76,7 +76,7 @@ taxonomy was trimmed to fit us; the gaps are the point.
 
 ## Why this is not self-graded
 
-Three things make this number trustworthy in a way the 116/116 is not:
+Three things make this number trustworthy in a way the 164/164 is not:
 
 1. **The labels are external.** Each case is a published advisory with a CVE, a
    GHSA link, and an affected version. Nothing about the label was chosen to

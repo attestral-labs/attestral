@@ -19,6 +19,22 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **`attestral guard`: the enforcement point the runtime loop was missing - a standard-library stdio
+  MCP proxy that makes the attested verdict bite.** `compile` wrote a default-deny policy and `drift`
+  read events back against it, but nothing a user already runs actually CONSULTED the verdict, so
+  `admit` could say DENY and the MCP client would load the server anyway. `guard` closes that gap with
+  no external dependency: wrap a server's launch command (`attestral guard policy.yaml --server files --
+  npx ... /srv`, or `--print-config` writes the `.mcp.json` stanza) and a server the review DENIED - or
+  one absent from the attested design - never starts (exit 3). Every `tools/call` and `resources/read`
+  is judged before it reaches the server by the SAME `drift.evaluate_event` the detector uses, so the
+  guard blocks exactly what drift would flag: a path escaping the attested roots (DRF-003, incl. a
+  `file://` resource read) or a TLS-downgrade (DRF-004) comes back as a JSON-RPC error and is never
+  forwarded. `--observe` is a dry-run that records the verdict
+  without blocking. Every decision, plus the live `tools/list` surface (a DRF-005 rug-pull source), is
+  appended as telemetry in the exact schema `drift`/`lockdown`/`incident` consume - so the guard is also
+  the loop's first real event source. New guard.py + `drift.evaluate_event` (the shared decision, so
+  enforcement can never fork from detection). Fixture examples/guard-runtime (docs allowed and scoped,
+  root-files denied). 23 tests incl. a live end-to-end relay through the proxy. No rule change.
 - **The cross-boundary reach path is now a clickable overlay in the HTML topography
   (`scan --format html`).** The ATL-222 confused-deputy path - an injectable surface, its co-resident
   credentialed deputy, and the NAMED cloud/cluster resource it can be laundered into - renders as a
