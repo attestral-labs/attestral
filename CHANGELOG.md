@@ -19,6 +19,13 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **CVE table: two actively-exploited critical RCEs added, closing real coverage gaps (ATL-145).**
+  **langflow CVE-2026-0770** (CISA KEV, CVSS 9.8, unauthenticated `exec_globals` RCE, patched 1.9.2):
+  the existing langflow row only caught `<1.3.0`, so a 1.3.0-1.9.1 install - safe from the older KEV
+  but vulnerable to this newer, in-the-wild one - was silently missed; the new row owns the window
+  above the old ceiling. **vllm CVE-2026-22778** (CVSS 9.8, multimodal video-URL heap overflow -> RCE,
+  patched 0.14.1): a far wider affected window (0.8.3-<0.14.1) than the existing 62164 row. Both are
+  deterministic version compares; no new rule. 6 updated/added branch-precise assertions.
 - **`attestral compile --target copilot-registry`: the attested-allowed servers as a GitHub Copilot
   internal MCP registry v0.1 catalog, for "Registry only" enforcement.** Emits the `GET /v0.1/servers`
   list response - a `{servers: [{server, _meta}], metadata: {count}}` envelope where each entry is a

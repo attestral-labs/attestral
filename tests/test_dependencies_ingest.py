@@ -24,10 +24,14 @@ def test_agent_framework_cve_ranges_are_branch_precise():
     assert _dep_cve("llama-index-core", "0.12.20") == "CVE-2025-1793"
     assert _dep_cve("llama-index-core", "0.12.35") == "CVE-2025-6209"
     assert _dep_cve("llama-index-core", "0.12.41") is None            # patched
-    # vLLM torch.load RCE is floored at 0.10.2 (older majors unaffected).
-    assert _dep_cve("vllm", "0.11.0") == "CVE-2025-62164"
-    assert _dep_cve("vllm", "0.11.1") is None                         # patched
-    assert _dep_cve("vllm", "0.9.0") is None                          # below the floor
+    # vLLM: the torch.load RCE (62164) owns 0.10.2-0.11.0 as first-match; the wider
+    # multimodal-video RCE (22778, CVSS 9.8) covers 0.8.3-<0.14.1 around it.
+    assert _dep_cve("vllm", "0.11.0") == "CVE-2025-62164"             # first-match in overlap
+    assert _dep_cve("vllm", "0.11.1") == "CVE-2026-22778"            # above 62164, still <0.14.1
+    assert _dep_cve("vllm", "0.9.0") == "CVE-2026-22778"            # in 22778's wider floor
+    assert _dep_cve("vllm", "0.14.0") == "CVE-2026-22778"
+    assert _dep_cve("vllm", "0.14.1") is None                        # 22778 patched
+    assert _dep_cve("vllm", "0.8.0") is None                         # below 22778's 0.8.3 floor
     # semantic-kernel eval() RCE and pydantic-ai SSRF.
     assert _dep_cve("semantic-kernel", "1.39.3") == "CVE-2026-26030"
     assert _dep_cve("semantic-kernel", "1.39.4") is None              # patched
@@ -37,9 +41,12 @@ def test_agent_framework_cve_ranges_are_branch_precise():
     assert _dep_cve("smolagents", "1.20.0") == "CVE-2025-11844"
     assert _dep_cve("mcp", "1.22.0") == "CVE-2025-66416"
     assert _dep_cve("mcp", "1.23.0") is None                          # patched
-    # Langflow unauth RCE (CISA KEV).
+    # Langflow: two CISA-KEV unauth-RCEs. 3248 owns <1.3.0; 0770 the window above,
+    # so a 1.3.0-1.9.1 install (safe from 3248) is still flagged for the later one.
     assert _dep_cve("langflow", "1.2.0") == "CVE-2025-3248"
-    assert _dep_cve("langflow", "1.3.0") is None                      # patched
+    assert _dep_cve("langflow", "1.3.0") == "CVE-2026-0770"          # safe from 3248, hit by 0770
+    assert _dep_cve("langflow", "1.9.1") == "CVE-2026-0770"
+    assert _dep_cve("langflow", "1.9.2") is None                      # both patched
     # The MCP TS SDK id-collision CVE sits just above the ReDoS ceiling (1.25.1).
     assert _dep_cve("@modelcontextprotocol/sdk", "1.25.2") == "CVE-2026-25536"
 
