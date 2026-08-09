@@ -22,6 +22,19 @@ def main() -> None:
     """Attestral - continuous, audit-ready security design review."""
 
 
+def _report_path(output: str, ext: str) -> Path:
+    """Resolve a report file path from the -o stem and a format extension.
+
+    -o is a stem, so the extension is appended (`attestral-report` -> `.sarif`).
+    But if the stem already ends with that extension - the user passed a full
+    filename like `-o out.sarif` - use it verbatim instead of double-appending
+    (`out.sarif.sarif`). The check is on the extension the format actually writes,
+    so `-o out.cdx.json` for aibom and `-o out.summary.md` for md-summary are
+    honoured too."""
+    ext = ext if ext.startswith(".") else "." + ext
+    return Path(output) if Path(output).name.endswith(ext) else Path(output + ext)
+
+
 @main.command()
 @click.argument("path", type=click.Path(exists=True), required=False)
 @click.option("--local", is_flag=True,
@@ -260,11 +273,13 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
 
     if write_files:
         if fmt in ("md", "both"):
-            Path(f"{output}.md").write_text(render_markdown(model, findings, path))
-            click.echo(f"wrote {output}.md")
+            out = _report_path(output, ".md")
+            out.write_text(render_markdown(model, findings, path))
+            click.echo(f"wrote {out}")
         if fmt in ("json", "both"):
             from attestral.aivss import as_json as aivss_json
-            Path(f"{output}.json").write_text(
+            out = _report_path(output, ".json")
+            out.write_text(
                 json.dumps(
                     {
                         "target": path,
@@ -274,24 +289,27 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
                     indent=2,
                 )
             )
-            click.echo(f"wrote {output}.json")
+            click.echo(f"wrote {out}")
         if fmt == "sarif":
             from attestral.sarif import render_sarif
-            Path(f"{output}.sarif").write_text(render_sarif(model, findings, path))
-            click.echo(f"wrote {output}.sarif")
+            out = _report_path(output, ".sarif")
+            out.write_text(render_sarif(model, findings, path))
+            click.echo(f"wrote {out}")
         if fmt == "aibom":
             from attestral.aibom import render_aibom
-            Path(f"{output}.cdx.json").write_text(render_aibom(model, path))
-            click.echo(f"wrote {output}.cdx.json")
+            out = _report_path(output, ".cdx.json")
+            out.write_text(render_aibom(model, path))
+            click.echo(f"wrote {out}")
         if fmt == "md-summary":
             from attestral.evidence import render_pr_summary
-            Path(f"{output}.summary.md").write_text(
-                render_pr_summary(model, findings, path, net_new=net_new))
-            click.echo(f"wrote {output}.summary.md")
+            out = _report_path(output, ".summary.md")
+            out.write_text(render_pr_summary(model, findings, path, net_new=net_new))
+            click.echo(f"wrote {out}")
         if fmt == "html":
             from attestral.topography import render_topography
-            Path(f"{output}.html").write_text(render_topography(model, findings, path))
-            click.echo(f"wrote {output}.html - interactive threat topography (open in a browser)")
+            out = _report_path(output, ".html")
+            out.write_text(render_topography(model, findings, path))
+            click.echo(f"wrote {out} - interactive threat topography (open in a browser)")
     elif not quiet and not card:
         click.echo("(no files written - add -o to save a report)")
 

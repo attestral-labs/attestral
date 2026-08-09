@@ -51,6 +51,35 @@ def test_scan_format_json_writes_only_json():
         assert not Path("attestral-report.md").exists()
 
 
+def test_output_with_full_filename_is_not_double_extended():
+    # -o is a stem, but a user who passes a full filename should not get
+    # `out.sarif.sarif`. The extension is appended only when it is not already there.
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(main, ["scan", VULN, "--format", "sarif", "-o", "out.sarif"])
+        assert result.exit_code == 0
+        assert Path("out.sarif").exists()
+        assert not Path("out.sarif.sarif").exists()
+        assert "wrote out.sarif" in result.output
+
+
+def test_output_stem_still_appends_extension():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(main, ["scan", VULN, "--format", "sarif", "-o", "report"])
+        assert result.exit_code == 0
+        assert Path("report.sarif").exists()
+
+
+def test_report_path_helper():
+    from attestral.cli import _report_path
+    # full filename -> verbatim; stem -> extension appended; compound extensions honoured
+    assert str(_report_path("out.sarif", ".sarif")) == "out.sarif"
+    assert str(_report_path("report", ".sarif")) == "report.sarif"
+    assert str(_report_path("out.cdx.json", ".cdx.json")) == "out.cdx.json"
+    assert str(_report_path("report", ".cdx.json")) == "report.cdx.json"
+
+
 def test_scan_fail_on_gate_exits_nonzero():
     runner = CliRunner()
     with runner.isolated_filesystem():
