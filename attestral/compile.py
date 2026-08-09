@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import hashlib
+import json
 
 import yaml
 
@@ -316,11 +317,110 @@ def policy_digest(policy: dict, renderer) -> str:
     return hashlib.sha256(renderer(normalized).encode()).hexdigest()
 
 
+# The per-OS directories Claude Code reads its enterprise-managed config from.
+# Surfaced in the compile output so an operator knows where to deploy the files
+# via MDM/Jamf/Intune/GPO. Verified against code.claude.com/docs/en/managed-mcp
+# (Aug 2026); the legacy Windows C:\ProgramData path was dropped at v2.1.75.
+CLAUDE_MANAGED_PATHS = {
+    "macOS": "/Library/Application Support/ClaudeCode/",
+    "Linux": "/etc/claude-code/",
+    "Windows": "C:\\Program Files\\ClaudeCode\\",
+}
+
+
+def _managed_launch(component) -> dict:
+    """One attested-allowed server as a managed-mcp.json entry, from its launch
+    identity. A remote server carries a `url` (rendered as an http server); a
+    local one carries `command` + `args` (a stdio server). Same schema Claude
+    Code reads for a project `.mcp.json`, so the emitted file is directly
+    loadable."""
+    url = str(component.attr("url") or "")
+    if url:
+        return {"type": "http", "url": url}
+    entry: dict = {"type": "stdio", "command": str(component.attr("command") or "")}
+    args = [str(a) for a in (component.attr("args") or [])]
+    if args:
+        entry["args"] = args
+    return entry
+
+
+def _managed_match(component) -> dict | None:
+    """A `serverUrl` / `serverCommand` allow-or-deny match for one server, or None
+    when the server carries neither. Deliberately NEVER keys on `serverName`: the
+    managed-config docs state serverName-only matching is not a security control
+    (a user can name any server `github`), so the allowlist must pin the launch
+    identity. The caller falls back to a bare serverName ONLY on the deny side,
+    where over-blocking is safe."""
+    url = str(component.attr("url") or "")
+    if url:
+        return {"serverUrl": url}
+    command = str(component.attr("command") or "")
+    if command:
+        args = [str(a) for a in (component.attr("args") or [])]
+        return {"serverCommand": [command, *args]}
+    return None
+
+
+def compile_claude_managed(model: SystemModel, policy: dict) -> dict[str, str]:
+    """The attested design as Claude Code enterprise-managed config: two files.
+
+    `managed-mcp.json` is EXCLUSIVE control - Claude Code loads only the servers
+    it names and refuses `claude mcp add` (and `--mcp-config`), so a server the
+    review denied physically cannot run on a managed machine. It carries the
+    attested-allowed servers only; the review's denials are simply absent, which
+    is the strongest default-deny Claude Code offers.
+
+    `managed-settings.json` layers the softer allowlist/denylist policy for the
+    approved-catalog case, plus `disableSideloadFlags` (which closes the
+    `--mcp-config` bypass of the allowlist path, issue #31508). Its allow and deny
+    entries pin `serverUrl`/`serverCommand`, never the self-assigned `serverName`.
+
+    Unlike the policy-only TARGETS renderers, this needs the MODEL for each
+    server's launch identity (the compiled policy dict does not carry it), so the
+    compile CLI special-cases it rather than routing through TARGETS.
+    """
+    comps = {c.name: c for c in model.by_type("mcp_server")}
+    managed_servers: dict = {}
+    allow_entries: list = []
+    deny_entries: list = []
+    for name, entry in sorted((policy.get("servers") or {}).items()):
+        c = comps.get(name)
+        if entry.get("allow"):
+            if c is not None:
+                managed_servers[name] = _managed_launch(c)
+                match = _managed_match(c)
+                if match is not None:
+                    allow_entries.append(match)
+        else:
+            # Denied by the review: omit from managed-mcp.json (it cannot load)
+            # AND denylist it (a denylist entry wins over any allow, so it stays
+            # blocked even if a laxer settings layer would permit it).
+            match = _managed_match(c) if c is not None else None
+            deny_entries.append(match or {"serverName": name})
+    managed_mcp = {"mcpServers": managed_servers}
+    managed_settings = {
+        "allowManagedMcpServersOnly": True,
+        "allowedMcpServers": allow_entries,
+        "deniedMcpServers": deny_entries,
+        "disableSideloadFlags": True,
+    }
+    return {
+        "managed-mcp.json": json.dumps(managed_mcp, indent=2) + "\n",
+        "managed-settings.json": json.dumps(managed_settings, indent=2) + "\n",
+    }
+
+
 TARGETS: dict[str, tuple] = {
     # target name -> (renderer over the neutral policy dict, default filename).
     # One source of truth so the CLI stays a pure dispatch. mcp-guard is the
-    # default target; adding a target here is all it takes to wire it in.
+    # default target; adding a POLICY-ONLY target here is all it takes to wire it
+    # in. The `claude-managed` target is intentionally NOT here: it needs the
+    # model for each server's launch identity, so the CLI special-cases it.
     "mcp-guard": (render_policy_yaml, "mcp-guard-policy.yaml"),
     "cedar": (render_cedar, "attested-policy.cedar"),
     "agentgateway": (render_agentgateway, "agentgateway-policy.yaml"),
 }
+
+# All compile targets the CLI accepts (the policy-only TARGETS plus the
+# model-aware claude-managed special case).
+COMPILE_TARGETS = [*TARGETS, "claude-managed"]

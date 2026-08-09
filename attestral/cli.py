@@ -10,7 +10,7 @@ from pathlib import Path
 import click
 
 from attestral import __version__
-from attestral.compile import TARGETS
+from attestral.compile import COMPILE_TARGETS, TARGETS
 from attestral.evidence import audit_chain, render_markdown, verify_chain
 from attestral.ingest import build_model
 from attestral.rules import RuleEngine
@@ -1156,10 +1156,13 @@ def fix(path: str, rule_id: str | None, output: str | None,
 @click.argument("path", type=click.Path(exists=True))
 @click.option("-o", "--output", default=None,
               help="Policy output file (defaults to the target's own filename).")
-@click.option("--target", type=click.Choice(list(TARGETS)), default="mcp-guard",
-              help="Output format: mcp-guard (default, drift-enforced) or cedar "
-                   "(an AWS Cedar authorization policy). Cedar is lossy and one-way: "
-                   "it is not a valid --against prior and attestral drift cannot read it.")
+@click.option("--target", type=click.Choice(COMPILE_TARGETS), default="mcp-guard",
+              help="Output format: mcp-guard (default, drift-enforced), cedar (an AWS "
+                   "Cedar authorization policy), agentgateway (a CB4A broker config), or "
+                   "claude-managed (Claude Code enterprise-managed MCP config: managed-mcp.json "
+                   "+ managed-settings.json, deployed via MDM). Cedar and claude-managed are "
+                   "lossy and one-way: not a valid --against prior and attestral drift cannot "
+                   "read them.")
 @click.option("--against", "prior", type=click.Path(exists=True), default=None,
               help="A prior policy to verify this re-attestation narrows. Exits "
                    "non-zero on an expansion (a widening the review must approve). "
@@ -1184,13 +1187,29 @@ def compile(path: str, output: str | None, target: str, prior: str | None,
     chain = audit_chain(findings)
     head = chain[-1]["hash"] if chain else ""
     policy = compile_policy(model, findings, chain_head=head)
-    renderer, default_out = TARGETS[target]
-    out = output or default_out
-    Path(out).write_text(renderer(policy))
     allowed = sum(1 for s in policy["servers"].values() if s["allow"])
     denied = len(policy["servers"]) - allowed
-    click.echo(f"wrote {out}  ·  target {target}  ·  default deny  ·  "
-               f"{allowed} allowed, {denied} denied")
+    if target == "claude-managed":
+        from attestral.compile import CLAUDE_MANAGED_PATHS, compile_claude_managed
+        files = compile_claude_managed(model, policy)
+        outdir = Path(output) if output else Path.cwd()
+        outdir.mkdir(parents=True, exist_ok=True)
+        for fname, text in files.items():
+            (outdir / fname).write_text(text)
+        click.echo(f"wrote {outdir}/managed-mcp.json + {outdir}/managed-settings.json  ·  "
+                   f"target claude-managed  ·  default deny  ·  {allowed} allowed, {denied} denied")
+        click.echo("  managed-mcp.json is the enforcing file (Claude Code loads ONLY these "
+                   "servers, and refuses `claude mcp add`); managed-settings.json adds the "
+                   "allowlist keyed on serverUrl/serverCommand plus disableSideloadFlags.")
+        click.echo("  deploy via MDM to " + CLAUDE_MANAGED_PATHS["macOS"] + " (macOS), "
+                   + CLAUDE_MANAGED_PATHS["Linux"] + " (Linux), or "
+                   + CLAUDE_MANAGED_PATHS["Windows"] + " (Windows).")
+    else:
+        renderer, default_out = TARGETS[target]
+        out = output or default_out
+        Path(out).write_text(renderer(policy))
+        click.echo(f"wrote {out}  ·  target {target}  ·  default deny  ·  "
+                   f"{allowed} allowed, {denied} denied")
     for name, s in policy["servers"].items():
         mark = "ALLOW" if s["allow"] else "DENY "
         why = "" if s["allow"] else f"  ({s.get('reason','')})"
