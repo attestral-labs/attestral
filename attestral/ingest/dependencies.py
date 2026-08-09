@@ -69,6 +69,11 @@ _KNOWN_DEP_VULNS = (
     # CVE-2025-62164: torch.load() of a user prompt-embedding in vLLM -> memory
     # corruption (DoS/RCE). Affected >=0.10.2 <0.11.1; patched 0.11.1.
     ("vllm", (((0, 10, 2), (0, 11, 0)),), "CVE-2025-62164"),
+    # CVE-2026-22778: heap overflow processing a multimodal video URL in vLLM ->
+    # remote code execution (CVSS 9.8). Affected >=0.8.3 <0.14.1; patched 0.14.1.
+    # A far wider window than 62164 (overlaps it, like the langchain-core rows) -
+    # first-match reports 62164 inside 0.10.2-0.11.0, this critical elsewhere.
+    ("vllm", (((0, 8, 3), (0, 14, 0)),), "CVE-2026-22778"),
     # CVE-2026-26030: semantic-kernel's InMemoryVectorStore built a filter as a
     # Python lambda run through eval() -> RCE (CVSS 9.9). Patched in 1.39.4.
     ("semantic-kernel", (((0, 0, 0), (1, 39, 3)),), "CVE-2026-26030"),
@@ -89,6 +94,11 @@ _KNOWN_DEP_VULNS = (
     # CVE-2025-3248: unauthenticated RCE via /api/v1/validate/code (AST exec) in
     # Langflow, exploited by the Flodrix botnet (CISA KEV). Patched in 1.3.0.
     ("langflow", (((0, 0, 0), (1, 2, 9999)),), "CVE-2025-3248"),
+    # CVE-2026-0770: unauthenticated RCE via exec_globals in Langflow, exploited
+    # in the wild (CISA KEV, CVSS 9.8). Patched in 1.9.2 - the window ABOVE the
+    # 3248 KEV's 1.3.0 ceiling, so a 1.3.0-1.9.1 install (safe from 3248) is still
+    # flagged for this later, actively-exploited critical.
+    ("langflow", (((1, 3, 0), (1, 9, 1)),), "CVE-2026-0770"),
 )
 
 _MANIFESTS = ("requirements.txt", "pyproject.toml", "package.json")
