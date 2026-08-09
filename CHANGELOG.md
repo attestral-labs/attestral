@@ -19,6 +19,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **`attestral compile --target claude-managed`: the attested design as Claude Code's own
+  enterprise-managed MCP config, so a whole fleet enforces the review through MDM.** Emits two files.
+  `managed-mcp.json` is exclusive control - Claude Code loads ONLY the servers it names and refuses
+  `claude mcp add` (and `--mcp-config`), so a server the review denied physically cannot run on a
+  managed machine; it carries the attested-allowed servers only (an empty map disables MCP entirely).
+  `managed-settings.json` layers the allowlist/denylist policy (`allowManagedMcpServersOnly: true`,
+  `allowedMcpServers`, `deniedMcpServers`) plus `disableSideloadFlags: true` (which closes the
+  `--mcp-config` bypass of the allowlist, issue #31508). Allow and deny entries pin `serverUrl` /
+  `serverCommand` (the launch identity), never the self-assigned `serverName` the managed-config docs
+  call out as not a security control. The compile output names the per-OS deploy directories. Unlike
+  the policy-only targets this needs the model for each server's launch identity, so the CLI
+  special-cases it (COMPILE_TARGETS). 8 tests (test_compile_claude_managed.py). No rule change.
 - **`attestral guard`: the enforcement point the runtime loop was missing - a standard-library stdio
   MCP proxy that makes the attested verdict bite.** `compile` wrote a default-deny policy and `drift`
   read events back against it, but nothing a user already runs actually CONSULTED the verdict, so
