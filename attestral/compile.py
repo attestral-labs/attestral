@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import json
+import re as _re
 
 import yaml
 
@@ -410,17 +411,113 @@ def compile_claude_managed(model: SystemModel, policy: dict) -> dict[str, str]:
     }
 
 
+# The MCP server.json schema every registry catalog entry declares.
+REGISTRY_SERVER_SCHEMA = (
+    "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
+)
+# command -> the registry package ecosystem it launches from, for the stdio case.
+_REGISTRY_TYPE = {"npx": "npm", "uvx": "pypi", "uv": "pypi", "pipx": "pypi"}
+
+
+def _copilot_server_name(component) -> str:
+    """A reverse-DNS server name for the registry catalog. A server ingested from
+    a real server.json already carries one (a namespace with a dot, one `/`); any
+    other name is synthesized under a local namespace so the entry is schema-valid.
+    In Copilot's "Registry only" mode the catalog DEFINES the canonical server ids
+    users install by, so a synthesized name is the enforced id, not a mismatch."""
+    name = str(component.name)
+    ns = name.split("/", 1)[0] if "/" in name else ""
+    if "/" in name and "." in ns:
+        return name
+    slug = _re.sub(r"[^a-z0-9_.-]", "-", name.lower()).strip("-.") or "server"
+    return f"com.attestral.local/{slug}"
+
+
+def _copilot_package(component) -> dict | None:
+    """A `packages[]` entry for a stdio server launched via npx/uvx, or None when
+    the launch form has no resolvable registry package. The identifier and version
+    are split from the first non-flag launch arg (`@scope/name@version` or
+    `name@version`), so the catalog entry is installable rather than name-only."""
+    command = str(component.attr("command") or "").lower().rsplit("/", 1)[-1]
+    registry_type = _REGISTRY_TYPE.get(command)
+    if not registry_type:
+        return None
+    for arg in [str(a) for a in (component.attr("args") or [])]:
+        if arg.startswith("-"):
+            continue  # a flag (-y, --key), not the package spec
+        at = arg.rfind("@")
+        identifier, version = (arg[:at], arg[at + 1:]) if at > 0 else (arg, "")
+        pkg: dict = {"registryType": registry_type, "identifier": identifier,
+                     "transport": {"type": "stdio"}}
+        if version:
+            pkg["version"] = version
+        return pkg
+    return None
+
+
+def _copilot_entry(component) -> dict:
+    """One attested-allowed server as a wrapped registry `ServerResponse`: the
+    server.json under `server`, plus the registry-managed `_meta` block. Timestamps
+    are deliberately omitted (optional per schema) so the catalog is deterministic;
+    `status`/`isLatest` are emitted so the entry reads as canonical and the
+    version-latest lookup is unambiguous."""
+    description = str(component.attr("description") or f"MCP server {component.name}")
+    server: dict = {
+        "$schema": REGISTRY_SERVER_SCHEMA,
+        "name": _copilot_server_name(component),
+        "description": description[:100] or "MCP server",
+        "version": str(component.attr("version") or "0.0.0"),
+    }
+    url = str(component.attr("url") or "")
+    if url:
+        server["remotes"] = [{"type": "streamable-http", "url": url}]
+    else:
+        pkg = _copilot_package(component)
+        if pkg is not None:
+            server["packages"] = [pkg]
+    return {
+        "server": server,
+        "_meta": {"io.modelcontextprotocol.registry/official":
+                  {"status": "active", "isLatest": True}},
+    }
+
+
+def compile_copilot_registry(model: SystemModel, policy: dict) -> str:
+    """The attested-allowed servers as a GitHub Copilot internal MCP registry v0.1
+    catalog - the `GET /v0.1/servers` list response body.
+
+    An org points Copilot's "MCP Registry URL" at a host serving this, sets
+    enforcement to "Registry only", and Copilot then lets developers install only
+    the servers the review admitted. Denied servers are simply absent from the
+    catalog. Enforcement is by server name (exact match), and in Registry-only
+    mode the catalog defines those names, so the emitted ids are the enforced ids.
+
+    Emits the list envelope only (the primary endpoint Copilot enumerates); the
+    per-server `/versions/latest` route serves the same wrapped entry, and the
+    compile output states the base-URL and CORS requirements the host must meet.
+    """
+    comps = {c.name: c for c in model.by_type("mcp_server")}
+    entries: list[dict] = []
+    for name, entry in sorted((policy.get("servers") or {}).items()):
+        c = comps.get(name)
+        if entry.get("allow") and c is not None:
+            entries.append(_copilot_entry(c))
+    catalog = {"servers": entries, "metadata": {"count": len(entries)}}
+    return json.dumps(catalog, indent=2) + "\n"
+
+
 TARGETS: dict[str, tuple] = {
     # target name -> (renderer over the neutral policy dict, default filename).
     # One source of truth so the CLI stays a pure dispatch. mcp-guard is the
     # default target; adding a POLICY-ONLY target here is all it takes to wire it
-    # in. The `claude-managed` target is intentionally NOT here: it needs the
-    # model for each server's launch identity, so the CLI special-cases it.
+    # in. The `claude-managed` and `copilot-registry` targets are intentionally
+    # NOT here: they need the model for each server's launch identity, so the CLI
+    # special-cases them.
     "mcp-guard": (render_policy_yaml, "mcp-guard-policy.yaml"),
     "cedar": (render_cedar, "attested-policy.cedar"),
     "agentgateway": (render_agentgateway, "agentgateway-policy.yaml"),
 }
 
 # All compile targets the CLI accepts (the policy-only TARGETS plus the
-# model-aware claude-managed special case).
-COMPILE_TARGETS = [*TARGETS, "claude-managed"]
+# model-aware special cases).
+COMPILE_TARGETS = [*TARGETS, "claude-managed", "copilot-registry"]
