@@ -25,6 +25,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **Amazon Bedrock AgentCore hardening rules (ATL-070..073), the AWS agent-runtime moat.** Four
+  detections over the agent's own AWS hosting, uncontested by general IaC linters: **ATL-070** (high) an
+  agent runtime on the public network (`network_mode = "PUBLIC"`); **ATL-071** (medium) an AgentCore
+  memory store with no customer-managed KMS key (`encryption_key_arn` absent - agent memory is where
+  injected instructions and exfiltrated data persist); **ATL-072** (medium) a Cedar policy shipped with
+  validation disabled (`validation_mode = "IGNORE_ALL_FINDINGS"`, so a malformed authorization policy is
+  accepted); **ATL-073** (medium) a gateway whose policy engine is in log-only mode
+  (`policy_engine_configuration.mode = "LOG_ONLY"`, so tool-call policies are evaluated but never
+  enforced). Attribute names verified against the hashicorp/aws `bedrockagentcore_*` provider schema
+  (the resource is `aws_bedrockagentcore_agent_runtime`, not `_runtime`); all four are terraform-flattened
+  leaves, so the wave is pure data rules with no ingester change. Fixture examples/agentcore-hardening
+  (a `_weak` and a `_hardened` form of each, pinning precision). Pack 270 -> 274. 2 tests.
 - **CVE table: two actively-exploited critical RCEs added, closing real coverage gaps (ATL-145).**
   **langflow CVE-2026-0770** (CISA KEV, CVSS 9.8, unauthenticated `exec_globals` RCE, patched 1.9.2):
   the existing langflow row only caught `<1.3.0`, so a 1.3.0-1.9.1 install - safe from the older KEV

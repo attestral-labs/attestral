@@ -440,3 +440,44 @@ rules:
     recommendation: Set enable = true so GuardDuty actively analyzes account activity and raises findings on reconnaissance, credential abuse, and exfiltration.
     frameworks: ["AWS FSBP GuardDuty.1", "NIST SI-4", "SOC2 CC7.1"]
 
+  # --- Amazon Bedrock AgentCore (agent runtime + gateway + memory + policy) ---
+  # The AWS agent-runtime moat: these govern the agent's own hosting, its tool
+  # gateway, its memory store, and the Cedar policy engine that authorizes its
+  # tool calls. Attribute names are the terraform-flattened leaves of the
+  # hashicorp/aws bedrockagentcore_* resources.
+  - id: ATL-070
+    title: Bedrock AgentCore agent runtime is on the public network
+    severity: high
+    target: aws_bedrockagentcore_agent_runtime
+    match: { attr_equals: { network_mode: "PUBLIC" } }
+    description: The agent runtime declares network_configuration.network_mode = "PUBLIC", so it runs on shared, internet-reachable infrastructure rather than inside your VPC. An agent process holds tool credentials and can be driven by prompt injection, so putting it on public network egress widens both who can reach it and where a compromised agent can reach out to.
+    recommendation: Set network_mode = "VPC" and supply network_mode_config.subnets and security_groups so the runtime sits behind your own network controls; reserve PUBLIC for agents that genuinely have no private dependency and hold no standing credential.
+    frameworks: ["NIST SC-7", "OWASP-AgSec ASI06", "SOC2 CC6.6"]
+
+  - id: ATL-071
+    title: Bedrock AgentCore memory store has no customer-managed encryption key
+    severity: medium
+    target: aws_bedrockagentcore_memory
+    match: { attr_missing: encryption_key_arn }
+    description: The memory store omits encryption_key_arn, so agent memory - which accumulates conversation history, retrieved documents, and derived facts that are exactly where injected instructions and exfiltrated data persist - is encrypted only with an AWS-managed key you cannot scope, rotate, or revoke independently.
+    recommendation: Set encryption_key_arn to a customer-managed KMS key so access to the agent's memory is governed by a key policy you control and can revoke if the agent is compromised.
+    frameworks: ["NIST SC-28", "CIS AWS 3.x", "SOC2 CC6.1"]
+
+  - id: ATL-072
+    title: Bedrock AgentCore Cedar policy ships with validation disabled
+    severity: medium
+    target: aws_bedrockagentcore_policy
+    match: { attr_equals: { validation_mode: "IGNORE_ALL_FINDINGS" } }
+    description: The policy is created with validation_mode = "IGNORE_ALL_FINDINGS", so a Cedar policy with schema or semantic errors is accepted rather than rejected. A malformed authorization policy that fails open is how a tool-call gate silently stops gating - the policy engine is only as trustworthy as the policies it accepts.
+    recommendation: Set validation_mode = "FAIL_ON_ANY_FINDINGS" so a policy that does not validate against the gateway's generated schema is rejected at deploy time instead of shipping a broken authorization rule.
+    frameworks: ["NIST CM-6", "OWASP-AgSec ASI04", "SOC2 CC8.1"]
+
+  - id: ATL-073
+    title: Bedrock AgentCore gateway policy engine is in log-only mode
+    severity: medium
+    target: aws_bedrockagentcore_gateway
+    match: { attr_equals: { mode: "LOG_ONLY" } }
+    description: The gateway attaches its policy engine with policy_engine_configuration.mode = "LOG_ONLY", so Cedar policies are evaluated and logged but never enforced. Every tool call the policies would have denied is allowed through - the authorization layer is present in the design and absent at runtime, the worst kind of gap because it reads as covered.
+    recommendation: Set mode = "ENFORCE" once the policies are validated (use LOG_ONLY only as a temporary shadow-eval step before promotion, not as the deployed posture).
+    frameworks: ["NIST AC-3", "OWASP-AgSec ASI04", "SOC2 CC6.1"]
+
