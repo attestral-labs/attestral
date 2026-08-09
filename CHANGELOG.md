@@ -19,6 +19,19 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **`attestral compile --target copilot-registry`: the attested-allowed servers as a GitHub Copilot
+  internal MCP registry v0.1 catalog, for "Registry only" enforcement.** Emits the `GET /v0.1/servers`
+  list response - a `{servers: [{server, _meta}], metadata: {count}}` envelope where each entry is a
+  wrapped server.json (schema 2025-12-11): a reverse-DNS name (passed through when the server already
+  has one, else synthesized under a local namespace - and in Registry-only mode the catalog DEFINES
+  the canonical ids, so a synthesized name is the enforced id), a `remotes[]` streamable-http entry for
+  a hosted server or a `packages[]` entry (npm/pypi identifier + version parsed from the npx/uvx launch)
+  for a stdio one, and the registry `_meta` block (`status: active`, `isLatest: true`; timestamps
+  omitted so the catalog is deterministic). Denied servers are simply absent. The compile output states
+  the base-URL, CORS, and `/versions/latest` requirements the serving host must meet. Schema verified
+  against the MCP Registry v0.1 OpenAPI + GitHub Copilot MCP-registry docs (Aug 2026). Like
+  claude-managed it needs the model for launch identity, so the CLI special-cases it. 8 tests
+  (test_compile_copilot_registry.py). No rule change.
 - **`attestral compile --target claude-managed`: the attested design as Claude Code's own
   enterprise-managed MCP config, so a whole fleet enforces the review through MDM.** Emits two files.
   `managed-mcp.json` is exclusive control - Claude Code loads ONLY the servers it names and refuses

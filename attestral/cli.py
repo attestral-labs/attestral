@@ -1160,9 +1160,10 @@ def fix(path: str, rule_id: str | None, output: str | None,
               help="Output format: mcp-guard (default, drift-enforced), cedar (an AWS "
                    "Cedar authorization policy), agentgateway (a CB4A broker config), or "
                    "claude-managed (Claude Code enterprise-managed MCP config: managed-mcp.json "
-                   "+ managed-settings.json, deployed via MDM). Cedar and claude-managed are "
-                   "lossy and one-way: not a valid --against prior and attestral drift cannot "
-                   "read them.")
+                   "+ managed-settings.json, deployed via MDM), or copilot-registry (a GitHub "
+                   "Copilot internal MCP registry v0.1 catalog for 'Registry only' mode). Cedar, "
+                   "claude-managed, and copilot-registry are lossy and one-way: not a valid "
+                   "--against prior and attestral drift cannot read them.")
 @click.option("--against", "prior", type=click.Path(exists=True), default=None,
               help="A prior policy to verify this re-attestation narrows. Exits "
                    "non-zero on an expansion (a widening the review must approve). "
@@ -1204,6 +1205,17 @@ def compile(path: str, output: str | None, target: str, prior: str | None,
         click.echo("  deploy via MDM to " + CLAUDE_MANAGED_PATHS["macOS"] + " (macOS), "
                    + CLAUDE_MANAGED_PATHS["Linux"] + " (Linux), or "
                    + CLAUDE_MANAGED_PATHS["Windows"] + " (Windows).")
+    elif target == "copilot-registry":
+        from attestral.compile import compile_copilot_registry
+        out = output or "copilot-mcp-registry.json"
+        Path(out).write_text(compile_copilot_registry(model, policy))
+        click.echo(f"wrote {out}  ·  target copilot-registry  ·  default deny  ·  "
+                   f"{allowed} allowed, {denied} denied")
+        click.echo("  serve this as GET /v0.1/servers, set your Copilot 'MCP Registry URL' to the "
+                   "host (Copilot appends /v0.1 itself), and choose enforcement 'Registry only'.")
+        click.echo("  the host must send CORS (Access-Control-Allow-Origin: *) and answer the same "
+                   "wrapped entry at /v0.1/servers/{name}/versions/latest. Copilot enforces by "
+                   "server name (exact match); denied servers are simply absent.")
     else:
         renderer, default_out = TARGETS[target]
         out = output or default_out
