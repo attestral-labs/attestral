@@ -43,3 +43,36 @@ def test_findings_sorted_by_severity():
     _, findings = _findings()
     ranks = [f.severity.rank for f in findings]
     assert ranks == sorted(ranks, reverse=True)
+
+
+def test_attr_missing_fires_only_on_exact_target_type():
+    """`attr_missing` must fire only on the EXACT target type, never on a
+    prefix-sharing sibling. A google_vertex_ai_reasoning_engine_iam_member
+    trivially lacks kms_key_name, but it is not a reasoning engine, so ATL-435
+    (attr_missing kms_key_name) must not flag it - the vacuous-false-positive
+    caught by scanning real provider Terraform. Non-attr_missing matchers keep
+    the intended prefix reach (aws_s3_bucket -> aws_s3_bucket_acl)."""
+    from attestral.model import Component, SystemModel
+    m = SystemModel()
+    m.add(Component(id="google_vertex_ai_reasoning_engine.x",
+                    type="google_vertex_ai_reasoning_engine", name="x",
+                    source="s", attributes={}, trust_boundary="cloud"))
+    m.add(Component(id="google_vertex_ai_reasoning_engine_iam_member.x",
+                    type="google_vertex_ai_reasoning_engine_iam_member", name="x",
+                    source="s", attributes={}, trust_boundary="cloud"))
+    hits = [f for f in RuleEngine().evaluate(m) if f.rule_id == "ATL-435"]
+    assert len(hits) == 1
+    assert hits[0].component_id == "google_vertex_ai_reasoning_engine.x"
+
+
+def test_split_resource_prefix_reach_preserved():
+    """The intended prefix behaviour survives: ATL-002 (open security group)
+    still fires on a standalone aws_security_group_rule, not just an inline
+    aws_security_group."""
+    from attestral.model import Component, SystemModel
+    m = SystemModel()
+    m.add(Component(id="aws_security_group_rule.ssh", type="aws_security_group_rule",
+                    name="ssh", source="s",
+                    attributes={"_ingress_cidr_blocks": ["0.0.0.0/0"]},
+                    trust_boundary="cloud"))
+    assert "ATL-002" in {f.rule_id for f in RuleEngine().evaluate(m)}

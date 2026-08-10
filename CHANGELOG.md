@@ -6,7 +6,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
-### Fixed
+- **`attr_missing` rules no longer false-positive on prefix-sharing sibling resource types - found by
+  scanning real provider Terraform.** The rule engine matches a `target` by type prefix, which is
+  deliberate for the split-resource pattern (a rule on `aws_s3_bucket` checking `acl`, or
+  `aws_security_group` checking ingress CIDRs, must also see the standalone `aws_s3_bucket_acl` /
+  `aws_security_group_rule` that carries the same surface). But `attr_missing` is the one matcher where a
+  prefix sibling is a *vacuous* false positive: a `google_vertex_ai_reasoning_engine_iam_member` trivially
+  lacks `kms_key_name`, so ATL-435 flagged a single reasoning engine four times (once for the engine, once
+  per IAM sibling), and ATL-341 fired on `azurerm_ai_foundry_project` as well as the hub. Validated against
+  real configs (the CopilotKit AgentCore module, the official Azure AI Foundry quickstart, Vertex configs).
+  `attr_missing` now fires only on the exact target type; every other matcher keeps its prefix reach.
+  Benchmark unchanged (165/165, 0 FP).
 - **`scan -o <file>` no longer double-appends the format extension.** `-o` is a stem, so
   `scan --format sarif -o out.sarif` wrote `out.sarif.sarif` - a papercut for anyone who passed a full
   filename (e.g. to match the `sarif_file:` a CI step expects). The stem now keeps its behaviour, but
