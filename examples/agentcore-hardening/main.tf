@@ -72,6 +72,13 @@ resource "aws_bedrockagentcore_gateway" "tools_hardened" {
   name            = "billing-tools"
   role_arn        = "arn:aws:iam::111122223333:role/billing-gw"
   authorizer_type = "CUSTOM_JWT"
+  authorizer_configuration {
+    custom_jwt_authorizer {
+      discovery_url   = "https://idp.example.com/.well-known/openid-configuration"
+      allowed_clients = ["billing-agent-client-id"]
+      allowed_audience = ["billing-tools"]
+    }
+  }
   policy_engine_configuration {
     mode = "ENFORCE"
     arn  = "arn:aws:bedrock-agentcore:us-west-2:111122223333:policy-engine/pe-billing"

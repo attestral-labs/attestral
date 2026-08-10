@@ -11,7 +11,7 @@ attestral scan examples/agentcore-hardening
 ```
 
 ```
-8 components · 4 findings · 1 high · 3 medium
+8 components · 5 findings · 2 high · 3 medium
 ```
 
 - `aws_bedrockagentcore_agent_runtime.shipping_weak` - `network_mode = "PUBLIC"`,
@@ -25,7 +25,10 @@ attestral scan examples/agentcore-hardening
   rejected. Fires **ATL-072** (medium).
 - `aws_bedrockagentcore_gateway.tools_weak` - `policy_engine_configuration.mode =
   "LOG_ONLY"`, so tool-call policies are evaluated but never enforced. Fires
-  **ATL-073** (medium).
+  **ATL-073** (medium). It also authenticates with a custom JWT authorizer but
+  names no `allowed_clients`, so any client of its issuer can invoke every tool -
+  fires **ATL-074** (high). The `_hardened` gateway sets `allowed_clients` and
+  `mode = "ENFORCE"`.
 
 Attribute names are the terraform-flattened leaves of the hashicorp/aws
 `bedrockagentcore_*` resources, so no ingester change was needed - the whole wave
