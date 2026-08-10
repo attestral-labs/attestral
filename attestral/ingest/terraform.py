@@ -557,6 +557,22 @@ def _derive_agentcore(model: SystemModel) -> None:
             c.attributes["_jwt_open_to_any_client"] = True
 
 
+def _derive_azure_ai(model: SystemModel) -> None:
+    """Post-pass for Azure AI Services accounts: stamp `_aiservices_no_cmk` on an
+    `azurerm_cognitive_account` whose `kind = "AIServices"` (the account that
+    hosts Foundry agents) when it declares no customer-managed key. The account
+    type is multi-purpose - Vision, Translator, and Speech share it - so gating on
+    kind keeps the finding agent-scoped rather than a generic cloud check. The CMK
+    is opt-in (a `customer_managed_key` block with `key_vault_key_id`), so its
+    absence is the clean, high-recall signal. Fail-closed: only an AIServices
+    account with no key is stamped."""
+    for c in model.components:
+        if c.type != "azurerm_cognitive_account":
+            continue
+        if str(c.attr("kind", "")) == "AIServices" and not c.attr("key_vault_key_id"):
+            c.attributes["_aiservices_no_cmk"] = True
+
+
 def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
     p = Path(path)
     start = len(model.components)
@@ -592,6 +608,8 @@ def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
     _resolve_iam_admin(model)
     # AgentCore gateway auth derivation (CUSTOM_JWT with no client allowlist).
     _derive_agentcore(model)
+    # Azure AI Services account CMK derivation (agent-scoped via kind).
+    _derive_azure_ai(model)
     # Declared reference edges, over exactly the components this run emitted.
     _add_reference_edges(model, start)
     return model

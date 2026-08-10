@@ -229,3 +229,22 @@ rules:
     description: An IAM binding to allUsers (or allAuthenticatedUsers) on a crypto key lets anyone on the internet use it to encrypt or decrypt, collapsing the confidentiality guarantee of everything the key protects.
     recommendation: Remove the allUsers/allAuthenticatedUsers member and grant cryptoKey use only to the specific service accounts that need it.
     frameworks: ["CIS GCP 1.9", "NIST AC-3", "SOC2 CC6.1"]
+
+  # --- Vertex AI agent runtime (the GCP half of the AI-cloud agent moat) ---
+  - id: ATL-435
+    title: Vertex AI reasoning engine has no customer-managed encryption key
+    severity: medium
+    target: google_vertex_ai_reasoning_engine
+    match: { attr_missing: kms_key_name }
+    description: The reasoning engine (Vertex AI Agent Engine, the GCP agent runtime) declares no encryption_spec.kms_key_name, so the agent's execution state and any data it materializes are encrypted only with a Google-managed key you cannot scope, rotate, or revoke independently of Google. For an agent that ingests untrusted input and holds tool credentials, that is the layer you most want under your own key policy.
+    recommendation: Set encryption_spec.kms_key_name to a customer-managed Cloud KMS key so access to the agent runtime's data is governed by a key policy you control.
+    frameworks: ["NIST SC-28", "CIS GCP 1.x", "OWASP-AgSec ASI06"]
+
+  - id: ATL-436
+    title: Vertex AI endpoint has no customer-managed encryption key
+    severity: medium
+    target: google_vertex_ai_endpoint
+    match: { attr_missing: kms_key_name }
+    description: The Vertex AI endpoint - the model-serving surface an agent calls - declares no encryption_spec.kms_key_name, so the prompts and completions that transit and cache at the endpoint are protected only by a Google-managed key outside your control.
+    recommendation: Set encryption_spec.kms_key_name to a customer-managed Cloud KMS key, and consider private_service_connect for the network path.
+    frameworks: ["NIST SC-28", "CIS GCP 1.x"]
