@@ -481,3 +481,12 @@ rules:
     recommendation: Set mode = "ENFORCE" once the policies are validated (use LOG_ONLY only as a temporary shadow-eval step before promotion, not as the deployed posture).
     frameworks: ["NIST AC-3", "OWASP-AgSec ASI04", "SOC2 CC6.1"]
 
+  - id: ATL-074
+    title: Bedrock AgentCore gateway trusts any client of its JWT issuer
+    severity: high
+    target: aws_bedrockagentcore_gateway
+    match: { attr_equals: { _jwt_open_to_any_client: true } }
+    description: The gateway authenticates callers with a custom JWT authorizer but names no allowed_clients, so any application holding a valid token from the configured issuer can invoke every tool the gateway fronts - not just the agents you intended. authorizer_type is required (there is no "off"), so the real weak-auth signal is a present-but-unscoped authorizer, which is exactly this. The ingester stamps `_jwt_open_to_any_client` when CUSTOM_JWT has no client allowlist.
+    recommendation: Set authorizer_configuration.custom_jwt_authorizer.allowed_clients to the specific client IDs that may call this gateway (and scope allowed_audience), so a token minted for an unrelated app in the same IdP cannot reach your tools.
+    frameworks: ["NIST AC-3", "NIST AC-6", "OWASP-AgSec ASI04"]
+

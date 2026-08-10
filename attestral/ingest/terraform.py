@@ -541,6 +541,22 @@ def _add_reference_edges(model: SystemModel, start: int) -> None:
 
 # --- emission ------------------------------------------------------------------
 
+def _derive_agentcore(model: SystemModel) -> None:
+    """Post-pass for Bedrock AgentCore gateways: stamp `_jwt_open_to_any_client`
+    when a gateway authenticates callers with a custom JWT authorizer but names
+    no client allowlist, so any client holding a valid token from the issuer can
+    invoke every tool. `authorizer_type` is Required (CUSTOM_JWT | AWS_IAM) so a
+    truly open gateway is not expressible; this compound - CUSTOM_JWT with an
+    absent or empty `allowed_clients` - is the real static weak-auth signal.
+    Fail-closed: only a CUSTOM_JWT gateway missing the allowlist is stamped."""
+    for c in model.components:
+        if c.type != "aws_bedrockagentcore_gateway":
+            continue
+        if (str(c.attr("authorizer_type", "")) == "CUSTOM_JWT"
+                and not c.attr("allowed_clients")):
+            c.attributes["_jwt_open_to_any_client"] = True
+
+
 def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
     p = Path(path)
     start = len(model.components)
@@ -574,6 +590,8 @@ def ingest_terraform(path: str | Path, model: SystemModel) -> SystemModel:
         _emit(dm, model, dirs, prefix="", var_env=var_env, stack=(d,))
     # Cross-resource IAM join, run once every component in this ingest exists.
     _resolve_iam_admin(model)
+    # AgentCore gateway auth derivation (CUSTOM_JWT with no client allowlist).
+    _derive_agentcore(model)
     # Declared reference edges, over exactly the components this run emitted.
     _add_reference_edges(model, start)
     return model
