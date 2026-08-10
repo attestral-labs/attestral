@@ -12,6 +12,7 @@ from _helpers import findings_for, ids_for
 
 POSITIVE = "examples/agent-admin-iam"
 BENIGN = "examples/agent-admin-iam-benign"
+AGENTCORE = "examples/agentcore-admin-iam"
 
 
 
@@ -55,6 +56,36 @@ def test_atl218_silent_when_agent_role_is_scoped():
     scoped, non-wildcard policy, so the agent-to-cloud reachability exists
     without the admin blast radius. ATL-218 must not fire."""
     assert "ATL-218" not in ids_for(BENIGN)
+
+
+# --- the AWS-native path: a Bedrock AgentCore runtime assumes an admin role ---
+
+def test_atl218_fires_on_agentcore_admin_join():
+    """The runtime's execution role_arn resolves (by resource name) to an
+    AdministratorAccess role - the same crossing as the K8s IRSA path, on the
+    AWS-native agent host. One finding, on the runtime, critical."""
+    hits = [f for f in findings_for(AGENTCORE) if f.rule_id == "ATL-218"]
+    assert len(hits) == 1
+    (hit,) = hits
+    assert hit.severity.value == "critical"
+    assert hit.component_id == "aws_bedrockagentcore_agent_runtime.shipping"
+    assert "agentcore_admin_role" in hit.description
+
+
+def test_atl218_agentcore_ignores_scoped_gateway_role():
+    """The gateway alongside it names a read-only role, so the admin join does
+    not fire on it - ATL-218 keys on the admin grant, not on naming any role."""
+    for f in findings_for(AGENTCORE):
+        if f.rule_id == "ATL-218":
+            assert "shipping-tools" not in f.description
+            assert "agentcore_gateway_role" not in f.description
+
+
+def test_agentcore_execution_role_key_is_stamped():
+    model = build_model(AGENTCORE)
+    rt = next(c for c in model.by_type("aws_bedrockagentcore_agent_runtime"))
+    # the ${aws_iam_role.agentcore_admin_role.arn} reference resolves to the name
+    assert rt.attr("_execution_role_key") == "agentcore_admin_role"
 
 
 # --- ingester-edge coverage: the join keys this wave introduces --------------

@@ -541,19 +541,42 @@ def _add_reference_edges(model: SystemModel, start: int) -> None:
 
 # --- emission ------------------------------------------------------------------
 
+def _agentcore_role_key(role_arn_val) -> str:
+    """The admin-role lookup key for an AgentCore execution role_arn: the
+    referenced role's resource name (from a `${aws_iam_role.X.arn}` reference) or
+    the role name from a literal `arn:...:role/NAME`. Empty when neither form is
+    present, so the join stays fail-closed. Mirrors how the K8s IRSA path keys the
+    same admin-role join, so `model_agent_reaches_admin_iam` can resolve both."""
+    ref = _addr_ref(role_arn_val)
+    if ref and ref[0] == "aws_iam_role":
+        return ref[1]
+    s = str(role_arn_val or "")
+    if ":role/" in s:
+        return s.split(":role/", 1)[1]
+    return ""
+
+
 def _derive_agentcore(model: SystemModel) -> None:
-    """Post-pass for Bedrock AgentCore gateways: stamp `_jwt_open_to_any_client`
-    when a gateway authenticates callers with a custom JWT authorizer but names
-    no client allowlist, so any client holding a valid token from the issuer can
-    invoke every tool. `authorizer_type` is Required (CUSTOM_JWT | AWS_IAM) so a
-    truly open gateway is not expressible; this compound - CUSTOM_JWT with an
-    absent or empty `allowed_clients` - is the real static weak-auth signal.
-    Fail-closed: only a CUSTOM_JWT gateway missing the allowlist is stamped."""
+    """Post-pass for Bedrock AgentCore. Stamps `_jwt_open_to_any_client` on a
+    gateway that authenticates with a custom JWT authorizer but names no client
+    allowlist (any token from the issuer can invoke every tool - `authorizer_type`
+    is Required, so this present-but-unscoped case is the real weak-auth signal);
+    `_remote_target_unscoped_cred` on a gateway target that reaches a remote MCP
+    server with no scoped credential provider; and `_execution_role_key` on a
+    runtime/gateway so `model_agent_reaches_admin_iam` can join its role_arn to an
+    admin IAM role. Fail-closed throughout."""
     for c in model.components:
         if c.type == "aws_bedrockagentcore_gateway":
             if (str(c.attr("authorizer_type", "")) == "CUSTOM_JWT"
                     and not c.attr("allowed_clients")):
                 c.attributes["_jwt_open_to_any_client"] = True
+            key = _agentcore_role_key(c.attr("role_arn"))
+            if key:
+                c.attributes["_execution_role_key"] = key
+        elif c.type == "aws_bedrockagentcore_agent_runtime":
+            key = _agentcore_role_key(c.attr("role_arn"))
+            if key:
+                c.attributes["_execution_role_key"] = key
         elif c.type == "aws_bedrockagentcore_gateway_target":
             # A target that reaches a REMOTE MCP server (an http(s) endpoint,
             # not an in-account Lambda) with no scoped credential provider. A
