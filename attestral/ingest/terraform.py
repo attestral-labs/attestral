@@ -550,11 +550,22 @@ def _derive_agentcore(model: SystemModel) -> None:
     absent or empty `allowed_clients` - is the real static weak-auth signal.
     Fail-closed: only a CUSTOM_JWT gateway missing the allowlist is stamped."""
     for c in model.components:
-        if c.type != "aws_bedrockagentcore_gateway":
-            continue
-        if (str(c.attr("authorizer_type", "")) == "CUSTOM_JWT"
-                and not c.attr("allowed_clients")):
-            c.attributes["_jwt_open_to_any_client"] = True
+        if c.type == "aws_bedrockagentcore_gateway":
+            if (str(c.attr("authorizer_type", "")) == "CUSTOM_JWT"
+                    and not c.attr("allowed_clients")):
+                c.attributes["_jwt_open_to_any_client"] = True
+        elif c.type == "aws_bedrockagentcore_gateway_target":
+            # A target that reaches a REMOTE MCP server (an http(s) endpoint,
+            # not an in-account Lambda) with no scoped credential provider. A
+            # scoped provider (oauth / api_key) flattens a `provider_arn` leaf;
+            # its absence means the gateway either forwards its own IAM identity
+            # (gateway_iam_role) or the caller's JWT (jwt_passthrough) to that
+            # remote server, or reaches it unauthenticated - the confused-deputy /
+            # token-leak surface. Fail-closed: only a remote endpoint with no
+            # provider_arn is stamped (a Lambda target has no endpoint).
+            endpoint = str(c.attr("endpoint", "")).lower()
+            if endpoint.startswith(("http://", "https://")) and not c.attr("provider_arn"):
+                c.attributes["_remote_target_unscoped_cred"] = True
 
 
 def _derive_azure_ai(model: SystemModel) -> None:

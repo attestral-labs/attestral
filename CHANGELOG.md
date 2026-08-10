@@ -25,6 +25,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **ATL-075 (high): a Bedrock AgentCore gateway that forwards an unscoped credential to a remote tool
+  target** - the cross-resource confused-deputy finding a per-resource linter cannot produce. A
+  `gateway_target` that routes to a remote MCP server (an http(s) endpoint, not an in-account Lambda)
+  with no scoped credential provider (no `provider_arn` from an `oauth`/`api_key` block) means AgentCore
+  forwards the gateway's own IAM identity (`gateway_iam_role`) or the caller's JWT (`jwt_passthrough`) to
+  that third-party endpoint, or reaches it unauthenticated - so a poisoned endpoint receives a replayable
+  credential. The absence of a scoped `provider_arn` on a remote target is the signal (a `_derive_agentcore`
+  post-pass stamps `_remote_target_unscoped_cred`), so it needs no presence-only-block ingester surgery.
+  Fixture examples/agentcore-hardening gains a `_weak` (gateway_iam_role) and `_hardened` (scoped oauth)
+  target. Pack 280 -> 281.
 - **AI-cloud agent-runtime hardening extended to GCP and Azure (ATL-435/436, ATL-339/340/341).**
   Completes the moat begun with AWS AgentCore, so Attestral now covers agent-runtime hardening on all
   three clouds. **GCP** (Vertex AI): ATL-435 (medium) a reasoning engine - the Vertex Agent Engine

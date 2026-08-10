@@ -11,7 +11,7 @@ attestral scan examples/agentcore-hardening
 ```
 
 ```
-8 components · 5 findings · 2 high · 3 medium
+10 components · 6 findings · 3 high · 3 medium
 ```
 
 - `aws_bedrockagentcore_agent_runtime.shipping_weak` - `network_mode = "PUBLIC"`,
@@ -30,6 +30,14 @@ attestral scan examples/agentcore-hardening
   fires **ATL-074** (high). The `_hardened` gateway sets `allowed_clients` and
   `mode = "ENFORCE"`.
 
-Attribute names are the terraform-flattened leaves of the hashicorp/aws
-`bedrockagentcore_*` resources, so no ingester change was needed - the whole wave
-is data rules over the model the Terraform ingester already builds.
+- `aws_bedrockagentcore_gateway_target.crm_weak` - routes to a remote MCP server
+  (`https://crm.partner-saas.example/mcp`) with `gateway_iam_role {}` and no
+  scoped credential provider, so the gateway forwards its own IAM identity to a
+  third-party endpoint. Fires **ATL-075** (high). The `_hardened` target reaches
+  the same endpoint through a scoped `oauth` provider (`provider_arn`) and stays
+  silent.
+
+Most attributes are the terraform-flattened leaves of the hashicorp/aws
+`bedrockagentcore_*` resources; ATL-074 and ATL-075 add two small
+`_derive_agentcore` post-passes (the JWT allowlist and the remote-target
+credential check), since their signals are compound.
