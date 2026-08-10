@@ -490,3 +490,12 @@ rules:
     recommendation: Set authorizer_configuration.custom_jwt_authorizer.allowed_clients to the specific client IDs that may call this gateway (and scope allowed_audience), so a token minted for an unrelated app in the same IdP cannot reach your tools.
     frameworks: ["NIST AC-3", "NIST AC-6", "OWASP-AgSec ASI04"]
 
+  - id: ATL-075
+    title: Bedrock AgentCore gateway forwards an unscoped credential to a remote tool target
+    severity: high
+    target: aws_bedrockagentcore_gateway_target
+    match: { attr_equals: { _remote_target_unscoped_cred: true } }
+    description: The gateway target routes to a remote MCP server (an http(s) endpoint, not an in-account Lambda) with no scoped credential provider. Without an oauth/api_key provider, AgentCore either forwards the gateway's own IAM identity or passes the caller's JWT straight through to that remote server, or reaches it unauthenticated - so a poisoned or attacker-controlled endpoint receives a replayable credential and can inject tool descriptions or exfiltrate whatever the agent sends. The ingester stamps `_remote_target_unscoped_cred` when a remote endpoint has no provider_arn.
+    recommendation: Front the remote target with a scoped credential provider (credential_provider_configuration.oauth or api_key with a provider_arn) so a short-lived, per-call token is minted for it, rather than gateway_iam_role or jwt_passthrough; and confirm the endpoint is a server you control or trust.
+    frameworks: ["OWASP-AgSec ASI08", "NIST AC-6", "NIST SC-7"]
+

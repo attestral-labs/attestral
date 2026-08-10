@@ -84,3 +84,36 @@ resource "aws_bedrockagentcore_gateway" "tools_hardened" {
     arn  = "arn:aws:bedrock-agentcore:us-west-2:111122223333:policy-engine/pe-billing"
   }
 }
+
+# --- ATL-075: gateway target reaches a remote MCP server with no scoped cred ---
+resource "aws_bedrockagentcore_gateway_target" "crm_weak" {
+  gateway_identifier = aws_bedrockagentcore_gateway.tools_weak.id
+  name               = "partner-crm"
+  target_configuration {
+    mcp {
+      mcp_server {
+        endpoint = "https://crm.partner-saas.example/mcp"
+      }
+    }
+  }
+  credential_provider_configuration {
+    gateway_iam_role {}
+  }
+}
+
+resource "aws_bedrockagentcore_gateway_target" "crm_hardened" {
+  gateway_identifier = aws_bedrockagentcore_gateway.tools_hardened.id
+  name               = "partner-crm-scoped"
+  target_configuration {
+    mcp {
+      mcp_server {
+        endpoint = "https://crm.partner-saas.example/mcp"
+      }
+    }
+  }
+  credential_provider_configuration {
+    oauth {
+      provider_arn = "arn:aws:bedrock-agentcore:us-west-2:111122223333:token-vault/default/oauth2credentialprovider/crm"
+    }
+  }
+}
