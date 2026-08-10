@@ -25,6 +25,14 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **ATL-218 now covers the AWS-native agent host, not just Kubernetes.** The critical agent-to-cloud
+  admin join (an agent runtime assuming an AdministratorAccess / wildcard IAM role, so any injection
+  inherits the whole account) previously fired only on a K8s workload's IRSA annotation. It now also
+  fires on a **Bedrock AgentCore runtime or gateway** whose execution `role_arn` resolves to an admin
+  role - the same crossing on the AWS-native agent host. No new rule (the `model_agent_reaches_admin_iam`
+  matcher was extended and the ingester stamps `_execution_role_key`, resolving a `${aws_iam_role.X.arn}`
+  reference or a literal role ARN). Fixture examples/agentcore-admin-iam (an admin runtime fires; a
+  scoped gateway alongside it stays silent). Pack unchanged at 281.
 - **ATL-075 (high): a Bedrock AgentCore gateway that forwards an unscoped credential to a remote tool
   target** - the cross-resource confused-deputy finding a per-resource linter cannot produce. A
   `gateway_target` that routes to a remote MCP server (an http(s) endpoint, not an in-account Lambda)

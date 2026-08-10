@@ -636,6 +636,28 @@ class RuleEngine:
                         "the cloud account."
                     ),
                 ))
+            # The AWS-native path: a Bedrock AgentCore runtime or gateway whose
+            # execution role_arn (joined by resource name or role name via the
+            # ingester's `_execution_role_key`) resolves to the same admin role.
+            # Same crossing, different agent host.
+            for ac in (model.by_type("aws_bedrockagentcore_agent_runtime")
+                       + model.by_type("aws_bedrockagentcore_gateway")):
+                key = ac.attr("_execution_role_key")
+                role = admin_roles.get(key) if isinstance(key, str) and key else None
+                if role is None:
+                    continue  # unresolved or non-admin role: fail closed
+                kind = ("agent runtime" if ac.type.endswith("agent_runtime")
+                        else "tool gateway")
+                findings.append(self._finding(
+                    rule, ac.id, ac.source,
+                    detail=(
+                        f"Bedrock AgentCore {kind} '{ac.name}' assumes IAM role "
+                        f"'{role.name}', which grants AdministratorAccess or a "
+                        "wildcard (Action '*' on Resource '*') policy, so any "
+                        "injection or tool compromise in the runtime inherits "
+                        "full control of the cloud account."
+                    ),
+                ))
             return findings
         elif "model_broker_bypassed" in match:
             # A credential broker (agentgateway) is declared in this system, yet
