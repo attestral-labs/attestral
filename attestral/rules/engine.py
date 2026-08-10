@@ -158,7 +158,21 @@ class RuleEngine:
             if target == "model":
                 findings.extend(self._evaluate_model_rule(rule, match, model))
                 continue
+            # `by_type` is a startswith prefix match, which is deliberate for the
+            # split-resource Terraform pattern: a rule targeting `aws_s3_bucket`
+            # (checking `acl`) or `aws_security_group` (checking ingress CIDRs) must
+            # also see the standalone `aws_s3_bucket_acl` / `aws_security_group_rule`
+            # resource that carries the same surface. But `attr_missing` is the one
+            # matcher where a prefix sibling is a VACUOUS false positive: a
+            # `google_vertex_ai_reasoning_engine_iam_member` trivially lacks
+            # `kms_key_name`, so an `attr_missing` rule targeting the reasoning engine
+            # would flag every IAM sibling (found by scanning real provider configs).
+            # So attr_missing fires only on the EXACT target type; every other matcher
+            # keeps the intended prefix reach.
+            missing_exact = "attr_missing" in match
             for c in model.by_type(target):
+                if missing_exact and c.type != target:
+                    continue
                 if _matches(c, match):
                     findings.append(self._finding(rule, c.id, c.source))
         # Collapse exact duplicates - the same rule on the same component, e.g. a
