@@ -236,3 +236,31 @@ rules:
     description: The managed SQL server negotiates deprecated TLS 1.0/1.1, whose known weaknesses let an attacker downgrade the connection and intercept credentials or query data in transit.
     recommendation: Set minimum_tls_version = "1.2" so only modern TLS is accepted.
     frameworks: ["CIS Azure 4.1.8", "NIST SC-8", "SOC2 CC6.7"]
+
+  # --- Azure AI Foundry / AI Services (the Azure half of the AI-cloud agent moat) ---
+  - id: ATL-339
+    title: Azure AI Services account (agent host) has no customer-managed key
+    severity: medium
+    target: azurerm_cognitive_account
+    match: { attr_equals: { _aiservices_no_cmk: true } }
+    description: This is a Cognitive account with kind = "AIServices" - the account that hosts Azure AI Foundry agents - and it declares no customer_managed_key, so the agent project's prompts, memory, and derived data are encrypted only with a Microsoft-managed key you cannot scope or revoke. The rule is gated on the AIServices kind (the ingester stamps `_aiservices_no_cmk`), so it stays an agent-hosting finding rather than a generic Cognitive-services check.
+    recommendation: Add a customer_managed_key block with a key_vault_key_id so the agent account's data is protected by a key whose access you govern and can revoke.
+    frameworks: ["NIST SC-28", "CIS Azure 8.x", "OWASP-AgSec ASI06"]
+
+  - id: ATL-340
+    title: Azure AI Foundry hub is reachable from the public network
+    severity: high
+    target: azurerm_ai_foundry
+    match: { attr_equals: { public_network_access: "Enabled" } }
+    description: The AI Foundry hub sets public_network_access = "Enabled", so its agent workspace - the compute, connections, and credentials the agents run with - is reachable over the public internet rather than only through your private network. A credential-holding, injection-drivable agent host is exactly what you do not want on a public endpoint.
+    recommendation: Set public_network_access = "Disabled" and reach the hub through a private endpoint; use managed_network.isolation_mode = "AllowOnlyApprovedOutbound" to bound the agents' egress as well.
+    frameworks: ["NIST SC-7", "CIS Azure 8.x", "SOC2 CC6.6"]
+
+  - id: ATL-341
+    title: Azure AI Foundry hub has no customer-managed encryption key
+    severity: medium
+    target: azurerm_ai_foundry
+    match: { attr_missing: key_id }
+    description: The AI Foundry hub declares no encryption block (no key_id), so the workspace that stores agent connections, prompt flows, and run history is encrypted only with a Microsoft-managed key outside your control.
+    recommendation: Add an encryption block with key_id and key_vault_id (and a user_assigned_identity_id) so the hub's data is protected by a customer-managed key.
+    frameworks: ["NIST SC-28", "CIS Azure 8.x"]

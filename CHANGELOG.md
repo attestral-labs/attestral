@@ -25,6 +25,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **AI-cloud agent-runtime hardening extended to GCP and Azure (ATL-435/436, ATL-339/340/341).**
+  Completes the moat begun with AWS AgentCore, so Attestral now covers agent-runtime hardening on all
+  three clouds. **GCP** (Vertex AI): ATL-435 (medium) a reasoning engine - the Vertex Agent Engine
+  runtime - with no customer-managed encryption key (`encryption_spec.kms_key_name` absent), ATL-436
+  (medium) a Vertex endpoint with no CMEK. Vertex has no public-network flag analogous to Bedrock's
+  `network_mode`, so the clean static signal is the missing CMEK. **Azure** (AI Foundry / AI Services):
+  ATL-339 (medium) an `azurerm_cognitive_account` with `kind = "AIServices"` - the Foundry agent host -
+  and no customer-managed key (gated on the AIServices kind via a derived `_aiservices_no_cmk`, so it
+  stays an agent finding, not a generic Cognitive check), ATL-340 (high) an `azurerm_ai_foundry` hub with
+  `public_network_access = "Enabled"`, ATL-341 (medium) a hub with no `encryption` block. Attribute names
+  verified against the hashicorp/google and hashicorp/azurerm provider schemas (traps avoided:
+  `azurerm_ai_services` does not exist - the account is `azurerm_cognitive_account`; Vertex has no public
+  flag). Fixtures examples/vertex-ai-hardening and examples/azure-ai-hardening (a `_weak` and a
+  `_hardened` form of each). Pack 275 -> 280. 5 tests.
 - **Amazon Bedrock AgentCore hardening rules (ATL-070..074), the AWS agent-runtime moat.** Five
   detections over the agent's own AWS hosting, uncontested by general IaC linters: **ATL-070** (high) an
   agent runtime on the public network (`network_mode = "PUBLIC"`); **ATL-071** (medium) an AgentCore
