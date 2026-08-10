@@ -25,6 +25,15 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **ATL-171 (critical): an MCP server whose launch command fetches and executes remote code** - the
+  config-injection RCE class behind the 2026 coding-agent incidents (TrustFall, poisoned repo-shipped
+  `.mcp.json`). A launch command that pipes a download into a shell (`curl … | sh`, `wget -qO- … | bash`,
+  PowerShell `iex(iwr …)`) runs attacker-changeable code the moment the config loads, before the model
+  reasons - and a cloned or shared repo carries it to whoever opens it. Distinct from ATL-105 (a package
+  auto-installer) and ATL-155 (a fetch-exec one-liner in an *instruction* file); this is the server launch
+  itself. Narrow, low-FP pattern (a fetch tool piped into a shell, or a PowerShell download-and-invoke)
+  derived on the mcp_server as `_launch_fetch_exec`. Fixture examples/mcp-launch-rce + a benchmark case;
+  a properly pinned `npx` server does not fire. Pack 281 -> 282.
 - **ATL-218 now covers the AWS-native agent host, not just Kubernetes.** The critical agent-to-cloud
   admin join (an agent runtime assuming an AdministratorAccess / wildcard IAM role, so any injection
   inherits the whole account) previously fired only on a K8s workload's IRSA annotation. It now also

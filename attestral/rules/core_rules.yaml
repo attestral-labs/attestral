@@ -247,6 +247,15 @@ rules:
     recommendation: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm flag.
     frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0104", "NIST SA-12", "OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "Agentic-SoK 2026 R4"]
 
+  - id: ATL-171
+    title: MCP server launch command fetches and executes remote code
+    severity: critical
+    target: mcp_server
+    match: { attr_equals: { _launch_fetch_exec: true } }
+    description: The server's launch command pipes a downloaded script straight into a shell (`curl … | sh`, `wget -qO- … | bash`, PowerShell `iex(iwr …)`), so merely loading this config runs attacker-changeable remote code in the agent's context - before the model reasons about anything. This is the config-injection RCE class behind the 2026 coding-agent incidents (TrustFall, poisoned repo-shipped `.mcp.json`) - the payload lives at a URL that can change after the config was reviewed, and a cloned or shared repo carries the launch to whoever opens it. Distinct from ATL-105 (a package auto-installer) and ATL-155 (a fetch-exec one-liner in an instruction file); this is the server launch itself.
+    recommendation: Never fetch-and-pipe-to-shell in a launch command. Vendor the setup script into the repo with a pinned content hash and run it under explicit human approval, or install the server from an integrity-checked package pinned to an exact version; a launch command should invoke a reviewed binary, not download one.
+    frameworks: ["OWASP-ASI04:2026", "OWASP-ASI05:2026", "MITRE ATLAS AML.T0010", "OWASP-MCP MCP04:2025", "NIST SI-7"]
+
   - id: ATL-106
     title: MCP server pinned to a mutable tag
     severity: medium

@@ -31,6 +31,10 @@ positive:
     path: examples/agent-cloud-confused-deputy
     expect: [ATL-104, ATL-112, ATL-222]
     cite: "Agent->cloud confused deputy into a NAMED IaC sink; OWASP ASI01; CWE-441; the whole-system-model moat"
+  - id: mcp-launch-rce
+    path: examples/mcp-launch-rce
+    expect: [ATL-171]
+    cite: "Config-injection RCE via a repo-shipped .mcp.json launch command (curl|sh, iex(iwr)); TrustFall 2026; OWASP ASI04/ASI05; MITRE ATLAS AML.T0010"
   - id: tool-shadowing
     path: examples/tool-shadowing
     expect: [ATL-106, ATL-204, ATL-205, ATL-206]
