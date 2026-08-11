@@ -161,6 +161,83 @@ def verify_posture(
     return (not failures, failures)
 
 
+def posture_delta(prior: dict, current: dict) -> dict:
+    """How the current capability posture WIDENS a prior one. Widening is the only
+    direction that matters for a gate: an agent that gained a capability class,
+    newly formed a lethal trifecta, or opened a cross-boundary reach it did not
+    have when the prior posture was signed must be re-reviewed and re-attested. A
+    narrowing (capabilities removed) is always safe and never fails. Both args are
+    posture PREDICATE dicts."""
+    prior_env = set(prior.get("capabilityEnvelope") or [])
+    cur_env = set(current.get("capabilityEnvelope") or [])
+    prior_reach = set(prior.get("crossBoundaryReach") or [])
+    cur_reach = set(current.get("crossBoundaryReach") or [])
+    added_caps = sorted(cur_env - prior_env)
+    added_reach = sorted(cur_reach - prior_reach)
+    trifecta_formed = bool(current.get("lethalTrifecta")) and not prior.get("lethalTrifecta")
+    return {
+        "addedCapabilities": added_caps,
+        "trifectaFormed": trifecta_formed,
+        "addedReach": added_reach,
+        "widened": bool(added_caps or trifecta_formed or added_reach),
+    }
+
+
+def render_posture_delta(delta: dict, *, color: bool | None = None) -> str:
+    from attestral.report_terminal import _dim, _paint, supports_color
+
+    if color is None:
+        color = supports_color()
+    if not delta["widened"]:
+        return _paint("POSTURE: NARROWING or UNCHANGED - the agent gained no "
+                      "capability, trifecta, or reach.", "1;32", color)
+    lines = [_paint("POSTURE: WIDENED - the agent gained capability since the "
+                    "attested posture:", "1;31", color), ""]
+    if delta["addedCapabilities"]:
+        lines.append(f"  {_dim('new capability classes:', color)} "
+                     + ", ".join(delta["addedCapabilities"]))
+    if delta["trifectaFormed"]:
+        lines.append(f"  {_dim('newly forms a', color)} "
+                     + _paint("lethal trifecta", "1;31", color))
+    if delta["addedReach"]:
+        lines.append(f"  {_dim('new cross-boundary reach:', color)}")
+        for r in delta["addedReach"][:6]:
+            lines.append(f"    {r}")
+        if len(delta["addedReach"]) > 6:
+            lines.append(f"    (+{len(delta['addedReach']) - 6} more)")
+    lines.append("")
+    lines.append(_dim("Re-review and re-sign the posture, or revert the change. A "
+                      "widening must not slip past a signed capability baseline.", color))
+    return "\n".join(lines)
+
+
+def verify_posture_runtime(statement: dict, events: list[dict]) -> tuple[bool, list[dict]]:
+    """Check the runtime stayed within the attested capability envelope. A telemetry
+    event that positively exercised a modeled capability class the posture never
+    attested is a violation: the agent did more than its attested posture allows.
+    Fleet-level complement to drift's per-server DRF-008, sharing the same
+    fail-closed comparison (`model.capabilities_outside_envelope`) so the two never
+    disagree - only a positively observed, MODELED token outside the envelope
+    fires; an absent, unknown, or malformed `capabilities` field never fires.
+
+    This trusts the `capabilityEnvelope` in the supplied statement; it does NOT
+    verify the signature - authenticity is the caller's job (`verify_posture` with
+    a `--public-key`, which re-derives the envelope from the design and would catch
+    a tampered field). Returns (ok, violations)."""
+    from attestral.model import capabilities_outside_envelope
+
+    envelope = (statement.get("predicate") or {}).get("capabilityEnvelope") or []
+    violations: list[dict] = []
+    for i, ev in enumerate(events, 1):
+        for cap in capabilities_outside_envelope(ev.get("capabilities"), envelope):
+            violations.append({
+                "event": i,
+                "server": str(ev.get("server", "")),
+                "capability": cap,
+            })
+    return (not violations, violations)
+
+
 def render_posture(statement: dict, *, color: bool | None = None) -> str:
     from attestral.report_terminal import _bold, _dim, _paint, supports_color
 

@@ -19,7 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from attestral.manifest import manifest_hash, normalize_tools
-from attestral.model import CAPABILITY_CLASSES, Finding, Severity
+from attestral.model import (CAPABILITY_CLASSES, Finding, Severity,
+                             capabilities_outside_envelope)
 
 # The capability vocabulary DRF-008 reasons over, sourced from the model so it
 # never drifts from what the ingester can emit. Imported from model (not
@@ -206,21 +207,18 @@ def _per_event(servers: dict, ev: dict, event_no: int) -> list[Finding]:
     # catches a capability CLASS the envelope never contained at all.
     attested_caps = entry.get("capabilities")
     if attested_caps is not None:
-        attested_set = set(attested_caps)
-        observed_caps = ev.get("capabilities") or []
-        if isinstance(observed_caps, str):
-            observed_caps = [observed_caps]
-        # Deduplicate deterministically so a token observed twice in one event is
-        # one finding per distinct out-of-envelope capability, not one per mention.
-        for cap in sorted(set(observed_caps)):
-            if cap in MODELED_CAPABILITIES and cap not in attested_set:
-                out.append(_mk(
-                    "DRF-008", name,
-                    f"exercised capability '{cap}' outside its attested envelope "
-                    f"{sorted(attested_set)} - the running server did something the "
-                    "reviewed design never authorized",
-                    event_no,
-                ))
+        # One finding per distinct out-of-envelope capability. The comparison
+        # (str->list normalization, dedup, fail-closed on unknown/malformed) is the
+        # shared helper posture's runtime verification also uses, so the two never
+        # disagree on the same telemetry.
+        for cap in capabilities_outside_envelope(ev.get("capabilities"), attested_caps):
+            out.append(_mk(
+                "DRF-008", name,
+                f"exercised capability '{cap}' outside its attested envelope "
+                f"{sorted(set(attested_caps))} - the running server did something the "
+                "reviewed design never authorized",
+                event_no,
+            ))
 
     # DRF-011 - the runtime half of CB4A TM-11 (broker bypass). The attested
     # design routes this server through a credential broker (compile marked it

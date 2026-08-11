@@ -430,6 +430,8 @@ attestral attest --verify ./my-project --runtime events.jsonl --public-key demo.
 attestral posture ./my-project --gen-key demo --signer "Ada L"
 attestral posture ./my-project --key demo.key -o agent-posture.json
 attestral posture --verify ./my-project --public-key demo.pub -o agent-posture.json
+attestral posture ./my-project --against agent-posture.json --fail-on-widen  # CI gate: fail if the agent gained a capability/trifecta/reach vs the signed baseline
+attestral posture --verify ./my-project --runtime events.jsonl -o agent-posture.json  # runtime check: fail if the agent exercised a capability outside its attested envelope
 
 # INCIDENT: after a drift incident, bind the replay reconstruction - policy digest,
 # event stream, containment-journal chain head, final verdict - into ONE signed

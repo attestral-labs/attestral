@@ -49,6 +49,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   `attestral[sign]` extra. The vocabulary - a structured, signed statement of an agent's capability
   posture - is the contribution (whitespace #4): a per-resource linter has no capability model to attest.
   New posture.py, 9 tests. No rule change.
+- **`attestral posture --against <signed-prior> --fail-on-widen`: a capability-posture narrowing gate.**
+  Fails a change (exit 3) if the design WIDENS the attested capability envelope - a new capability class,
+  a newly-formed lethal trifecta, or a new named cross-boundary reach - versus a prior signed posture. A
+  narrowing (capabilities removed) never fails. Distinct from `design-diff` (which compares two checkouts):
+  this gates against a *signed, portable baseline* you commit, so every PR must either not grant the agent
+  new capabilities or re-attest the posture. 5 more tests.
+- **`attestral posture --verify --runtime <events>`: verify the runtime stayed within the attested
+  capability envelope.** Turns the signed posture from a design-time *claim* into one checked against what
+  the agent actually did: a telemetry event that positively exercised a modeled capability class the
+  posture never attested is a violation (the agent did more than it attested), and the command exits
+  non-zero. Fleet-level complement to drift's per-server DRF-008, same fail-closed contract - an absent or
+  unknown `capabilities` field never raises a false violation. 6 more tests.
 - **ATL-171 (critical): an MCP server whose launch command fetches and executes remote code** - the
   config-injection RCE class behind the 2026 coding-agent incidents (TrustFall, poisoned repo-shipped
   `.mcp.json`). A launch command that pipes a download into a shell (`curl … | sh`, `wget -qO- … | bash`,
