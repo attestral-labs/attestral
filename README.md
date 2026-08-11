@@ -331,6 +331,7 @@ full lifecycle, containment and forensics included:
 flowchart TB
     DES["Design<br/>(Terraform · K8s · MCP · prompts · skills)"] --> SCAN["scan -> findings + evidence chain<br/>(SHA-256, Ed25519-signable)"]
     SCAN --> ATT["attest: signed conformance statement<br/>design + policies + runtime verdict"]
+    SCAN --> POS["posture: signed capability posture<br/>envelope + lethal trifecta + cross-boundary reach<br/>an in-toto predicate a cosign/Kyverno gate verifies"]
     SCAN --> CMP["compile: default-deny policy<br/>mcp-guard · Cedar · agentgateway (CB4A) · claude-managed · copilot-registry"]
     CMP --> ENF["attestral guard<br/>enforcement point: a stdio MCP proxy that<br/>refuses a denied server + gates every call<br/>(or any policy consumer: mcp-guard, Cedar)"]
     ENF -->|telemetry| DRIFT["drift: every event judged against the<br/>ORIGINAL attested policy - detection never moves"]
@@ -422,6 +423,13 @@ attestral drift policy.yaml events.jsonl --replay --journal live.yaml.journal.js
 # verdict into ONE signed conformance attestation a third party can verify offline
 attestral attest ./my-project --runtime events.jsonl --gen-key demo --signer "Ada L" -o attestation.json
 attestral attest --verify ./my-project --runtime events.jsonl --public-key demo.pub -o attestation.json
+
+# POSTURE: sign WHAT the agent can do - its capability envelope, whether the fleet
+# forms a lethal trifecta, and the named cloud it can reach - as an in-toto predicate
+# a cosign/Kyverno gate verifies offline (agent-capability-posture/v1)
+attestral posture ./my-project --gen-key demo --signer "Ada L"
+attestral posture ./my-project --key demo.key -o agent-posture.json
+attestral posture --verify ./my-project --public-key demo.pub -o agent-posture.json
 
 # INCIDENT: after a drift incident, bind the replay reconstruction - policy digest,
 # event stream, containment-journal chain head, final verdict - into ONE signed

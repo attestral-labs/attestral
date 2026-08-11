@@ -1985,6 +1985,70 @@ def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key:
 
 
 @main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--key", "key_path", type=click.Path(exists=True), default=None,
+              help="Ed25519 private key (PEM) to sign the posture with.")
+@click.option("--gen-key", "gen_key", default=None, metavar="STEM",
+              help="Generate a keypair to STEM.key + STEM.pub and exit.")
+@click.option("--signer", default="", help="Identity to record in the posture.")
+@click.option("--verify", "do_verify", is_flag=True,
+              help="Verify an existing posture (-o) by re-deriving it from PATH.")
+@click.option("--public-key", type=click.Path(exists=True), default=None,
+              help="Ed25519 public key (PEM) to check the posture's signature against.")
+@click.option("-o", "--output", default="agent-posture.json",
+              help="Bundle path to write (or read with --verify).")
+def posture(path: str, key_path: str | None, gen_key: str | None, signer: str,
+            do_verify: bool, public_key: str | None, output: str) -> None:
+    """Emit or verify a signed agent-capability-posture predicate for PATH.
+
+    Answers the question a platform or another agent asks BEFORE it trusts a tool:
+    what is this agent's capability envelope, does its tool fleet form a lethal
+    trifecta, and what named cloud infrastructure can it reach? It binds that
+    posture to the design digest and signs it as an in-toto predicate
+    (agent-capability-posture/v1) in the same DSSE envelope attest/sign use, so a
+    gate - cosign, a Kyverno policy, an admission controller - can verify the
+    agent's declared capabilities offline, without trusting the runtime.
+
+    `--verify` re-derives the posture from the supplied design and compares every
+    bound field plus the signature, so a design that gained a capability, formed a
+    trifecta, or opened a cross-boundary reach since signing FAILS to verify.
+    """
+    from attestral.posture import (build_posture_bundle, render_posture,
+                                   verify_posture)
+    if gen_key:
+        from attestral.signing import generate_keypair
+        priv, pub = generate_keypair()
+        Path(f"{gen_key}.key").write_text(priv)
+        Path(f"{gen_key}.pub").write_text(pub)
+        click.echo(f"wrote {gen_key}.key + {gen_key}.pub")
+        return
+
+    if do_verify:
+        bundle = json.loads(Path(output).read_text())
+        pub = Path(public_key).read_text() if public_key else None
+        ok, failures = verify_posture(bundle, path, public_pem=pub)
+        if ok:
+            click.echo("posture VERIFIED - the supplied design re-derives to the "
+                       "attested capability posture")
+            if public_key is None:
+                click.echo("  (signature not checked; pass --public-key to verify authenticity)")
+            sys.exit(0)
+        click.echo("posture FAILED - the design no longer matches the attested "
+                   f"posture: {', '.join(failures)}", err=True)
+        sys.exit(1)
+
+    priv = Path(key_path).read_text() if key_path else None
+    now = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+    bundle = build_posture_bundle(path, private_pem=priv, signer=signer, generated_at=now)
+    stmt = dict(bundle["statement"])
+    stmt["_envelope_present"] = bundle["envelope"] is not None
+    click.echo(render_posture(stmt))
+    Path(output).write_text(json.dumps(bundle, indent=2))
+    click.echo(f"\nwrote {output}"
+               + ("" if priv else "  (unsigned; pass --key to sign)"))
+
+
+@main.command()
 @click.argument("policy_file", type=click.Path(exists=True))
 @click.argument("events_file", type=click.Path(exists=True))
 @click.option("--journal", "journal_file", type=click.Path(exists=True), default=None,

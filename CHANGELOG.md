@@ -35,6 +35,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   Benchmark recall 164/164 and 0 false positives held; no rule change. 4 tests (test_capability_hints.py).
 
 ### Added
+- **`attestral posture`: a signed agent-capability-posture predicate - WHAT the agent can do, attested.**
+  Where `attest` proves "the runtime matches the reviewed design," `posture` answers the earlier question
+  a platform or another agent asks *before* it trusts a tool: the agent's capability envelope (the union
+  of capability classes across its tool surfaces), whether its fleet forms a lethal trifecta, and the
+  named cloud/cluster infrastructure it can reach (the ATL-222 substrate). It binds that to the design
+  digest and DSSE-signs it as an in-toto predicate (`predicateType
+  https://attestral.dev/predicate/agent-capability-posture/v1`) in the same envelope `attest`/`sign` use,
+  so a gate - cosign, a Kyverno policy, an admission controller - can verify the agent's declared
+  capabilities offline, without trusting the runtime or re-running the scanner. `--verify` re-derives the
+  posture from the design and fails if the design gained a capability, formed a trifecta, or opened a
+  cross-boundary reach since signing. Zero-dep structure and re-derivation; only the signature needs the
+  `attestral[sign]` extra. The vocabulary - a structured, signed statement of an agent's capability
+  posture - is the contribution (whitespace #4): a per-resource linter has no capability model to attest.
+  New posture.py, 9 tests. No rule change.
 - **ATL-171 (critical): an MCP server whose launch command fetches and executes remote code** - the
   config-injection RCE class behind the 2026 coding-agent incidents (TrustFall, poisoned repo-shipped
   `.mcp.json`). A launch command that pipes a download into a shell (`curl … | sh`, `wget -qO- … | bash`,
