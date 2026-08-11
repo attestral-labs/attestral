@@ -28,6 +28,23 @@ CAPABILITY_CLASSES = frozenset({
 })
 
 
+def capabilities_outside_envelope(observed, envelope) -> list[str]:
+    """The MODELED capability tokens in `observed` that `envelope` does not contain,
+    deduped and sorted. The single fail-closed comparison shared by drift's
+    per-server DRF-008 and posture's fleet-level runtime verification, so the two
+    can never disagree on the same telemetry. Fail-closed: a bare string is treated
+    as one token, and ANY other non-list value (a number, an object, None) yields
+    nothing - unclassified telemetry never raises a false violation - and only
+    tokens in CAPABILITY_CLASSES ever count."""
+    if isinstance(observed, str):
+        observed = [observed]
+    elif not isinstance(observed, (list, tuple)):
+        return []
+    env = set(envelope)
+    return [c for c in sorted({str(x) for x in observed})
+            if c in CAPABILITY_CLASSES and c not in env]
+
+
 class Severity(str, Enum):
     CRITICAL = "critical"
     HIGH = "high"

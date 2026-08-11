@@ -1993,12 +1993,24 @@ def attest(path: str, runtime_events: str | None, key_path: str | None, gen_key:
 @click.option("--signer", default="", help="Identity to record in the posture.")
 @click.option("--verify", "do_verify", is_flag=True,
               help="Verify an existing posture (-o) by re-deriving it from PATH.")
+@click.option("--runtime", "runtime_events", type=click.Path(exists=True), default=None,
+              help="With --verify: also check a JSONL telemetry stream stayed within the "
+                   "attested capability envelope - a call exercising a capability the "
+                   "posture never attested is a violation (the agent did more than it "
+                   "attested).")
 @click.option("--public-key", type=click.Path(exists=True), default=None,
               help="Ed25519 public key (PEM) to check the posture's signature against.")
+@click.option("--against", "prior", type=click.Path(exists=True), default=None,
+              help="A prior posture bundle to gate against: report how this design "
+                   "WIDENS the attested capability envelope (new capability, trifecta, "
+                   "or cross-boundary reach). A narrowing never fails.")
+@click.option("--fail-on-widen", "fail_on_widen", is_flag=True,
+              help="With --against: exit non-zero (3) if the posture widened (CI gate).")
 @click.option("-o", "--output", default="agent-posture.json",
               help="Bundle path to write (or read with --verify).")
 def posture(path: str, key_path: str | None, gen_key: str | None, signer: str,
-            do_verify: bool, public_key: str | None, output: str) -> None:
+            do_verify: bool, runtime_events: str | None, public_key: str | None,
+            prior: str | None, fail_on_widen: bool, output: str) -> None:
     """Emit or verify a signed agent-capability-posture predicate for PATH.
 
     Answers the question a platform or another agent asks BEFORE it trusts a tool:
@@ -2013,8 +2025,17 @@ def posture(path: str, key_path: str | None, gen_key: str | None, signer: str,
     bound field plus the signature, so a design that gained a capability, formed a
     trifecta, or opened a cross-boundary reach since signing FAILS to verify.
     """
-    from attestral.posture import (build_posture_bundle, render_posture,
-                                   verify_posture)
+    from attestral.posture import (build_posture_bundle, posture_delta,
+                                   render_posture, render_posture_delta,
+                                   verify_posture, verify_posture_runtime)
+    if fail_on_widen and not prior:
+        raise click.UsageError("--fail-on-widen gates a --against comparison; pass --against.")
+    if runtime_events and not do_verify:
+        raise click.UsageError("--runtime checks a stream against an attested posture; "
+                               "pass --verify as well.")
+    if do_verify and prior:
+        raise click.UsageError("--verify re-derives an existing posture; --against builds a "
+                               "new one and gates widening. Use one mode, not both.")
     if gen_key:
         from attestral.signing import generate_keypair
         priv, pub = generate_keypair()
@@ -2027,15 +2048,51 @@ def posture(path: str, key_path: str | None, gen_key: str | None, signer: str,
         bundle = json.loads(Path(output).read_text())
         pub = Path(public_key).read_text() if public_key else None
         ok, failures = verify_posture(bundle, path, public_pem=pub)
-        if ok:
+        runtime_ok, violations, malformed = True, [], 0
+        if runtime_events:
+            from attestral.drift import load_jsonl
+            events, malformed = load_jsonl(runtime_events)
+            runtime_ok, violations = verify_posture_runtime(
+                bundle.get("statement") or {}, events)
+            # A malformed telemetry line was dropped, so a violating call on it went
+            # unexamined - conformance cannot be claimed over unparseable telemetry.
+            if malformed:
+                runtime_ok = False
+        if ok and runtime_ok:
             click.echo("posture VERIFIED - the supplied design re-derives to the "
                        "attested capability posture")
+            if runtime_events:
+                click.echo("  runtime CONFORMS - every observed capability is within "
+                           "the attested envelope")
             if public_key is None:
                 click.echo("  (signature not checked; pass --public-key to verify authenticity)")
             sys.exit(0)
-        click.echo("posture FAILED - the design no longer matches the attested "
-                   f"posture: {', '.join(failures)}", err=True)
+        if not ok:
+            click.echo("posture FAILED - the design no longer matches the attested "
+                       f"posture: {', '.join(failures)}", err=True)
+        shown = violations[:8]
+        for v in shown:
+            click.echo(f"  runtime VIOLATION - event #{v['event']} server "
+                       f"'{v['server']}' exercised '{v['capability']}' outside the "
+                       "attested capability envelope", err=True)
+        if len(violations) > len(shown):
+            click.echo(f"  (+{len(violations) - len(shown)} more violation(s))", err=True)
+        if malformed:
+            click.echo(f"  runtime UNVERIFIABLE - {malformed} malformed telemetry line(s) "
+                       "could not be parsed; conformance cannot be claimed", err=True)
         sys.exit(1)
+
+    # Read the prior baseline BEFORE any write, so a rolling baseline (-o equal to
+    # --against) is compared to its old contents, not clobbered and compared to
+    # itself. A prior that is not a posture bundle is a hard usage error, never a
+    # silent all-widened verdict.
+    prior_pred = None
+    if prior:
+        prior_pred = ((json.loads(Path(prior).read_text()).get("statement") or {})
+                      .get("predicate"))
+        if not isinstance(prior_pred, dict) or "capabilityEnvelope" not in prior_pred:
+            raise click.UsageError(f"--against {prior} is not a posture bundle "
+                                   "(no agent-capability-posture predicate).")
 
     priv = Path(key_path).read_text() if key_path else None
     now = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
@@ -2043,9 +2100,22 @@ def posture(path: str, key_path: str | None, gen_key: str | None, signer: str,
     stmt = dict(bundle["statement"])
     stmt["_envelope_present"] = bundle["envelope"] is not None
     click.echo(render_posture(stmt))
+
+    delta = (posture_delta(prior_pred, bundle["statement"]["predicate"])
+             if prior_pred is not None else None)
+    # Gate BEFORE writing, so a widening that fails the gate never overwrites the
+    # baseline it was supposed to be held against.
+    if delta is not None and fail_on_widen and delta["widened"]:
+        click.echo("")
+        click.echo(render_posture_delta(delta))
+        sys.exit(3)
+
     Path(output).write_text(json.dumps(bundle, indent=2))
     click.echo(f"\nwrote {output}"
                + ("" if priv else "  (unsigned; pass --key to sign)"))
+    if delta is not None:
+        click.echo("")
+        click.echo(render_posture_delta(delta))
 
 
 @main.command()
