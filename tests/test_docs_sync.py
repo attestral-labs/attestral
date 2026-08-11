@@ -73,6 +73,7 @@ DIAGRAM_KEYWORDS = {
     "guard.py": "attestral guard",
     "lockdown.py": "lockdown",
     "attest.py": "conformance attestation",
+    "posture.py": "capability posture",
     "incident.py": "incident attestation",
 }
 # Wiring, not pipeline stages: no diagram box expected.
