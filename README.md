@@ -480,6 +480,9 @@ attestral fleet ./repo-a ./repo-b ./repo-c                 # ATL-213: cross-repo
 ```bash
 pip install attestral
 
+attestral scan examples/first-run                     # START HERE: a normal-looking .mcp.json that
+                                                      # hides a lethal trifecta (see examples/first-run)
+attestral scan --local                                # then audit the MCP configs on THIS machine
 attestral scan examples/demo-project -o review        # attest  -> review.md + review.json
 attestral verify review.json                          # prove   -> chain VALID
 attestral remediate examples/demo-project             # remediate -> concrete source edit per finding
