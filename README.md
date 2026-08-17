@@ -467,6 +467,7 @@ attestral validate ./my-project -o proof --fail-on-reachable   # write proof.md 
 # Attestral's own stubs only: no live agent, no real secret or network.
 attestral pentest ./my-project
 attestral pentest ./my-project --fail-on-exfil -o pentest.json   # gate CI on a working exploit
+attestral pentest ./my-project --isolation container             # strongest jail: docker --network none
 
 # CLOSE THE LOOP: compile the runtime policy, but first run the executed pentest and
 # DENY any server whose egress carried a proven canary out. static review ->

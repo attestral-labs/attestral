@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Red-team, executed - Attestral</title>
+<meta name="description" content="Attestral does not just say a path is exploitable. It runs the exploit: an isolated sandbox agent reads a planted canary and tries to exfiltrate it, a parent-side oracle measures whether it left, and the egress guard proves the run was contained. A proven exploit then becomes a runtime deny.">
+<link rel="canonical" href="https://attestral.vercel.app/redteam.html">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<meta property="og:title" content="Attestral - red-team, executed">
+<meta property="og:description" content="Not 'this might be exploitable' - a contained proof-of-exploit, measured in a sandbox, that becomes a runtime deny.">
+<meta property="og:url" content="https://attestral.vercel.app/redteam.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--paper:#F3F4F1;--ink:#171F1C;--seal:#96222E;--rule:#D3D6D0;--muted:#5D6660;--verify:#1F6A4A;--card:#FBFBF9;--term-bg:#171F1C;--us-tint:rgba(150,34,46,.045);--display:'Libre Caslon Text',Georgia,serif;--body:'Public Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--high:#9A5B00}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#12160F;--ink:#E9ECE4;--seal:#E06B76;--rule:#2B3129;--muted:#9BA79C;--verify:#5FBE90;--card:#1A1F16;--term-bg:#0B0E08;--us-tint:rgba(224,107,118,.07);--high:#E0A458}}
+  :root[data-theme="dark"]{--paper:#12160F;--ink:#E9ECE4;--seal:#E06B76;--rule:#2B3129;--muted:#9BA79C;--verify:#5FBE90;--card:#1A1F16;--term-bg:#0B0E08;--us-tint:rgba(224,107,118,.07);--high:#E0A458}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:var(--seal)} code{font-family:var(--mono);font-size:.88em}
+  a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  .theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--ink);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  header{border-bottom:1px solid var(--rule)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--display);font-size:1.35rem;font-weight:700;letter-spacing:.01em;color:var(--ink);text-decoration:none}
+  .wordmark span{color:var(--seal)} .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .nav-links{display:flex;gap:20px;font-size:.9rem;flex-wrap:wrap;align-items:center}
+  .nav-links a{color:var(--ink);text-decoration:none} .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal);border-bottom:2px solid var(--seal);padding-bottom:2px}
+  /*navgroup-css*/
+  .nav-group{position:relative;display:inline-flex;align-items:center}
+  .nav-group-label{color:var(--ink);cursor:default;display:inline-flex;align-items:center;gap:6px}
+  .nav-group-label::after{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-1px) rotate(45deg);opacity:.55}
+  .nav-group:hover .nav-group-label,.nav-group:focus-within .nav-group-label{color:var(--seal)}
+  .nav-menu{position:absolute;top:calc(100% + 12px);left:-12px;min-width:186px;background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:7px 0;display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .14s ease,transform .14s ease;z-index:70;box-shadow:0 14px 34px -20px rgba(0,0,0,.55)}
+  .nav-group:hover .nav-menu,.nav-group:focus-within .nav-menu{opacity:1;visibility:visible;transform:none}
+  .nav-menu a{padding:7px 18px;white-space:nowrap;font-size:.9rem;border-bottom:none !important}
+  .nav-menu a:hover{background:var(--us-tint);color:var(--seal)}
+  .nav-menu a[aria-current="page"]{color:var(--seal);border-bottom:none !important;padding-bottom:7px}
+  .nav-cta{border:1px solid var(--seal);color:var(--seal) !important;padding:5px 13px;border-radius:2px}
+  .nav-cta:hover{background:var(--seal);color:var(--paper) !important}
+  @media(max-width:680px){.nav-group{display:block;width:100%}.nav-menu{position:static;opacity:1;visibility:visible;transform:none;box-shadow:none;border:none;background:transparent;padding:2px 0 6px 14px;min-width:0}.nav-menu a{padding:4px 0}}
+  /*end-navgroup-css*/
+  @media(max-width:680px){.nav{flex-wrap:wrap;gap:6px 14px}.nav-links{gap:12px 14px}}
+
+  .hero{padding:64px 0 30px;border-bottom:1px solid var(--rule)}
+  .eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--seal)}
+  h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,5.2vw,3.4rem);line-height:1.08;margin:16px 0;max-width:18ch}
+  h1 em{font-style:italic;color:var(--seal)}
+  .lede{max-width:64ch;color:var(--muted);font-size:1.08rem}
+  .cmd{display:flex;align-items:center;gap:12px;margin-top:26px;flex-wrap:wrap}
+  .cmd code{background:var(--term-bg);color:#E9ECE4;font-family:var(--mono);font-size:.92rem;padding:12px 16px;border-radius:2px;display:inline-block}
+  .copy{background:transparent;border:1px solid var(--rule);color:var(--muted);font-family:var(--mono);font-size:.78rem;padding:9px 12px;border-radius:2px;cursor:pointer}
+  .copy:hover{border-color:var(--seal);color:var(--seal)}
+
+  /* executed-attack diagram */
+  .rt-diagram{margin-top:30px;border:1px solid var(--rule);border-radius:2px;background:var(--card);padding:22px 18px 16px}
+  .rt-diagram svg{width:100%;height:auto;display:block}
+  .rt-node{fill:var(--card);stroke:var(--rule);stroke-width:1}
+  .rt-node.ext{opacity:.55} .rt-node.sink{stroke:var(--verify)}
+  .rt-box{fill:none;stroke:var(--seal);stroke-width:1.2;stroke-dasharray:6 5;opacity:.65}
+  .rt-t{font-family:var(--body);font-size:14px;fill:var(--ink)}
+  .rt-s{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+  .rt-l{font-family:var(--mono);font-size:11px;letter-spacing:.05em;fill:var(--muted)}
+  .rt-l.seal{fill:var(--seal)} .rt-l.good{fill:var(--verify)}
+  .rt-flow{fill:none;stroke:var(--muted);stroke-width:1.6}
+  .rt-flow.dead{stroke:var(--rule);stroke-dasharray:5 5}
+  .rt-flow.live{stroke:var(--seal);opacity:.7}
+  .rt-guard{fill:var(--seal)}
+  .rt-tok{fill:var(--seal)}
+  .rt-pill{fill:var(--seal);opacity:.14;stroke:var(--seal);stroke-width:1}
+  .rt-arrow{fill:var(--muted)}
+  .rt-rest{display:none}
+  @media (prefers-reduced-motion:reduce){.rt-motion{display:none}.rt-rest{display:inline}}
+  .rt-legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .rt-legend span{display:inline-flex;align-items:center;gap:7px}
+  .rt-legend i{width:11px;height:11px;display:inline-block}
+  .rt-legend i.dot{border-radius:50%}
+
+  section{padding:52px 0;border-bottom:1px solid var(--rule)}
+  h2{font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,3.4vw,2.1rem);line-height:1.15;max-width:24ch}
+  .sec-lede{max-width:64ch;color:var(--muted);margin-top:12px}
+  .kicker{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
+  .card{border:1px solid var(--rule);border-radius:2px;background:var(--card);padding:22px}
+  .card h3{font-family:var(--display);font-weight:400;font-size:1.24rem;margin-bottom:8px}
+  .card .tag{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .card p{font-size:.95rem;color:var(--muted);margin-top:8px}
+  .card.exec{border-color:var(--seal);border-width:1.5px}
+  .card.exec .tag{color:var(--seal)}
+
+  .term{background:var(--term-bg);color:#D7DBD2;font-family:var(--mono);font-size:.85rem;line-height:1.6;border-radius:2px;padding:20px 22px;overflow-x:auto;margin-top:26px}
+  .term .p{color:#8C978C}
+  .term .c{color:#E9ECE4}
+  .term .ok{color:#5FBE90}
+  .term .bad{color:#E06B76}
+  .term .dim{color:#6E786E}
+
+  table{width:100%;border-collapse:collapse;margin-top:26px;font-size:.92rem}
+  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+  thead th{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  td .mono{font-family:var(--mono);font-size:.84rem}
+  tr.strong td:first-child{color:var(--seal)}
+
+  .loop{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:10px;margin-top:28px}
+  .loop .node{border:1px solid var(--rule);border-radius:2px;background:var(--card);padding:16px 18px}
+  .loop .node .n{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--seal)}
+  .loop .node h4{font-family:var(--display);font-weight:400;font-size:1.06rem;margin:6px 0 4px}
+  .loop .node p{font-size:.86rem;color:var(--muted)}
+  .loop .arrow{color:var(--muted);text-align:center;font-family:var(--mono)}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}.loop{grid-template-columns:1fr}.loop .arrow{transform:rotate(90deg)}}
+
+  .stat{display:flex;gap:34px;flex-wrap:wrap;margin-top:26px}
+  .stat .n{font-family:var(--display);font-size:2.6rem;line-height:1;color:var(--seal)}
+  .stat .l{font-size:.9rem;color:var(--muted);max-width:20ch;margin-top:6px}
+
+  .note{border-left:2px solid var(--rule);padding:4px 0 4px 18px;margin-top:22px;color:var(--muted);max-width:66ch;font-size:.96rem}
+  .note b{color:var(--ink);font-weight:600}
+
+  .cta{padding:56px 0}
+  .cta h2{max-width:22ch}
+  .btnrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+  .btn{display:inline-block;padding:11px 20px;border-radius:2px;text-decoration:none;font-size:.95rem}
+  .btn.primary{background:var(--seal);color:var(--paper)}
+  .btn.ghost{border:1px solid var(--rule);color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--seal);color:var(--seal)}
+
+  footer{border-top:1px solid var(--rule)}
+  .foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:30px 0;font-size:.86rem;color:var(--muted)}
+  .foot a{color:var(--seal)} .foot-labs{display:flex;align-items:center;gap:10px}
+</style>
+<script>try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <div class="nav-group">
+        <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Product</span>
+        <div class="nav-menu">
+          <a href="capabilities.html">Capabilities</a>
+          <a href="pipeline.html">Pipeline</a>
+          <a href="system.html">System</a>
+          <a href="review.html">Review layers</a>
+          <a href="architecture.html">Architecture</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Prove it</span>
+        <div class="nav-menu">
+          <a href="proof.html">Proof</a>
+          <a href="redteam.html" aria-current="page">Red-team</a>
+          <a href="runtime.html">Runtime</a>
+        </div>
+      </div>
+      <a href="research.html">Research</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a class="nav-cta" href="index.html#start">Get started</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="hero" style="border-bottom:none">
+      <div class="eyebrow">Red-team &middot; executed, contained</div>
+      <h1>We don't say it's exploitable. We <em>run</em> the exploit.</h1>
+      <p class="lede">Reachability tells you a path exists in the design. Attestral goes one step further and executes it: an isolated sandbox agent reads a planted canary and tries to exfiltrate it, a parent-side oracle measures whether it actually left, and an egress guard proves the run stayed contained. A proven exploit then compiles into a runtime deny.</p>
+      <div class="cmd">
+        <code id="cmd1">attestral pentest ./my-project</code>
+        <button class="copy" data-copy="attestral pentest ./my-project">Copy</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="kicker">What actually happens</div>
+      <h2>One run, two measured facts.</h2>
+      <p class="sec-lede">The sandbox agent reads a planted canary and tries to exfiltrate it. The real outbound to the attacker host is stopped at the egress guard, so the run stays contained. The canary still reaches the instrumented sink the harness watches, so exfiltration is proven. Both are observed in the run, not asserted.</p>
+      <div class="rt-diagram">
+        <svg viewBox="0 0 940 400" role="img" aria-label="An isolated sandbox agent reads a planted canary. Its real outbound to the attacker host is blocked by the egress guard, so the run is contained, while the canary reaches the instrumented sink, so exfiltration is proven.">
+          <defs>
+            <marker id="rtah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="rt-arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <!-- sandbox boundary -->
+          <text class="rt-l seal" x="44" y="48">isolated sandbox &middot; its own OS process</text>
+          <rect class="rt-box" x="30" y="60" width="544" height="308" rx="10"/>
+          <!-- nodes inside -->
+          <rect class="rt-node" x="56" y="150" width="128" height="56" rx="4"/>
+          <text class="rt-t" x="120" y="183" text-anchor="middle">untrusted input</text>
+          <rect class="rt-node" x="236" y="140" width="152" height="80" rx="4"/>
+          <text class="rt-t" x="312" y="174" text-anchor="middle">stub agent</text>
+          <text class="rt-s" x="312" y="196" text-anchor="middle">reads the secret</text>
+          <rect class="rt-node" x="236" y="270" width="188" height="62" rx="4"/>
+          <text class="rt-s" x="330" y="291" text-anchor="middle">secret store</text>
+          <rect class="rt-pill" x="292" y="300" width="76" height="22" rx="11"/>
+          <text class="rt-l seal" x="330" y="315" text-anchor="middle">canary</text>
+          <!-- internal arrows -->
+          <line class="rt-flow" x1="184" y1="178" x2="230" y2="178" marker-end="url(#rtah)"/>
+          <line class="rt-flow" x1="312" y1="270" x2="312" y2="226" marker-end="url(#rtah)"/>
+          <!-- egress guard at the boundary -->
+          <rect class="rt-guard" x="568" y="120" width="6" height="60"/>
+          <text class="rt-l seal" x="571" y="112" text-anchor="middle">egress guard</text>
+          <text class="rt-l seal" x="571" y="200" text-anchor="middle">blocked</text>
+          <!-- external nodes -->
+          <rect class="rt-node ext" x="706" y="94" width="204" height="64" rx="4"/>
+          <text class="rt-t" x="808" y="120" text-anchor="middle">attacker host</text>
+          <text class="rt-s" x="808" y="140" text-anchor="middle">(real network)</text>
+          <rect class="rt-node sink" x="706" y="252" width="204" height="64" rx="4"/>
+          <text class="rt-t" x="808" y="278" text-anchor="middle">instrumented sink</text>
+          <text class="rt-s" x="808" y="298" text-anchor="middle">(oracle)</text>
+          <!-- flows -->
+          <path class="rt-flow live" d="M388,168 L562,150"/>
+          <path class="rt-flow dead" d="M576,146 L706,126"/>
+          <text class="rt-l" x="452" y="140" text-anchor="middle">real outbound</text>
+          <path class="rt-flow live" d="M424,300 C560,300 620,286 706,284"/>
+          <text class="rt-l" x="548" y="332" text-anchor="middle">canary &#8594; egress channel</text>
+          <text class="rt-l good" x="808" y="336" text-anchor="middle">exfiltrated</text>
+          <!-- animated tokens -->
+          <g class="rt-motion">
+            <circle class="rt-tok" r="6"><animateMotion dur="3.6s" repeatCount="indefinite" path="M424,300 C560,300 620,286 706,284"/></circle>
+            <circle class="rt-tok" r="6">
+              <animateMotion dur="3.6s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.5;1" path="M388,168 L562,150"/>
+              <animate attributeName="opacity" dur="3.6s" repeatCount="indefinite" values="1;1;0;0" keyTimes="0;0.48;0.52;1"/>
+            </circle>
+            <circle cx="808" cy="284" fill="none" stroke="var(--verify)" stroke-width="2" r="30">
+              <animate attributeName="r" dur="3.6s" repeatCount="indefinite" values="30;54"/>
+              <animate attributeName="opacity" dur="3.6s" repeatCount="indefinite" values="0.5;0"/>
+            </circle>
+            <circle cx="571" cy="150" fill="none" stroke="var(--seal)" stroke-width="2" r="6">
+              <animate attributeName="r" dur="3.6s" repeatCount="indefinite" values="6;18"/>
+              <animate attributeName="opacity" dur="3.6s" repeatCount="indefinite" values="0;0.7;0" keyTimes="0;0.52;1"/>
+            </circle>
+          </g>
+          <g class="rt-rest">
+            <circle class="rt-tok" cx="706" cy="284" r="6"/>
+            <circle class="rt-tok" cx="560" cy="150" r="6" opacity="0.5"/>
+          </g>
+        </svg>
+        <div class="rt-legend">
+          <span><i class="dot" style="background:var(--seal)"></i>canary token</span>
+          <span><i style="background:var(--seal)"></i>egress guard blocks the real outbound</span>
+          <span><i class="dot" style="background:var(--verify)"></i>instrumented sink receives the canary</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="kicker">Three tiers, one schema</div>
+      <h2>From "a path exists" to "the canary left, and here is the transcript."</h2>
+      <p class="sec-lede">Each tier is deterministic and offline, and each builds on the one before it. The first two describe the attack; the third runs it.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="tag">Tier 0 &middot; symbolic</div>
+          <h3>Reachable</h3>
+          <p>Walk the attack path over the model's own edges. Every rung is a capability the design declares. Deterministic, no execution, committed to the evidence chain.</p>
+        </div>
+        <div class="card">
+          <div class="tag">Tier 1 &middot; generative</div>
+          <h3>Predicted</h3>
+          <p>An LLM drafts the injection text and the predicted tool-call sequence for the proven path, validated structurally against the model so it cannot wander off it. Labeled predicted, never executed.</p>
+        </div>
+        <div class="card exec">
+          <div class="tag">Tier 2 &middot; executed</div>
+          <h3>Proven</h3>
+          <p>Spawn an isolated sandbox agent, plant a canary, and let it try to exfiltrate. Two facts get measured, not narrated: did the canary reach the sink, and was the real outbound blocked.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="kicker">The executed harness</div>
+      <h2>Measured, not asserted.</h2>
+      <p class="sec-lede">The oracle lives in the parent process, so exfiltration is something the harness observes, not something the sandbox reports about itself. The attacker host is a real outbound that the egress guard blocks, so the exploit is demonstrated and contained in the same run.</p>
+      <div class="term" aria-label="Terminal output of attestral pentest">
+<span class="p">$</span> <span class="c">attestral pentest ./my-project</span>
+Executed pentest (tier 2 - 1 path(s), isolated sandbox, planted canary, no live target)
+  internal path  canary ATTESTRAL-CANARY-82abe9a5d4  <span class="dim">(isolated subprocess)</span>
+    1. <span class="dim">entry:</span> web   ingests content carrying an injected instruction (canary bait)
+       <span class="dim">observed:</span> instruction accepted by the stub agent
+    2. <span class="dim">pivot:</span> ops   reads the planted secret (stub filesystem: ~/.ssh/id_rsa)
+       <span class="dim">observed:</span> read planted canary ATTESTRAL-CANARY-82abe9a5d4
+    3. <span class="dim">impact:</span> web  POST canary to the attacker host (real outbound)
+       <span class="dim">observed:</span> <span class="ok">blocked by the sandbox egress guard (contained)</span>
+    4. <span class="dim">impact:</span> web  carry the secret out via the modeled egress channel
+       <span class="dim">observed:</span> sent to the instrumented sink
+    <span class="bad">EXFILTRATED: the canary reached the sink</span>
+    <span class="ok">CONTAINED: the real outbound was blocked by the guard</span>
+      </div>
+      <p class="note"><b>Own stubs only.</b> The harness runs Attestral's own stub agents with a planted canary. No live agent, no real secret, no real network. The induced tool sequence is the modeled one, so the run is deterministic; a live-target driver plugs into the same result schema and stays gated.</p>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="kicker">Isolation, strongest last</div>
+      <h2>Pick how hard the jail is.</h2>
+      <p class="sec-lede">One flag, four backends behind one result schema. The default is a real OS process; the strongest removes the network entirely.</p>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Backend</th><th>Isolation</th><th>Exfil oracle</th><th>Containment</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">inprocess</td><td>same process</td><td>loopback sink</td><td>egress guard</td></tr>
+          <tr class="strong"><td class="mono">subprocess</td><td>separate OS process (default)</td><td>loopback sink</td><td>egress guard</td></tr>
+          <tr><td class="mono">hardened</td><td>subprocess in a POSIX jail: new session, isolated cwd, cleared env, CPU / fd / process rlimits</td><td>loopback sink</td><td>egress guard</td></tr>
+          <tr class="strong"><td class="mono">container</td><td><code>docker&nbsp;--network&nbsp;none</code></td><td>mounted volume</td><td>no network at all: real egress is structurally impossible</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="cmd">
+        <code>attestral pentest ./my-project --isolation container</code>
+        <button class="copy" data-copy="attestral pentest ./my-project --isolation container">Copy</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="kicker">Close the loop</div>
+      <h2>A proven exploit becomes a runtime deny.</h2>
+      <p class="sec-lede">This is the arc the rest of the tool is built around, and the part a rule-list scanner or a pure-LLM tool cannot assemble: the design review, the executed proof, and the enforced policy are one pipeline.</p>
+      <div class="loop">
+        <div class="node"><div class="n">Review</div><h4>Model the system</h4><p>Components, edges, trust boundaries. Find the lethal trifecta.</p></div>
+        <div class="arrow">&rarr;</div>
+        <div class="node"><div class="n">Prove</div><h4>Run it in the sandbox</h4><p>The canary leaving the instrumented sink is the ground truth.</p></div>
+        <div class="arrow">&rarr;</div>
+        <div class="node"><div class="n">Enforce</div><h4>Compile a deny</h4><p>The egress server is denied until the path is broken.</p></div>
+      </div>
+      <div class="term" style="margin-top:24px">
+<span class="p">$</span> <span class="c">attestral compile ./my-project --close-loop</span>
+close-loop: 1 path(s) exfiltrated a canary in the sandbox; denying 1 egress server(s) on the proven path(s).
+  <span class="ok">[ALLOW]</span> ops   <span class="dim">before the proof: the egress server was permitted</span>
+  <span class="bad">[DENY ]</span> web   (denied by attested design review: <span class="bad">ATL-RT-EXFIL</span>)
+      </div>
+      <p class="note">Before the proof, the egress server is allowed. After the sandbox proves the canary leaves through it, the compiled default-deny policy denies that exact server, tagged with the proof. Static review, then sandbox-proven exploit, then runtime-enforced deny.</p>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="kicker">On real designs</div>
+      <h2>Run against the fixtures, not just a demo.</h2>
+      <p class="sec-lede">Pointed at the reference designs that ship with Attestral, the harness does not just flag reachable paths. It executes each one.</p>
+      <div class="stat">
+        <div><div class="n">14</div><div class="l">reference designs with a reachable attack path</div></div>
+        <div><div class="n">14</div><div class="l">exfiltrated a canary in the sandbox</div></div>
+        <div><div class="n">14</div><div class="l">stayed contained: the real outbound was blocked every time</div></div>
+      </div>
+      <p class="note">Every executed exploit was also contained. That is the property that makes this safe to run in CI: the proof reaches the instrumented sink, never the outside world. Gate a build with <code>attestral pentest . --fail-on-exfil</code>.</p>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section style="border-bottom:none">
+      <div class="kicker">The honest boundary</div>
+      <h2>What a green run does, and does not, prove.</h2>
+      <p class="sec-lede">A reachable, executed exploit proves the declared design permits the flow to complete against the tool's own stubs. It does not prove a live LLM would follow the injection, that a guardrail or human approval was absent at runtime, or that the design is safe. A clean run over a weak design is still a weak design. The value is that the proof is executed and contained, and it becomes something the runtime policy enforces.</p>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section class="cta" style="border-bottom:none">
+      <div class="eyebrow">Run it</div>
+      <h2>Prove your own agent's exploit in a sandbox.</h2>
+      <div class="cmd">
+        <code>pip install attestral</code>
+        <button class="copy" data-copy="pip install attestral">Copy</button>
+      </div>
+      <div class="btnrow">
+        <a class="btn primary" href="proof.html">See the reachability walker</a>
+        <a class="btn ghost" href="runtime.html">The runtime loop</a>
+        <a class="btn ghost" href="docs.html">Docs</a>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>Attestral: the security scanner for AI agents and MCP servers.<br><code>pip install attestral</code> &middot; Open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a></div>
+    <div class="foot-labs"><svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" fill="var(--ink)"/><circle cx="50" cy="50" r="27.5" fill="none" stroke="var(--paper)" stroke-width="2.2"/><g stroke="var(--paper)" stroke-width="6.5" stroke-linecap="round"><path d="M50,67 L50,33"/><path d="M35.28,58.5 L64.72,41.5"/><path d="M35.28,41.5 L64.72,58.5"/></g></svg>An Attestral Labs project &middot; &copy; 2026 &middot; Apache 2.0</div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.copy').forEach(function(b){b.addEventListener('click',function(){var t=b.getAttribute('data-copy');navigator.clipboard.writeText(t).then(function(){var o=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=o;},1400);});});});
+</script>
+<script>
+  (function(){var root=document.documentElement,KEY='attestral-theme',mq=window.matchMedia('(prefers-color-scheme:dark)'),btn=document.getElementById('themeToggle');if(!btn)return;function a(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}function r(){btn.textContent=a()==='dark'?'☀':'☾';}btn.addEventListener('click',function(){var n=a()==='dark'?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem(KEY,n);}catch(e){}r();});mq.addEventListener('change',r);r();})();
+</script>
+</body>
+</html>

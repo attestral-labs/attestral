@@ -666,16 +666,139 @@ def _pentest_worker(plan: dict, result_q) -> None:
     result_q.put(_run_attack(plan))
 
 
+def _harden() -> None:
+    """Best-effort jail for the sandbox child (POSIX): a new session, an isolated
+    cwd, a cleared environment, and resource ceilings (CPU, file descriptors,
+    processes). Each is a no-op where the primitive is unavailable, so the tier
+    degrades to a plain subprocess rather than failing."""
+    import os
+    import tempfile
+    try:
+        import resource
+    except ImportError:
+        resource = None
+    try:
+        os.setsid()
+    except OSError:
+        pass
+    try:
+        os.chdir(tempfile.mkdtemp(prefix="attestral-jail-"))
+    except OSError:
+        pass
+    keep_path = os.environ.get("PATH", "/usr/bin:/bin")
+    os.environ.clear()
+    os.environ["PATH"] = keep_path
+    if resource is not None:
+        limits = [(resource.RLIMIT_CPU, 15), (resource.RLIMIT_NOFILE, 256)]
+        if hasattr(resource, "RLIMIT_NPROC"):
+            limits.append((resource.RLIMIT_NPROC, 128))
+        for res_id, val in limits:
+            try:
+                resource.setrlimit(res_id, (val, val))
+            except (ValueError, OSError):
+                pass
+
+
+def _pentest_worker_hardened(plan: dict, result_q) -> None:
+    """Hardened child entry point: apply the jail, then run the attack."""
+    _harden()
+    result_q.put(_run_attack(plan))
+
+
+_CONTAINER_IMAGE = "busybox:latest"  # tiny; sh + cat suffice for the staged-exfil oracle
+
+
+def _run_pentest_container(kind: str, canary: str, entry: str, pivot: str, impact: str,
+                           egress_ids: list[str], timeout: float) -> PentestResult:
+    """Strongest tier: run the sandbox agent in a `docker --network none` container.
+
+    With no network interface at all, real egress is structurally impossible, so
+    containment is guaranteed. The exfil oracle moves from a socket to a mounted
+    volume: the agent stages the planted secret to a writable channel and the host
+    reads it. Fails closed (an error, never a hang) when docker or the image is
+    unavailable.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+    base = dict(kind=kind, canary=canary, isolated=True, egress_server_ids=egress_ids)
+    docker = shutil.which("docker")
+    if docker is None:
+        return PentestResult(exfiltrated=False, contained=False,
+                             error="container backend requires docker (not found on PATH)", **base)
+    try:
+        info = subprocess.run([docker, "info"], capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        info = None
+    if info is None or info.returncode != 0:
+        return PentestResult(exfiltrated=False, contained=False,
+                             error="container backend requires a running docker daemon", **base)
+    tmp = tempfile.mkdtemp(prefix="attestral-sb-")
+    try:
+        Path(tmp, "secret").write_text(canary)
+        cmd = [docker, "run", "--rm", "--network", "none", "--read-only",
+               "--tmpfs", "/tmp", "-v", f"{tmp}:/sb", _CONTAINER_IMAGE,
+               "sh", "-c", "cat /sb/secret > /sb/exfil 2>/dev/null || true"]
+        try:
+            run = subprocess.run(cmd, capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return PentestResult(exfiltrated=False, contained=True,
+                                 egress_blocked=["<no network: --network none>"],
+                                 error="container run timed out", **base)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return PentestResult(exfiltrated=False, contained=False,
+                                 error=f"docker run failed: {exc}", **base)
+        if run.returncode != 0:
+            return PentestResult(
+                exfiltrated=False, contained=True,
+                egress_blocked=["<no network: --network none>"],
+                error=f"container image {_CONTAINER_IMAGE} unavailable: "
+                      f"{run.stderr.decode(errors='replace')[:200]}", **base)
+        exfil = Path(tmp, "exfil")
+        exfiltrated = exfil.exists() and canary in exfil.read_text(errors="replace")
+        transcript = [
+            {"actor": "pivot", "tool": pivot,
+             "action": "reads the planted secret (mounted /sb/secret)",
+             "observed": f"read planted canary {canary}"},
+            {"actor": "impact", "tool": impact, "action": "attempt real network egress",
+             "observed": "impossible: the container has no network (--network none)"},
+            {"actor": "impact", "tool": impact,
+             "action": "stage the secret to a writable channel (/sb/exfil)",
+             "observed": "staged" if exfiltrated else "not staged"},
+        ]
+        return PentestResult(exfiltrated=exfiltrated, contained=True,
+                             egress_blocked=["<no network: --network none>"],
+                             transcript=transcript, **base)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def run_pentest(model: SystemModel, path: AttackPath, *,
-                isolate: bool = True, timeout: float = 20.0) -> PentestResult:
-    """Execute one proven attack path against an isolated stub agent and measure
-    the outcome. `isolate` spawns a real subprocess (the default; the sandbox);
-    `isolate=False` runs the attack in-process (faster, for tests). The sink
-    oracle is parent-side, so exfiltration is observed, never self-reported."""
+                isolate: bool = True, isolation: str | None = None,
+                timeout: float = 20.0) -> PentestResult:
+    """Execute one proven attack path against an isolated sandbox agent and measure
+    the outcome. The sink oracle is parent-side, so exfiltration is observed, never
+    self-reported. `isolation` selects the backend, strongest last:
+      - inprocess: run in this process (fastest, weakest; for tests)
+      - subprocess: a separate OS process (the default)
+      - hardened:  a subprocess in a POSIX jail (new session, cwd, cleared env, rlimits)
+      - container: docker --network none (real egress structurally impossible)
+    `isolate=False` is the legacy spelling of `isolation="inprocess"`."""
     import socket
     import threading
 
+    backend = isolation or ("subprocess" if isolate else "inprocess")
     canary = _canary_for(path)
+    entry = ", ".join(path.entry.components) or "entry tool"
+    pivot = path.pivot.components[0] if path.pivot.components else "shell"
+    impact = path.impact.components[0] if path.impact.components else "egress"
+    egress_ids = _egress_server_ids(model, path)
+
+    if backend == "container":
+        return _run_pentest_container(path.kind, canary, entry, pivot, impact,
+                                      egress_ids, timeout)
+
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
@@ -702,17 +825,18 @@ def run_pentest(model: SystemModel, path: AttackPath, *,
     plan = {
         "canary": canary, "sink_host": host, "sink_port": port,
         "decoy_host": _DECOY_ATTACKER[0], "decoy_port": _DECOY_ATTACKER[1],
-        "entry": ", ".join(path.entry.components) or "entry tool",
-        "pivot": path.pivot.components[0] if path.pivot.components else "shell",
-        "impact": path.impact.components[0] if path.impact.components else "egress",
+        "entry": entry, "pivot": pivot, "impact": impact,
     }
 
     error = ""
     worker = {"transcript": [], "blocked": []}
-    if isolate:
+    if backend == "inprocess":
+        worker = _run_attack(plan)
+    else:
         import multiprocessing as mp
+        target = _pentest_worker_hardened if backend == "hardened" else _pentest_worker
         queue: mp.Queue = mp.Queue()
-        proc = mp.Process(target=_pentest_worker, args=(plan, queue), daemon=True)
+        proc = mp.Process(target=target, args=(plan, queue), daemon=True)
         proc.start()
         try:
             worker = queue.get(timeout=timeout)
@@ -723,8 +847,6 @@ def run_pentest(model: SystemModel, path: AttackPath, *,
             if proc.is_alive():
                 proc.terminate()
                 error = error or "sandbox process timed out"
-    else:
-        worker = _run_attack(plan)
 
     thread.join(timeout=3)
     srv.close()
@@ -734,14 +856,16 @@ def run_pentest(model: SystemModel, path: AttackPath, *,
         contained=bool(worker["blocked"]),
         egress_blocked=worker["blocked"],
         transcript=worker["transcript"],
-        isolated=isolate, error=error,
-        egress_server_ids=_egress_server_ids(model, path),
+        isolated=(backend != "inprocess"), error=error,
+        egress_server_ids=egress_ids,
     )
 
 
-def run_pentests(model: SystemModel, *, isolate: bool = True) -> list[PentestResult]:
+def run_pentests(model: SystemModel, *, isolate: bool = True,
+                 isolation: str | None = None) -> list[PentestResult]:
     """Execute the harness on every reachable path in the model."""
-    return [run_pentest(model, p, isolate=isolate) for p in all_attack_paths(model)]
+    return [run_pentest(model, p, isolate=isolate, isolation=isolation)
+            for p in all_attack_paths(model)]
 
 
 def pentest_report(results: list[PentestResult]) -> dict:
@@ -805,14 +929,14 @@ def proven_exploit_findings(results: list[PentestResult]) -> list[Finding]:
 
 def render_pentest(model: SystemModel, *, color: bool | None = None,
                    results: list[PentestResult] | None = None,
-                   isolate: bool = True) -> str:
+                   isolate: bool = True, isolation: str | None = None) -> str:
     """Terminal block for the executed harness: per path, the transcript, whether
     the canary actually reached the sink, and whether the run was contained."""
     from attestral.report_terminal import _bold, _dim, _paint, supports_color
     if color is None:
         color = supports_color()
     if results is None:
-        results = run_pentests(model, isolate=isolate)
+        results = run_pentests(model, isolate=isolate, isolation=isolation)
     if not results:
         return ""
     lines = [_paint(
