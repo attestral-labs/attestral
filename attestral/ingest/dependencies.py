@@ -125,6 +125,25 @@ _KNOWN_DEP_VULNS = (
     # CVE-2026-73557: incomplete-fix bypass of the vLLM prompt-embedding
     # torch.load RCE (CVE-2025-62164). Affected >=0.21.0 <0.26.0; patched 0.26.0.
     ("vllm", (((0, 21, 0), (0, 25, 9999)),), "CVE-2026-73557"),
+    # CVE-2026-61459: argument injection in mcp-server-kubernetes (npm) - a
+    # leading-dash resourceType/name slips past the dangerous-flag check and
+    # injects `--server` into the kubectl invocation, redirecting it at an
+    # attacker API server to exfiltrate the caller's bearer token (CVSS 9.8).
+    # Patched in 3.9.0. This single <3.9.0 window supersedes the older
+    # CVE-2026-47250 and CVE-2025-53355 command-injection advisories.
+    ("mcp-server-kubernetes", (((0, 0, 0), (3, 8, 9999)),), "CVE-2026-61459"),
+    # CVE-2026-45672: code-execution gate bypass in open-webui - the
+    # /api/v1/utils/code/execute endpoint runs attacker Python even when
+    # ENABLE_CODE_EXECUTION=false. Affected <=0.8.11; patched 0.8.12.
+    ("open-webui", (((0, 0, 0), (0, 8, 11)),), "CVE-2026-45672"),
+    # CVE-2026-40576: unauthenticated path traversal in excel-mcp-server over its
+    # SSE / streamable-HTTP transport -> arbitrary host file read and write.
+    # Affected <=0.1.7; patched 0.1.8.
+    ("excel-mcp-server", (((0, 0, 0), (0, 1, 7)),), "CVE-2026-40576"),
+    # CVE-2026-5059: unauthenticated command-injection RCE in aws-mcp - a tool
+    # argument reaches a shell with no sanitization (CVSS 9.8). Affected <=1.7.0;
+    # no fixed release published, so upgrading is not yet an option - remove it.
+    ("aws-mcp", (((0, 0, 0), (1, 7, 0)),), "CVE-2026-5059"),
 )
 
 _MANIFESTS = ("requirements.txt", "pyproject.toml", "package.json")

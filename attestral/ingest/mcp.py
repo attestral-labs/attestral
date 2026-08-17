@@ -283,6 +283,59 @@ def _hidden_launch_path(command: str, args: list) -> bool:
     return False
 
 
+# Workspace-trust MCP auto-launch (ATL-174). A repo-committed IDE config sitting
+# in a project-trust auto-launch directory (`.cursor/mcp.json`, `.amazonq/mcp.json`,
+# `.vscode/mcp.json` or `.vscode/settings.json`, a project `.claude/` config)
+# starts its declared stdio server the moment the IDE trusts the workspace - so
+# cloning or opening an untrusted repo runs an attacker-planted local process
+# before anyone reviews the launch command. This is the "MCP auto-load on
+# workspace trust" incident class (Cursor / Amazon Q, July 2026). Two things are
+# deliberately NOT this finding: a user-GLOBAL copy of the same file (the tool
+# dir directly under $HOME, or under an OS app-config root) is a config the user
+# installed for themselves, not one a repo can plant; and a repo-root `.mcp.json`
+# is the widely-adopted team-share convention whose host prompts for approval on
+# open (a trust checkpoint exists), so firing on it would nag every well-scoped
+# shared config. Pure, fail-closed path + launch classification.
+_WORKSPACE_AUTOLOAD_DIRS = (".cursor", ".amazonq", ".vscode", ".claude")
+# OS user-config roots and the always-global Claude Desktop config basename: a
+# config on any of these path shapes is the user's own install, never a
+# repo-planted workspace launch.
+_GLOBAL_CONFIG_MARKERS = (
+    "library/application support/", "/appdata/", "/.config/", "/.aws/", "/.codeium/",
+)
+_GLOBAL_CONFIG_BASENAMES = ("claude_desktop_config.json",)
+# The IDE tool dir sitting directly under a home directory (~/.cursor/mcp.json,
+# /Users/<u>/.amazonq/mcp.json) is a global install, not a repo config.
+_HOME_GLOBAL_TOOLDIR_RE = re.compile(
+    r"(?:^|/)(?:users|home)/[^/]+/\.(?:cursor|amazonq|vscode|claude)/|"
+    r"^~/\.(?:cursor|amazonq|vscode|claude)/",
+    re.IGNORECASE,
+)
+
+
+def _workspace_autoload(source: str, command, args, url) -> bool:
+    """True when this entry is a stdio MCP server declared in a repo-committed IDE
+    project-trust config that the IDE launches on workspace trust, and NOT a
+    user-global install or a plain remote `url`. Fail-closed: an unrecognized or
+    global path, or an entry with no local launch, derives nothing."""
+    # stdio launch only - a plain remote endpoint spawns no local process.
+    if not (str(command or "").strip() or (args or [])):
+        return False
+    if not source:
+        return False
+    low = str(source).replace("\\", "/").lower()
+    parts = [p for p in low.split("/") if p]
+    if not parts or parts[-1] in _GLOBAL_CONFIG_BASENAMES:
+        return False
+    if any(m in low for m in _GLOBAL_CONFIG_MARKERS):
+        return False
+    if _HOME_GLOBAL_TOOLDIR_RE.search(low):
+        return False
+    # A project-trust auto-launch config: an IDE dir appears as a DIRECTORY
+    # segment (not the filename) somewhere in the repo path.
+    return any(d in parts[:-1] for d in _WORKSPACE_AUTOLOAD_DIRS)
+
+
 # Over-broad filesystem/exec root (OWASP-ASI02, SAFE-T1105): a disk-capable MCP
 # server started with an allowed directory at or above $HOME or a system dir
 # hands the agent - and any injection that reaches it - read/write over SSH keys,
@@ -830,6 +883,12 @@ def component_from_server(name: str, cfg, source: str) -> Component:
             attrs["_disposable_host"] = True
         if _hidden_launch_path(attrs["command"], attrs["args"] or []):
             attrs["_hidden_launch_path"] = True
+        # Workspace-trust auto-launch (ATL-174): a stdio server declared in a
+        # repo-committed IDE project-trust config (.cursor/.amazonq/.vscode/.claude)
+        # that the IDE launches when the developer opens or trusts the workspace.
+        # Set only when true, like the other concealment attrs.
+        if _workspace_autoload(source, attrs["command"], attrs["args"], attrs["url"]):
+            attrs["_workspace_autoload"] = True
         # Remote transport (a `url`) that is genuinely exposed: a non-loopback,
         # PLAINTEXT http endpoint with no declared authentication. A secret env
         # var or an auth header counts as "authenticated"; only set on remote
@@ -1073,6 +1132,8 @@ def ingest_mcp(path: str | Path, model: SystemModel) -> SystemModel:
             data = _jsonc.loads(f.read_text(errors="ignore"))
         except json.JSONDecodeError:
             continue
+        if not isinstance(data, dict):
+            continue  # valid JSON but a top-level array/scalar, not a config - skip, fail-closed
         servers = data.get("mcpServers") or data.get("servers") or {}
         # World-writability is a fact about the FILE, checked once per config
         # and stamped on every server it registers (present only when true):

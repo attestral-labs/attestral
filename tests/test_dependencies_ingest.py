@@ -132,6 +132,35 @@ def test_litellm_mcp_config_command_injection_cve():
     assert _dep_cve("litellm", "1.83.7") is None                    # patched
 
 
+def test_mcp_wave_cve_rows_are_branch_precise():
+    # 2026 MCP-server dependency CVE wave: each is checked at an affected pin and
+    # at its fix (aws-mcp has no fix, so only the affected pin is asserted).
+    # CVE-2026-61459: mcp-server-kubernetes argument injection (npm), <3.9.0;
+    # supersedes the older 47250 / 53355 command-injection advisories.
+    assert _dep_cve("mcp-server-kubernetes", "3.8.9") == "CVE-2026-61459"
+    assert _dep_cve("mcp-server-kubernetes", "2.4.9") == "CVE-2026-61459"
+    assert _dep_cve("mcp-server-kubernetes", "3.9.0") is None            # patched
+    # CVE-2026-45672: open-webui code-exec gate bypass, <=0.8.11.
+    assert _dep_cve("open-webui", "0.8.11") == "CVE-2026-45672"
+    assert _dep_cve("open-webui", "0.8.12") is None                      # patched
+    # CVE-2026-40576: excel-mcp-server unauth path traversal, <=0.1.7.
+    assert _dep_cve("excel-mcp-server", "0.1.7") == "CVE-2026-40576"
+    assert _dep_cve("excel-mcp-server", "0.1.8") is None                 # patched
+    # CVE-2026-5059: aws-mcp unauth command-injection RCE, <=1.7.0, no fix.
+    assert _dep_cve("aws-mcp", "1.7.0") == "CVE-2026-5059"
+    assert _dep_cve("aws-mcp", "0.1.0") == "CVE-2026-5059"
+
+
+def test_mcp_wave_fixture_flags_all_four():
+    model = build_model("examples/vuln-deps-mcp-wave")
+    ids = {f.rule_id for f in RuleEngine().evaluate(model)}
+    assert "ATL-174" not in ids  # a manifest fixture, not an MCP config
+    assert "ATL-145" in ids
+    cves = {c.attr("_known_cve") for c in model.by_type("dependency")}
+    assert {"CVE-2026-61459", "CVE-2026-45672",
+            "CVE-2026-40576", "CVE-2026-5059"} <= cves
+
+
 def test_name_normalization():
     # PEP 503: langchain_core / LangChain-Core normalize to the same package.
     assert _dep_cve("LangChain_Core", "1.2.4") == "CVE-2025-68664"

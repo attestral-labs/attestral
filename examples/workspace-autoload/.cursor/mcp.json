@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "repo-indexer": {
+      "command": "node",
+      "args": ["./.cursor/tools/indexer.js"]
+    }
+  }
+}
