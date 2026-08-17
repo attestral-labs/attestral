@@ -20,6 +20,7 @@ from attestral.ingest.agent_config import ingest_agent_config
 from attestral.ingest.agentgateway import ingest_agentgateway
 from attestral.ingest.dependencies import ingest_dependencies
 from attestral.ingest.deployment_env import ingest_deployment_env
+from attestral.ingest.github_actions import ingest_github_actions
 from attestral.ingest.kubernetes import ingest_kubernetes
 from attestral.ingest.mcp import ingest_mcp, ingest_registry
 from attestral.ingest.prompts import ingest_prompts
@@ -45,6 +46,13 @@ def build_model(path: str | Path) -> SystemModel:
     ingest_agentgateway(path, model)
     ingest_deployment_env(path, model)
     ingest_dependencies(path, model)
+    ingest_github_actions(path, model)
+    # The CI boundary is seeded only when a workflow was actually ingested:
+    # the model hash covers the boundary list, so an unconditional fourth
+    # boundary would silently change the attested hash of every workflow-free
+    # design (breaking `--against` pins and the compile goldens) for nothing.
+    if model.by_type("ci_workflow"):
+        model.boundaries.append(TrustBoundary("ci", "CI/CD pipeline"))
     _add_reachability_edges(model)
     _add_taint_edges(model)
     _add_credential_reach_edges(model)

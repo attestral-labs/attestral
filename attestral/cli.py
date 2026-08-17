@@ -11,7 +11,15 @@ import click
 
 from attestral import __version__
 from attestral.compile import COMPILE_TARGETS, TARGETS
-from attestral.evidence import audit_chain, render_markdown, verify_chain
+from attestral.evidence import (
+    GENESIS,
+    attestation_line,
+    audit_chain,
+    no_egress_attestation,
+    render_markdown,
+    verify_attestation,
+    verify_chain,
+)
 from attestral.ingest import build_model
 from attestral.rules import RuleEngine
 
@@ -51,6 +59,10 @@ def _report_path(output: str, ext: str) -> Path:
                    "html for an interactive blast-radius threat topography. "
                    "Passing this (or -o) writes files; otherwise results only print.")
 @click.option("--llm", is_flag=True, help="Add LLM threat elicitation (needs ANTHROPIC_API_KEY).")
+@click.option("--llm-deep", is_flag=True,
+              help="Fan LLM elicitation across four adversarial lenses (injection, "
+                   "escalation, exfiltration, supply chain) and dedup - deeper "
+                   "coverage at ~4x the cost. Implies --llm.")
 @click.option("--fail-on", type=click.Choice(["critical", "high", "medium", "low"]), default=None,
               help="Exit non-zero if findings at/above this severity exist (CI gate).")
 @click.option("--min-confidence", type=click.Choice(["high", "medium", "low"]), default=None,
@@ -93,17 +105,24 @@ def _report_path(output: str, ext: str) -> Path:
               help="Print a compact, screenshot-ready self-audit card instead of the "
                    "full report: does this fleet assemble the lethal trifecta, yes or no. "
                    "Pairs with --local to audit and share what your own machine runs.")
+@click.option("--sovereign", is_flag=True,
+              help="Data-sovereignty mode: run fully local and prove it. Refuses the "
+                   "online layers (--llm/--judge and the networked ML tiers), arms a "
+                   "guard that blocks any outbound connection at the socket, and emits a "
+                   "self-verifying no-egress attestation bound to the evidence chain. "
+                   "Nothing - no code, config, or data - leaves the host.")
 @click.option("-q", "--quiet", is_flag=True,
               help="Suppress the per-finding detail; print only the summary and gate.")
 @click.pass_context
 def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: str, llm: bool,
+         llm_deep: bool,
          fail_on: str | None, min_confidence: str | None,
          waivers_path: str | None, judge: bool, judge_model: str,
          judge_panel: int, judge_effort: str, judge_suppress: bool, judge_all: bool,
          ml: bool, no_ml: bool,
          ml_engine: str | None, ml_model: str | None, ml_revision: str | None, ml_threshold: float,
          baseline_path: str | None, update_baseline: bool, aivss: bool, card: bool,
-         quiet: bool) -> None:
+         sovereign: bool, quiet: bool) -> None:
     """Scan PATH (Terraform, Kubernetes, MCP configs) and review its security design.
 
     Results print to the terminal. Report files are written only when you ask
@@ -131,12 +150,40 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             raise click.UsageError("Provide a PATH to scan, or pass --local to "
                                    "scan the MCP configs installed on this machine.")
         model = build_model(path)
+
+    # Sovereign mode: refuse the online layers (fail closed), then arm a guard
+    # that blocks any outbound connection for the duration of the review. The
+    # guard is restored on context close too (ctx.call_on_close), so a mid-scan
+    # error can never leave sockets patched for the rest of the process.
+    sov_guard = None
+    if sovereign:
+        conflicts = []
+        if llm or llm_deep:
+            conflicts.append("--llm/--llm-deep (calls the Anthropic API)")
+        if judge:
+            conflicts.append("--judge (calls the Anthropic API)")
+        if ml or (ml_engine or os.environ.get("ATTESTRAL_ML_ENGINE")) in ("auto", "onnx", "deberta"):
+            conflicts.append("--ml/--ml-engine onnx|deberta|auto (may fetch a model)")
+        if conflicts:
+            raise click.UsageError(
+                "sovereign mode runs fully local and cannot use online layers: "
+                + "; ".join(conflicts)
+                + ". Drop them - the deterministic rules, reachability, and the "
+                "zero-dependency heuristic ML tier all run offline, and those are "
+                "exactly what the no-egress attestation vouches for.")
+        from attestral.evidence import EgressGuard
+        sov_guard = EgressGuard().arm()
+        ctx.call_on_close(sov_guard.disarm)
+
     findings = RuleEngine().evaluate(model)
-    if llm:
+    if llm or llm_deep:
         if not quiet:
             click.echo("scanning agentic surfaces with LLM elicitation…", err=True)
-        from attestral.llm import elicit
-        findings += elicit(model)
+        from attestral.llm import LLMConfig, elicit
+        llm_findings, llm_notes = elicit(model, LLMConfig.from_env(deep=llm_deep or None))
+        findings += llm_findings
+        for note in llm_notes:
+            click.echo(f"  ! {note}", err=True)
     if not no_ml:
         if not quiet:
             click.echo("scanning agentic surfaces for prompt injection…", err=True)
@@ -145,6 +192,8 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
         # language surfaces no matcher can (deterministic, offline). --ml or
         # --ml-engine (or ATTESTRAL_ML_ENGINE) opts into the model-grade tiers.
         engine = ml_engine or os.environ.get("ATTESTRAL_ML_ENGINE") or ("auto" if ml else "heuristic")
+        if sovereign:
+            engine = "heuristic"  # the only tier guaranteed to fetch nothing
         cfg = MLConfig.from_env(model=ml_model, revision=ml_revision, engine=engine)
         cfg.threshold = ml_threshold
         ml_findings, ml_notes = ml_scan(model, cfg)
@@ -236,6 +285,25 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             click.echo(f"  baseline recorded: {n} finding(s) -> {bpath} "
                        f"(future --baseline runs show only net-new)", err=True)
 
+    # Sovereign mode: stop guarding once the layers are done (report rendering
+    # and file writes are pure-local), then seal a no-egress attestation over
+    # the chain head. It always prints; it rides the JSON report when files are
+    # written, where `attestral verify` can recompute it.
+    attestation = None
+    if sovereign:
+        if sov_guard is not None:
+            sov_guard.disarm()
+        _chain = audit_chain(findings)
+        attestation = no_egress_attestation(
+            target=path or "local",
+            components=len(model.components),
+            findings=findings,
+            ml_tier="skipped" if no_ml else "heuristic",
+            blocked=sov_guard.blocked if sov_guard else [],
+            chain_head=_chain[-1]["hash"] if _chain else GENESIS,
+            generated=_dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        )
+
     active = [f for f in findings if not f.waived]
 
     # Terminal-first: only touch the disk when the user explicitly asks for a
@@ -271,6 +339,10 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
             click.echo("")
             click.echo(block)
 
+    if attestation is not None:
+        click.echo("")
+        click.echo(attestation_line(attestation))
+
     if write_files:
         if fmt in ("md", "both"):
             out = _report_path(output, ".md")
@@ -279,16 +351,14 @@ def scan(ctx: click.Context, path: str | None, local: bool, output: str, fmt: st
         if fmt in ("json", "both"):
             from attestral.aivss import as_json as aivss_json
             out = _report_path(output, ".json")
-            out.write_text(
-                json.dumps(
-                    {
-                        "target": path,
-                        "chain": audit_chain(findings),
-                        "aivss": aivss_json(model, findings),
-                    },
-                    indent=2,
-                )
-            )
+            payload = {
+                "target": path,
+                "chain": audit_chain(findings),
+                "aivss": aivss_json(model, findings),
+            }
+            if attestation is not None:
+                payload["attestation"] = attestation
+            out.write_text(json.dumps(payload, indent=2))
             click.echo(f"wrote {out}")
         if fmt == "sarif":
             from attestral.sarif import render_sarif
@@ -745,6 +815,43 @@ def blast_radius_cmd(path: str, limit: int) -> None:
 
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
+@click.option("--fail-on-exfil", is_flag=True,
+              help="Exit non-zero if any reachable path exfiltrates the canary (CI gate).")
+@click.option("--no-isolate", is_flag=True,
+              help="Run the attack in-process instead of a separate sandbox process "
+                   "(faster; weaker isolation).")
+@click.option("-o", "--output", default=None,
+              help="Write the pentest report JSON here. Terminal-first: nothing written without -o.")
+def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, output: str | None) -> None:
+    """Execute a contained proof-of-exploit for each reachable attack path.
+
+    The executed red-team tier. For every path the design makes reachable,
+    Attestral spawns an isolated sandbox agent, plants a harmless canary in a stub
+    secret store, and lets the agent actually try to exfiltrate it. Two facts are
+    measured, not narrated: whether the canary really reached an instrumented sink
+    (the exploit works over the declared egress channel), and whether the sandbox's
+    egress guard blocked the real outbound (so the proof was contained and nothing
+    leaked). It runs against Attestral's OWN stubs - no live agent, no real secret,
+    no real network. `--fail-on-exfil` turns a working exploit into a red build.
+    """
+    from attestral import redteam
+    from attestral.paths import all_attack_paths
+    model = build_model(path)
+    if not all_attack_paths(model):
+        click.echo("No reachable attack path in the modeled design - nothing to exploit.")
+        return
+    results = redteam.run_pentests(model, isolate=not no_isolate)
+    click.echo(redteam.render_pentest(model, results=results))
+    if output:
+        Path(output).write_text(json.dumps(redteam.pentest_report(results), indent=2))
+        click.echo(f"\nwrote {output}")
+    if fail_on_exfil and any(r.exfiltrated for r in results):
+        click.echo("\nGate: a reachable path exfiltrated the canary in the sandbox.", err=True)
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
 @click.option("-o", "--output", default=None,
               help="Write the reach report JSON here. Terminal-first: nothing is written without -o.")
 def reach(path: str, output: str | None) -> None:
@@ -938,9 +1045,22 @@ def verify(report: str, public_key: str | None) -> None:
     if not ok:
         sys.exit(1)
 
+    attestation = data.get("attestation")
+    if attestation:
+        if not verify_attestation(attestation):
+            click.echo("no-egress attestation INVALID - the record was altered", err=True)
+            sys.exit(1)
+        head = chain[-1]["hash"] if chain else GENESIS
+        if attestation.get("chain_head") != head:
+            click.echo("no-egress attestation INVALID - not bound to this chain "
+                       "(report altered after attesting)", err=True)
+            sys.exit(1)
+        n = len(attestation.get("blocked_attempts", []))
+        detail = "0 outbound connections" if attestation.get("clean") else f"{n} blocked"
+        click.echo(f"no-egress attestation VALID - scan ran fully local ({detail})")
+
     envelope = data.get("signature")
     if envelope and public_key:
-        from attestral.evidence import GENESIS
         from attestral.signing import envelope_head, verify_envelope
         pub = Path(public_key).read_text()
         head = chain[-1]["hash"] if chain else GENESIS
@@ -1193,8 +1313,12 @@ def fix(path: str, rule_id: str | None, output: str | None,
 @click.option("--fail-on-violation", "fail_on_violation", is_flag=True,
               help="Implies --verify: exit non-zero if any security property is "
                    "violated (CI gate).")
+@click.option("--close-loop", is_flag=True,
+              help="Run the executed pentest first and DENY any server whose egress carried a "
+                   "proven exploit's canary. Closes the loop: static review -> sandbox-proven "
+                   "exploit -> runtime-enforced deny.")
 def compile(path: str, output: str | None, target: str, prior: str | None,
-            verify: bool, fail_on_violation: bool) -> None:
+            verify: bool, fail_on_violation: bool, close_loop: bool) -> None:
     """Compile PATH's attested design into a runtime policy (mcp-guard or Cedar)."""
     from attestral.compile import compile_policy
     from attestral.reachability import annotate_reachability
@@ -1203,6 +1327,24 @@ def compile(path: str, output: str | None, target: str, prior: str | None,
     # The policy must see the same severities a scan reports: a finding raised
     # to critical by a reachable chain denies its server here too.
     annotate_reachability(model, findings)
+
+    # Close the loop: an executed proof-of-exploit becomes a runtime deny. A
+    # pentest that exfiltrates the canary proves the reachable path is live, so
+    # the egress server is added as a critical finding - which compile_policy
+    # already denies. Static review -> sandbox-proven exploit -> enforced policy.
+    if close_loop:
+        from attestral import redteam
+        results = redteam.run_pentests(model)
+        proven = redteam.proven_exploit_findings(results)
+        findings += proven
+        n_exfil = sum(1 for r in results if r.exfiltrated)
+        if proven:
+            click.echo(f"close-loop: {n_exfil} path(s) exfiltrated a canary in the sandbox; "
+                       f"denying {len(proven)} egress server(s) on the proven path(s).", err=True)
+        else:
+            click.echo("close-loop: no path exfiltrated a canary; policy unchanged by the pentest.",
+                       err=True)
+
     chain = audit_chain(findings)
     head = chain[-1]["hash"] if chain else ""
     policy = compile_policy(model, findings, chain_head=head)

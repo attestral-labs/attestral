@@ -1,9 +1,11 @@
-"""Evidence layer: tamper-evident audit chain + report export."""
+"""Evidence layer: tamper-evident audit chain, no-egress attestation, report export."""
 from __future__ import annotations
 
 import datetime as _dt
 import hashlib
+import ipaddress
 import json
+import socket
 
 from attestral.model import Finding, SystemModel
 
@@ -36,6 +38,172 @@ def verify_chain(chain: list[dict]) -> bool:
             return False
         prev = entry["hash"]
     return True
+
+
+# --- Sovereign mode: enforce and attest that a scan ran fully local ----------
+#
+# Data sovereignty (GCC, defense, regulated finance) often makes "no client
+# data leaves the environment" the only compliant posture, not a preference.
+# Attestral is already terminal-first and local by default; sovereign mode adds
+# teeth and a receipt: an egress guard that stops any outbound connection at the
+# socket, and a self-verifying attestation that rides the same tamper-evidence
+# idiom as the audit chain.
+
+_LOOPBACK_HOSTS = frozenset(
+    {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}
+)
+
+
+class EgressBlocked(OSError):
+    """Raised when the egress guard stops an outbound connection.
+
+    Subclasses OSError so a networking library (the anthropic SDK, a model
+    download, a stray telemetry call) surfaces it as an ordinary connection
+    failure instead of an unexpected exception type.
+    """
+
+
+def _is_local_address(address: object) -> bool:
+    """True if a connect() target stays on this host (loopback or a UNIX path)."""
+    # AF_UNIX targets are a path (str/bytes) and never leave the machine.
+    if isinstance(address, (str, bytes, bytearray)):
+        return True
+    try:
+        host = address[0]  # AF_INET/AF_INET6: (host, port[, flowinfo, scopeid])
+    except (TypeError, IndexError, KeyError):
+        return False
+    if not isinstance(host, str):
+        return False
+    if host in _LOOPBACK_HOSTS:
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False  # a real hostname needs the network - block it
+
+
+class EgressGuard:
+    """Process-wide block on outbound network connections, with a record.
+
+    While armed, any attempt to connect a socket to a non-loopback address
+    raises :class:`EgressBlocked` and is recorded in ``blocked``; loopback and
+    UNIX-socket connections pass through (local IPC never leaves the host). This
+    turns "no client data left the environment" into an enforced, observable
+    property rather than a promise - whatever library tries to egress is stopped
+    at the socket layer, before a single byte is sent. Idempotent: arming twice
+    or disarming twice is safe, and the original methods are always restored.
+    """
+
+    def __init__(self) -> None:
+        self.blocked: list[tuple[str, int | None]] = []
+        self._armed = False
+        self._orig_connect = None
+        self._orig_connect_ex = None
+
+    def _record(self, address: object) -> None:
+        if isinstance(address, (list, tuple)) and address:
+            host = str(address[0])
+            port = address[1] if len(address) > 1 and isinstance(address[1], int) else None
+        else:
+            host, port = str(address), None
+        self.blocked.append((host, port))
+
+    def arm(self) -> EgressGuard:
+        if self._armed:
+            return self
+        guard = self
+        self._orig_connect = socket.socket.connect
+        self._orig_connect_ex = socket.socket.connect_ex
+
+        def connect(sock, address, *args, **kwargs):
+            if _is_local_address(address):
+                return guard._orig_connect(sock, address, *args, **kwargs)
+            guard._record(address)
+            raise EgressBlocked(f"sovereign mode blocked an outbound connection to {address}")
+
+        def connect_ex(sock, address, *args, **kwargs):
+            if _is_local_address(address):
+                return guard._orig_connect_ex(sock, address, *args, **kwargs)
+            guard._record(address)
+            raise EgressBlocked(f"sovereign mode blocked an outbound connection to {address}")
+
+        socket.socket.connect = connect
+        socket.socket.connect_ex = connect_ex
+        self._armed = True
+        return self
+
+    def disarm(self) -> None:
+        if not self._armed:
+            return
+        socket.socket.connect = self._orig_connect
+        socket.socket.connect_ex = self._orig_connect_ex
+        self._armed = False
+
+    def __enter__(self) -> EgressGuard:
+        return self.arm()
+
+    def __exit__(self, *exc: object) -> None:
+        self.disarm()
+
+
+def no_egress_attestation(
+    *,
+    target: str,
+    components: int,
+    findings: list[Finding],
+    ml_tier: str,
+    blocked: list[tuple[str, int | None]],
+    chain_head: str,
+    generated: str,
+) -> dict:
+    """A self-verifying record that a scan ran fully local.
+
+    Reuses the audit chain's tamper-evidence idiom: the record carries a SHA-256
+    over its own canonical form and binds itself to the run by including the
+    evidence-chain head, so ``attestral verify`` can recompute both. A non-empty
+    ``blocked`` list is the honest failure signal - something tried to egress and
+    the guard stopped it - and is recorded, never hidden.
+    """
+    active = [f for f in findings if not f.waived]
+    core = {
+        "kind": "attestral.no-egress-attestation",
+        "version": 1,
+        "target": target,
+        "generated": generated,
+        "sovereign": True,
+        "egress_guard": "armed",
+        "clean": not blocked,
+        "blocked_attempts": [
+            f"{host}:{port}" if port is not None else host for host, port in blocked
+        ],
+        "layers": {"llm": False, "judge": False, "network_ml": False, "ml_tier": ml_tier},
+        "components_reviewed": components,
+        "findings": len(active),
+        "chain_head": chain_head,
+    }
+    digest = hashlib.sha256(json.dumps(core, sort_keys=True).encode()).hexdigest()
+    return {**core, "attestation_sha256": digest}
+
+
+def verify_attestation(attestation: dict) -> bool:
+    """Recompute a no-egress attestation's self-hash. True if untampered."""
+    if not attestation or "attestation_sha256" not in attestation:
+        return False
+    core = {k: v for k, v in attestation.items() if k != "attestation_sha256"}
+    digest = hashlib.sha256(json.dumps(core, sort_keys=True).encode()).hexdigest()
+    return digest == attestation["attestation_sha256"]
+
+
+def attestation_line(attestation: dict) -> str:
+    """One terminal line summarizing a no-egress attestation."""
+    n = len(attestation.get("blocked_attempts", []))
+    status = "0 outbound connections" if attestation.get("clean") else f"{n} blocked"
+    return (
+        "no-egress attestation: guard armed, "
+        f"{status} · ml tier {attestation['layers']['ml_tier']} · "
+        f"chain {attestation.get('chain_head', '')[:16]} · "
+        f"digest {attestation['attestation_sha256'][:16]}"
+    )
 
 
 _SEV_ORDER = ["critical", "high", "medium", "low", "info"]

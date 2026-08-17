@@ -99,6 +99,32 @@ _KNOWN_DEP_VULNS = (
     # 3248 KEV's 1.3.0 ceiling, so a 1.3.0-1.9.1 install (safe from 3248) is still
     # flagged for this later, actively-exploited critical.
     ("langflow", (((1, 3, 0), (1, 9, 1)),), "CVE-2026-0770"),
+    # CVE-2026-9198: unauthenticated RCE in Langflow - /api/v1/auto_login mints a
+    # superuser token, /api/v1/validate/code exec()s attacker Python (CISA KEV,
+    # 2026-08). Affected 1.0.0-1.10.0; patched 1.10.1. Overlaps the two KEV rows
+    # above; first-match reports those below 1.9.2, this one for 1.9.2-1.10.0.
+    ("langflow", (((1, 0, 0), (1, 10, 0)),), "CVE-2026-9198"),
+    # CVE-2026-55255: IDOR lets any authenticated user execute another user's
+    # flows in Langflow (CISA KEV). Affected <1.9.2. The whole window sits inside
+    # the unauth-RCE KEVs above, so first-match reports those; kept as the
+    # advisory of record for the range.
+    ("langflow", (((0, 0, 0), (1, 9, 1)),), "CVE-2026-55255"),
+    # CVE-2026-69253: sandbox-escape eval injection -> RCE in Flowise (critical);
+    # the same 3.1.3 release also fixes CVE-2026-69251 (TypeORM additionalConfig
+    # RCE) and CVE-2026-69258 (unauthenticated overrideConfig injection).
+    ("flowise", (((0, 0, 0), (3, 1, 2)),), "CVE-2026-69253"),
+    # CVE-2026-73601: the flowise-components package side of the 3.1.3 fix wave
+    # (same cluster as CVE-2026-69251/69253/69258). Affected <3.1.3.
+    ("flowise-components", (((0, 0, 0), (3, 1, 2)),), "CVE-2026-73601"),
+    # CVE-2026-19516: SSRF in mcp-grafana - a tool-supplied URL is fetched with
+    # the server's Grafana credential attached. Affected <1.1.0; patched 1.1.0.
+    ("mcp-grafana", (((0, 0, 0), (1, 0, 9999)),), "CVE-2026-19516"),
+    # CVE-2026-72768: n8n's MCP-client SSRF allowlist bypass - an agent-reachable
+    # endpoint URL sidesteps the internal-address block. Affected <2.32.1.
+    ("n8n", (((0, 0, 0), (2, 32, 0)),), "CVE-2026-72768"),
+    # CVE-2026-73557: incomplete-fix bypass of the vLLM prompt-embedding
+    # torch.load RCE (CVE-2025-62164). Affected >=0.21.0 <0.26.0; patched 0.26.0.
+    ("vllm", (((0, 21, 0), (0, 25, 9999)),), "CVE-2026-73557"),
 )
 
 _MANIFESTS = ("requirements.txt", "pyproject.toml", "package.json")

@@ -1,0 +1,27 @@
+# The CI confused-deputy shape behind CVE-2026-54316: any GitHub account can
+# open an issue, the issue body reaches an AI coding agent running inside CI
+# with a write-capable token, a repository secret, and Bash enabled.
+name: AI issue triage
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Claude triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.SOME_API_KEY }}
+          allowed_tools: "Bash(git:*),Read,Write"
+          prompt: |
+            Read the new issue, reproduce the problem, and apply the right
+            labels. Push a fix branch if the change is trivial.

@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "productivity-suite": {
+      "url": "https://productivity-suite-mcp.trycloudflare.com/mcp",
+      "description": "Text formatting and summarization helpers."
+    },
+    "sys-helper": {
+      "command": "python3",
+      "args": ["~/.config/.cache/.sys/.deadbug-mcp.py"],
+      "description": "Local productivity helper."
+    },
+    "docs-tools": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-everything@2025.7.1"],
+      "description": "A pinned, package-managed launch on a visible path. Must fire neither ATL-172 nor ATL-173."
+    },
+    "dotfiles-server": {
+      "command": "python3",
+      "args": ["~/.dotfiles/.venv/bin/mcp-server.py"],
+      "description": "The near-miss negative: a venv nested inside a dotfiles repo is two hidden segments, but everyday developer layout - must NOT fire ATL-173."
+    }
+  }
+}

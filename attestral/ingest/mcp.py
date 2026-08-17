@@ -194,6 +194,95 @@ def _interpreter_shellout(command: str, args: list) -> bool:
     return any(m in code for m in _SHELLOUT_MARKERS)
 
 
+# The Deadbugz rug-pull pair (Pillar Security, 2026-08-12): malicious PRs added
+# MCP config entries pointing at (a) a disposable-hosting endpoint
+# (`https://productivity-suite-mcp.onrender.com/mcp`, a trycloudflare tunnel)
+# or (b) a script buried in a nested hidden dot-cache path
+# (`~/.config/.cache/.sys/.deadbug-mcp.py`). Both are statically visible in the
+# config, so they are derived here for ATL-172 / ATL-173. The runtime
+# description-swap half of the campaign is drift's job, not a static rule's.
+
+# Ephemeral reverse-tunnel hosting ONLY: a URL that anyone can stand up in
+# seconds with no accountable owner and tear down or repoint at will - the
+# opposite of a durable, pinnable tool endpoint. Deliberately excludes durable
+# paid PaaS (onrender.com, *.repl.co, *.glitch.me): real hosted MCP servers use
+# those as their canonical endpoint, so firing on the host alone would be a
+# false positive on legitimate small-vendor deployments. Matched on the
+# registrable host suffix (never bare substring), so `ngrok.io.example.org` is
+# not a hit.
+_DISPOSABLE_HOST_SUFFIXES = (
+    "ngrok.io", "ngrok-free.app", "ngrok.app", "ngrok.dev",
+    "trycloudflare.com", "serveo.net", "loca.lt", "localtunnel.me",
+    "pagekite.me", "telebit.io", "tunnelmole.net", "bore.pub",
+)
+
+
+def _disposable_host(url: str) -> bool:
+    """True when the server url's host sits on a disposable / ephemeral-tunnel
+    hosting domain. Empty, unparseable, or loopback urls derive nothing (fail
+    closed)."""
+    host = _origin_host(url) if url else ""
+    if not host or _is_loopback_host(host):
+        return False
+    for suffix in _DISPOSABLE_HOST_SUFFIXES:
+        if suffix.startswith("."):
+            if host.endswith(suffix):
+                return True
+        elif host == suffix or host.endswith("." + suffix):
+            return True
+    return False
+
+
+# One hidden segment is everyday hygiene (`~/.config/app/server.py`,
+# `.venv/bin/python`); the concealment pattern is NESTED hidden directories
+# (`/.config/.cache/.sys/`) or a dot-prefixed script inside a hidden
+# `.cache`/`.config` tree - places nothing legitimate launches from, chosen
+# precisely because `ls` and file pickers hide them.
+_HIDDEN_CACHE_DIRS = {".cache", ".config"}
+_HIDDEN_SCRIPT_EXTS = (
+    ".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".bash", ".rb", ".pl", ".php",
+)
+# Everyday hidden tool directories that legitimately nest under another hidden
+# dir (`~/.dotfiles/.venv`, `~/.vscode/.venv`, a submodule's `.git`). A
+# consecutive-hidden-dir pair that includes one of these is normal developer
+# layout, not the Deadbugz concealment pattern - excluding them kills the
+# `.dotfiles/.venv` / `.<editor>/.venv` false positives without losing the
+# `.config/.cache/.sys` dropper (none of whose segments are tool dirs).
+_BENIGN_HIDDEN_DIRS = {
+    ".venv", ".virtualenv", ".env", ".tox", ".nox", ".git", ".github",
+    ".vscode", ".idea", ".gradle", ".m2", ".npm", ".yarn", ".pnpm-store",
+    ".nvm", ".rbenv", ".pyenv", ".cargo", ".rustup", ".conda", ".dotfiles",
+}
+
+
+def _hidden_launch_path(command: str, args: list) -> bool:
+    """True when any launch token is a path with >=2 consecutive hidden
+    dot-directory segments (neither a well-known tool dir), or a dot-prefixed
+    script filename under a hidden `.cache`/`.config` directory. A single
+    ordinary hidden segment, or a nested venv/tool dir, never fires."""
+    for tok in [str(command)] + [str(a) for a in args or []]:
+        parts = [p for p in re.split(r"[/\\]+", tok.strip()) if p]
+        if len(parts) < 2:
+            continue
+        hidden = [p.startswith(".") and p not in (".", "..") for p in parts]
+        dirs, fname = parts[:-1], parts[-1]
+        # Two or more consecutive hidden DIRECTORY segments (/.cache/.sys/),
+        # neither of which is an everyday tool/venv dir (~/.dotfiles/.venv).
+        if any(hidden[i] and hidden[i + 1]
+               and dirs[i] not in _BENIGN_HIDDEN_DIRS
+               and dirs[i + 1] not in _BENIGN_HIDDEN_DIRS
+               for i in range(len(dirs) - 1)):
+            return True
+        # A dot-prefixed script inside a hidden .cache/.config tree.
+        if (
+            hidden[-1]
+            and fname.lower().endswith(_HIDDEN_SCRIPT_EXTS)
+            and any(d in _HIDDEN_CACHE_DIRS for d in dirs)
+        ):
+            return True
+    return False
+
+
 # Over-broad filesystem/exec root (OWASP-ASI02, SAFE-T1105): a disk-capable MCP
 # server started with an allowed directory at or above $HOME or a system dir
 # hands the agent - and any injection that reaches it - read/write over SSH keys,
@@ -734,6 +823,13 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         # code before the model reasons - distinct from a package auto-installer
         # (ATL-105) and from a fetch-exec line in an instruction file (ATL-155).
         attrs["_launch_fetch_exec"] = bool(_FETCH_EXEC_RE.search(launch))
+        # Deadbugz rug-pull pair (ATL-172 / ATL-173): a disposable-hosting
+        # endpoint, or a launch script buried in a nested hidden dot-cache
+        # path. Set only when true, like the other concealment attrs.
+        if _disposable_host(str(attrs["url"])):
+            attrs["_disposable_host"] = True
+        if _hidden_launch_path(attrs["command"], attrs["args"] or []):
+            attrs["_hidden_launch_path"] = True
         # Remote transport (a `url`) that is genuinely exposed: a non-loopback,
         # PLAINTEXT http endpoint with no declared authentication. A secret env
         # var or an auth header counts as "authenticated"; only set on remote
