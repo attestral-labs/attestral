@@ -819,10 +819,18 @@ def blast_radius_cmd(path: str, limit: int) -> None:
               help="Exit non-zero if any reachable path exfiltrates the canary (CI gate).")
 @click.option("--no-isolate", is_flag=True,
               help="Run the attack in-process instead of a separate sandbox process "
-                   "(faster; weaker isolation).")
+                   "(faster; weaker isolation). Same as --isolation inprocess.")
+@click.option("--isolation",
+              type=click.Choice(["inprocess", "subprocess", "hardened", "container"]),
+              default=None,
+              help="Sandbox backend, strongest last: subprocess (default), hardened "
+                   "(subprocess + POSIX rlimits + new session, cwd, and cleared env), "
+                   "container (docker --network none - real egress structurally impossible), "
+                   "or inprocess (fastest, weakest). Overrides --no-isolate.")
 @click.option("-o", "--output", default=None,
               help="Write the pentest report JSON here. Terminal-first: nothing written without -o.")
-def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, output: str | None) -> None:
+def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, isolation: str | None,
+            output: str | None) -> None:
     """Execute a contained proof-of-exploit for each reachable attack path.
 
     The executed red-team tier. For every path the design makes reachable,
@@ -840,7 +848,7 @@ def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, output: str | None
     if not all_attack_paths(model):
         click.echo("No reachable attack path in the modeled design - nothing to exploit.")
         return
-    results = redteam.run_pentests(model, isolate=not no_isolate)
+    results = redteam.run_pentests(model, isolate=not no_isolate, isolation=isolation)
     click.echo(redteam.render_pentest(model, results=results))
     if output:
         Path(output).write_text(json.dumps(redteam.pentest_report(results), indent=2))

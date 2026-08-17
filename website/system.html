@@ -96,6 +96,20 @@
   footer{border-top:1px solid var(--rule);padding:44px 0 56px;font-size:.85rem;color:var(--muted)}
   footer .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .foot-labs{display:flex;align-items:center;gap:9px} .foot a{color:var(--seal)}
+  /*navgroup-css*/
+  .nav-group{position:relative;display:inline-flex;align-items:center}
+  .nav-group-label{color:var(--ink);cursor:default;display:inline-flex;align-items:center;gap:6px}
+  .nav-group-label::after{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-1px) rotate(45deg);opacity:.55}
+  .nav-group:hover .nav-group-label,.nav-group:focus-within .nav-group-label{color:var(--seal)}
+  .nav-menu{position:absolute;top:calc(100% + 12px);left:-12px;min-width:186px;background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:7px 0;display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .14s ease,transform .14s ease;z-index:70;box-shadow:0 14px 34px -20px rgba(0,0,0,.55)}
+  .nav-group:hover .nav-menu,.nav-group:focus-within .nav-menu{opacity:1;visibility:visible;transform:none}
+  .nav-menu a{padding:7px 18px;white-space:nowrap;font-size:.9rem;border-bottom:none !important}
+  .nav-menu a:hover{background:var(--us-tint);color:var(--seal)}
+  .nav-menu a[aria-current="page"]{color:var(--seal);border-bottom:none !important;padding-bottom:7px}
+  .nav-cta{border:1px solid var(--seal);color:var(--seal) !important;padding:5px 13px;border-radius:2px}
+  .nav-cta:hover{background:var(--seal);color:var(--paper) !important}
+  @media(max-width:680px){.nav-group{display:block;width:100%}.nav-menu{position:static;opacity:1;visibility:visible;transform:none;box-shadow:none;border:none;background:transparent;padding:2px 0 6px 14px;min-width:0}.nav-menu a{padding:4px 0}}
+  /*end-navgroup-css*/
 </style>
 <script>try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 </head>
@@ -104,17 +118,28 @@
   <div class="wrap nav">
     <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="18" fill="var(--seal)"/><g stroke="var(--paper)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
     <nav class="nav-links" aria-label="Main">
+      <div class="nav-group">
+        <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Product</span>
+        <div class="nav-menu">
+          <a href="capabilities.html">Capabilities</a>
+          <a href="pipeline.html">Pipeline</a>
+          <a href="system.html" aria-current="page">System</a>
+          <a href="review.html">Review layers</a>
+          <a href="architecture.html">Architecture</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Prove it</span>
+        <div class="nav-menu">
+          <a href="proof.html">Proof</a>
+          <a href="redteam.html">Red-team</a>
+          <a href="runtime.html">Runtime</a>
+        </div>
+      </div>
       <a href="research.html">Research</a>
-      <a href="pipeline.html">Pipeline</a>
-      <a href="capabilities.html">Capabilities</a>
-      <a href="system.html" aria-current="page">System</a>
-      <a href="index.html#how">Review layers</a>
-      <a href="index.html#start">Get started</a>
-      <a href="proof.html">Proof</a>
-      <a href="runtime.html">Runtime</a>
       <a href="playground.html">Playground</a>
       <a href="docs.html">Docs</a>
-      <a href="architecture.html">Architecture</a>
+      <a class="nav-cta" href="index.html#start">Get started</a>
       <a href="https://github.com/attestral-labs/attestral">GitHub</a>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
     </nav>

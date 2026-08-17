@@ -15,6 +15,12 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
   plugs into the same `PentestResult` schema and stays gated. `--fail-on-exfil` turns a working exploit into
   a red build. New `run_pentest`/`run_pentests`/`render_pentest`/`pentest_report`/`PentestResult` in
   `redteam.py`; `tests/test_pentest.py`.
+- **Selectable pentest isolation (`--isolation inprocess|subprocess|hardened|container`).** The sandbox
+  backend is now pluggable behind one result schema, strongest last: `subprocess` (default, a real OS
+  process), `hardened` (a subprocess in a POSIX jail: new session, isolated cwd, cleared env, and CPU / fd /
+  process rlimits), and `container` (`docker --network none`, where real egress is structurally impossible
+  so containment is guaranteed and the oracle moves to a mounted volume). Each degrades fail-closed when its
+  primitive is unavailable (e.g. no docker daemon), never a hang.
 - **Closing the loop: `attestral compile --close-loop`.** Runs the executed pentest, then DENIES any server
   whose egress carried a proven canary out (`redteam.proven_exploit_findings` emits an `ATL-RT-EXFIL`
   critical against the egress server's component id, which `compile_policy` already denies). A demonstrated
