@@ -39,6 +39,10 @@ positive:
     path: examples/deadbugz-rugpull
     expect: [ATL-172, ATL-173]
     cite: "Deadbugz MCP supply-chain campaign (Pillar Security 2026-08-12): PR-planted disposable onrender.com endpoint + hidden dot-cache dropper path; MITRE ATLAS AML.T0115/AML.T0011; OWASP ASI04"
+  - id: workspace-autoload
+    path: examples/workspace-autoload
+    expect: [ATL-174]
+    cite: "MCP auto-load on workspace trust (Cursor / Amazon Q, July 2026): a repo-committed .cursor/mcp.json stdio server the IDE launches on open, before review. OWASP-MCP MCP09 Shadow MCP Servers; MITRE ATLAS AML.T0081 Modify AI Agent Configuration; MCP Security Best Practices 2025-11-25"
   - id: ci-agent-confused-deputy
     path: examples/ci-agent-confused-deputy
     expect: [ATL-223]

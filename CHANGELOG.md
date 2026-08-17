@@ -6,6 +6,25 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **New rule ATL-174 - MCP server auto-launches from a repo-committed IDE workspace-trust config.** A
+  stdio MCP server declared in a project-trust IDE config committed inside the repo (`.cursor/mcp.json`,
+  `.amazonq/mcp.json`, `.vscode/mcp.json`, or a project `.claude/` config) is started by the IDE the moment
+  a developer opens or trusts the workspace, before anyone reviews the command it runs - so cloning an
+  untrusted repo executes an attacker-planted local process. This is the "MCP auto-load on workspace trust"
+  class behind the July 2026 Cursor and Amazon Q incidents. Deliberately narrow: a user-global copy of the
+  same file, a repo-root `.mcp.json` (the shared-team convention that prompts for approval on open), and a
+  remote-`url`-only entry all stay silent. New `_workspace_autoload` derived attribute in `ingest/mcp.py`;
+  fixture `examples/workspace-autoload`; `tests/test_workspace_autoload_rule.py`. Cites OWASP-MCP MCP09:2025
+  (Shadow MCP Servers), MITRE ATLAS AML.T0081 (Modify AI Agent Configuration), and MCP Security Best
+  Practices 2025-11-25. Pack 285 -> 286.
+- **Four known-vulnerable MCP-server dependency pins (ATL-145 table).** Added to `_KNOWN_DEP_VULNS` in
+  `ingest/dependencies.py`: CVE-2026-61459 (mcp-server-kubernetes < 3.9.0, argument injection injecting
+  `--server` into kubectl to exfiltrate the caller's bearer token, CVSS 9.8 - this window supersedes the
+  older CVE-2026-47250 / CVE-2025-53355 command-injection advisories), CVE-2026-45672 (open-webui <= 0.8.11,
+  `/api/v1/utils/code/execute` runs Python even when `ENABLE_CODE_EXECUTION=false`), CVE-2026-40576
+  (excel-mcp-server <= 0.1.7, unauthenticated SSE/HTTP path traversal to arbitrary host file read/write),
+  and CVE-2026-5059 (aws-mcp <= 1.7.0, unauthenticated command-injection RCE with no fixed release, CVSS
+  9.8). Fixture `examples/vuln-deps-mcp-wave`; branch-precision tests in `tests/test_dependencies_ingest.py`.
 - **Executed red-team harness (`attestral pentest`).** The tier-2 sandbox stops narrating the exploit and
   runs it. For each reachable attack path, Attestral spawns an isolated sandbox agent (its own OS process),
   plants a harmless canary in a stub secret store, and lets the agent try to exfiltrate it. Two facts are

@@ -912,10 +912,11 @@ def proven_exploit_findings(results: list[PentestResult]) -> list[Finding]:
                 severity=Severity.CRITICAL,
                 component_id=cid,
                 description=(
-                    f"An executed sandbox pentest of the {r.kind} attack path exfiltrated a "
-                    "planted canary through this server's egress. The run was contained (no "
-                    "real data left), but the reachable path is a demonstrated live exploit, "
-                    "not a hypothetical one."),
+                    f"An executed sandbox pentest of the {r.kind} attack path carried a planted "
+                    "canary through this server's egress to an instrumented sink, with the real "
+                    "outbound blocked (containment verified). This confirms the declared design "
+                    "permits the flow end to end; it is not proof the target's live agent would "
+                    "follow an injection."),
                 recommendation=(
                     "Break the proven path: remove the code-execution rung on the pivot, or "
                     "scope/remove this server's outbound channel, then re-attest and re-compile. "
