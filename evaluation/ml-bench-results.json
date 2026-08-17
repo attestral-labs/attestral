@@ -1,0 +1,85 @@
+{
+  "host": {
+    "machine": "arm64",
+    "system": "Darwin",
+    "python": "3.13.0"
+  },
+  "latency_corpus": "deepset-prompt-injections.jsonl",
+  "tiers": {
+    "heuristic": {
+      "n_texts": 662,
+      "build_s": 0.0,
+      "first_score_s": 0.0013,
+      "latency_ms": {
+        "mean": 0.253,
+        "p50": 0.127,
+        "p95": 0.756,
+        "p99": 1.798
+      },
+      "throughput_per_s": 3948.3,
+      "peak_rss_mb": 20.6,
+      "model_mb": 0.0,
+      "deps_mb": 0.0
+    },
+    "onnx": {
+      "n_texts": 662,
+      "build_s": 4.9364,
+      "first_score_s": 0.0249,
+      "latency_ms": {
+        "mean": 30.666,
+        "p50": 20.319,
+        "p95": 72.271,
+        "p99": 156.617
+      },
+      "throughput_per_s": 32.6,
+      "peak_rss_mb": 1340.0,
+      "model_mb": 738.6,
+      "deps_mb": 223.7
+    },
+    "deberta": {
+      "n_texts": 662,
+      "build_s": 3.8061,
+      "first_score_s": 1.2099,
+      "latency_ms": {
+        "mean": 102.271,
+        "p50": 91.31,
+        "p95": 160.607,
+        "p99": 251.206
+      },
+      "throughput_per_s": 9.8,
+      "peak_rss_mb": 931.2,
+      "model_mb": 748.8,
+      "deps_mb": 665.4
+    },
+    "onnx-fp32": {
+      "n_texts": 662,
+      "build_s": 4.9004,
+      "first_score_s": 0.0473,
+      "latency_ms": {
+        "mean": 28.474,
+        "p50": 19.256,
+        "p95": 63.184,
+        "p99": 128.311
+      },
+      "throughput_per_s": 35.1,
+      "peak_rss_mb": 1157.1,
+      "model_mb": 738.6,
+      "deps_mb": 223.7
+    },
+    "onnx-int8": {
+      "n_texts": 662,
+      "build_s": 3.8275,
+      "first_score_s": 0.0159,
+      "latency_ms": {
+        "mean": 15.816,
+        "p50": 11.647,
+        "p95": 34.219,
+        "p99": 62.823
+      },
+      "throughput_per_s": 63.2,
+      "peak_rss_mb": 1319.3,
+      "model_mb": 244.0,
+      "deps_mb": 223.7
+    }
+  }
+}

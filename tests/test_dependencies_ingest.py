@@ -41,12 +41,17 @@ def test_agent_framework_cve_ranges_are_branch_precise():
     assert _dep_cve("smolagents", "1.20.0") == "CVE-2025-11844"
     assert _dep_cve("mcp", "1.22.0") == "CVE-2025-66416"
     assert _dep_cve("mcp", "1.23.0") is None                          # patched
-    # Langflow: two CISA-KEV unauth-RCEs. 3248 owns <1.3.0; 0770 the window above,
-    # so a 1.3.0-1.9.1 install (safe from 3248) is still flagged for the later one.
+    # Langflow: three CISA-KEV unauth-RCEs partitioned first-match. 3248 owns
+    # <1.3.0; 0770 the 1.3.0-1.9.1 window; 9198 (auto_login superuser token +
+    # validate/code exec, affected 1.0.0-1.10.0) the 1.9.2-1.10.0 window above.
+    # The IDOR KEV 55255 (<1.9.2) sits entirely inside the RCE windows, so
+    # first-match always reports the RCEs; its row documents the advisory.
     assert _dep_cve("langflow", "1.2.0") == "CVE-2025-3248"
     assert _dep_cve("langflow", "1.3.0") == "CVE-2026-0770"          # safe from 3248, hit by 0770
-    assert _dep_cve("langflow", "1.9.1") == "CVE-2026-0770"
-    assert _dep_cve("langflow", "1.9.2") is None                      # both patched
+    assert _dep_cve("langflow", "1.9.1") == "CVE-2026-0770"          # 55255 shadowed by the RCE KEV
+    assert _dep_cve("langflow", "1.9.2") == "CVE-2026-9198"          # safe from 0770, hit by 9198
+    assert _dep_cve("langflow", "1.10.0") == "CVE-2026-9198"
+    assert _dep_cve("langflow", "1.10.1") is None                     # all patched
     # The MCP TS SDK id-collision CVE sits just above the ReDoS ceiling (1.25.1).
     assert _dep_cve("@modelcontextprotocol/sdk", "1.25.2") == "CVE-2026-25536"
 
@@ -95,6 +100,28 @@ def test_langgraph_chain_and_mcp_sdk_cves():
     assert _dep_cve("@modelcontextprotocol/sdk", "1.25.2") == "CVE-2026-25536"
     assert _dep_cve("@modelcontextprotocol/sdk", "1.26.0") is None  # both patched
     assert _dep_cve("@modelcontextprotocol/sdk", "1.2.0") is None   # below the affected floor
+
+
+def test_2026_08_radar_rows_are_branch_precise():
+    # Flowise 3.1.3 fix wave: the critical sandbox-escape RCE (69253) fronts the
+    # cluster (69251 TypeORM RCE / 69258 unauth overrideConfig injection fixed in
+    # the same release); flowise-components carries its own advisory id.
+    assert _dep_cve("flowise", "3.1.2") == "CVE-2026-69253"
+    assert _dep_cve("flowise", "3.1.3") is None                       # patched
+    assert _dep_cve("flowise-components", "3.1.2") == "CVE-2026-73601"
+    assert _dep_cve("flowise-components", "3.1.3") is None            # patched
+    # mcp-grafana credentialed SSRF, patched 1.1.0.
+    assert _dep_cve("mcp-grafana", "1.0.9") == "CVE-2026-19516"
+    assert _dep_cve("mcp-grafana", "1.1.0") is None                   # patched
+    # n8n MCP-client SSRF allowlist bypass, patched 2.32.1.
+    assert _dep_cve("n8n", "2.32.0") == "CVE-2026-72768"
+    assert _dep_cve("n8n", "2.32.1") is None                          # patched
+    # vLLM incomplete-fix bypass of the 62164 torch.load RCE: >=0.21.0 <0.26.0,
+    # the window above 22778's 0.14.0 ceiling (0.14.1-0.20.x stays clean).
+    assert _dep_cve("vllm", "0.21.0") == "CVE-2026-73557"
+    assert _dep_cve("vllm", "0.25.9") == "CVE-2026-73557"
+    assert _dep_cve("vllm", "0.20.0") is None                         # below the bypass floor
+    assert _dep_cve("vllm", "0.26.0") is None                         # patched
 
 
 def test_litellm_mcp_config_command_injection_cve():

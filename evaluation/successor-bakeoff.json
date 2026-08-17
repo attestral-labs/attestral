@@ -1,0 +1,90 @@
+{
+  "threshold": 0.5,
+  "candidate": "patronus-studio/wolf-defender-prompt-injection-small",
+  "models": {
+    "incumbent-deberta-v2": {
+      "deepset": {
+        "recall": 0.4144,
+        "fp_rate": 0.01,
+        "n_pos": 263,
+        "n_neg": 399
+      },
+      "paraphrase": {
+        "recall": 0.8667,
+        "fp_rate": 0.0833,
+        "n_pos": 15,
+        "n_neg": 12
+      },
+      "obfuscation": {
+        "recall": 0.7179,
+        "fp_rate": 0.0,
+        "n_pos": 39,
+        "n_neg": 14
+      },
+      "multilingual": {
+        "recall": 1.0,
+        "fp_rate": 0.5714,
+        "n_pos": 15,
+        "n_neg": 7
+      },
+      "over_defense": {
+        "recall": null,
+        "fp_rate": 0.2083,
+        "n_pos": 0,
+        "n_neg": 48
+      },
+      "_efficiency": {
+        "p50_ms": 97.9,
+        "p95_ms": 133.8,
+        "throughput_per_s": 9.6,
+        "model_mb": 0.0
+      },
+      "_decision": {
+        "mean_recall_uncontaminated": 0.8615,
+        "over_defense_fp_rate": 0.2083
+      }
+    },
+    "wolf-defender-small": {
+      "deepset": {
+        "recall": 0.654,
+        "fp_rate": 0.0125,
+        "n_pos": 263,
+        "n_neg": 399
+      },
+      "paraphrase": {
+        "recall": 0.9333,
+        "fp_rate": 0.1667,
+        "n_pos": 15,
+        "n_neg": 12
+      },
+      "obfuscation": {
+        "recall": 1.0,
+        "fp_rate": 0.2857,
+        "n_pos": 39,
+        "n_neg": 14
+      },
+      "multilingual": {
+        "recall": 1.0,
+        "fp_rate": 0.1429,
+        "n_pos": 15,
+        "n_neg": 7
+      },
+      "over_defense": {
+        "recall": null,
+        "fp_rate": 0.125,
+        "n_pos": 0,
+        "n_neg": 48
+      },
+      "_efficiency": {
+        "p50_ms": 51.9,
+        "p95_ms": 75.9,
+        "throughput_per_s": 18.0,
+        "model_mb": 562.6
+      },
+      "_decision": {
+        "mean_recall_uncontaminated": 0.9778,
+        "over_defense_fp_rate": 0.125
+      }
+    }
+  }
+}

@@ -2,10 +2,13 @@
 """Export the prompt-injection DeBERTa model to ONNX for the light `onnx` tier.
 
 attestral's ML layer (attestral/ml.py) can score agentic text surfaces with the
-same DeBERTa prompt-injection classifier through onnxruntime instead of torch -
-model-grade accuracy at a ~30-50MB install. That path (``ORTModelForSequence-
-Classification.from_pretrained``) needs ONNX weights to exist in the model repo
-or the local HF cache. This maintenance script produces them.
+same DeBERTa prompt-injection classifier through onnxruntime instead of torch.
+The win over the torch tier is dropping torch itself (measured ~224MB of deps vs
+~665MB) and ~4x lower latency, at byte-identical accuracy - NOT a small model:
+the fp32 ONNX graph this exports is ~740MB (see evaluation/ml-efficiency.md).
+That path (``ORTModelForSequenceClassification.from_pretrained``) needs ONNX
+weights to exist in the model repo or the local HF cache; this maintenance
+script produces them.
 
 It downloads the torch checkpoint once, converts it to ONNX via optimum, and
 writes the ONNX model + tokenizer to an output directory you can then upload to

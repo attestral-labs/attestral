@@ -35,6 +35,14 @@ positive:
     path: examples/mcp-launch-rce
     expect: [ATL-171]
     cite: "Config-injection RCE via a repo-shipped .mcp.json launch command (curl|sh, iex(iwr)); TrustFall 2026; OWASP ASI04/ASI05; MITRE ATLAS AML.T0010"
+  - id: deadbugz-rugpull
+    path: examples/deadbugz-rugpull
+    expect: [ATL-172, ATL-173]
+    cite: "Deadbugz MCP supply-chain campaign (Pillar Security 2026-08-12): PR-planted disposable onrender.com endpoint + hidden dot-cache dropper path; MITRE ATLAS AML.T0115/AML.T0011; OWASP ASI04"
+  - id: ci-agent-confused-deputy
+    path: examples/ci-agent-confused-deputy
+    expect: [ATL-223]
+    cite: "AI coding agent in CI reaching runner secrets from an unprivileged issue (CVE-2026-54316, Novee Security, Black Hat USA 2026): untrusted trigger + secrets-in-scope + shell-capable agent = CI confused deputy"
   - id: tool-shadowing
     path: examples/tool-shadowing
     expect: [ATL-106, ATL-204, ATL-205, ATL-206]

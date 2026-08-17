@@ -28,6 +28,7 @@ DIAGRAM_KEYWORDS = {
     "ingest/agentgateway.py": "Credential broker",
     "ingest/deployment_env.py": "Deployment env",
     "ingest/dependencies.py": "Dependency manifests",
+    "ingest/github_actions.py": "GitHub Actions workflows",
     "ingest/scan.py": "SystemModel",
     "model.py": "SystemModel",
     "rules/engine.py": "Deterministic rules",

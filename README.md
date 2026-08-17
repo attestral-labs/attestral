@@ -101,7 +101,7 @@ attestral explain ATL-103    # title, severity, description, fix, and framework 
 
 Every finding in the terminal output carries a `run: attestral explain <RULE_ID>` pointer, so the reasoning and the fix are one command away. Rule ids are matched case-insensitively.
 
-## What it catches (282-rule pack)
+## What it catches (285-rule pack)
 
 | Area | Examples |
 |---|---|
@@ -131,6 +131,7 @@ flowchart TB
         AC["Agent settings + hooks, subagents,<br/>A2A agent cards (.claude/**, .well-known/)"] --> M
         CODE["Agent code (.py)<br/>@tool functions, Anthropic/MCP tool defs,<br/>LangGraph · CrewAI · OpenAI Agents SDK"] --> M
         DEP["Dependency manifests<br/>(requirements.txt · pyproject · package.json)<br/>known-CVE version match"] --> M
+        GHA["GitHub Actions workflows<br/>(.github/workflows/*.yml)<br/>untrusted-trigger · AI agent · secrets · shell"] --> M
         GW["Credential broker config<br/>(agentgateway · CB4A)<br/>fail-open · inlined secret"] --> M
         DENV["Deployment env<br/>(docker-compose · .env)<br/>credential concentration"] --> M
         LC["Installed agent configs<br/>(scan --local)"] --> M
@@ -138,7 +139,7 @@ flowchart TB
     end
     M --> L1
     subgraph REV["2 · Review (layered, each finding tagged by origin)"]
-        L1["<b>L1 Deterministic rules</b><br/>282 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-boundary reach into named cloud/IaC sinks<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
+        L1["<b>L1 Deterministic rules</b><br/>285 typed matchers · fail-closed<br/>+ cross-server attack path synthesis<br/>+ cross-boundary reach into named cloud/IaC sinks<br/>+ cross-repo fleet toxic-flow detection<br/>+ information-flow lattice (IFC labels)<br/>+ OWASP AIVSS agentic risk score<br/>origin: deterministic"]
         L2["<b>L2 ML classifier</b> (optional)<br/>DeBERTa prompt-injection on agentic surfaces<br/>origin: ml"]
         L3["<b>L3 LLM</b> (optional)<br/>elicitation + LLM-as-judge verifier<br/>origin: llm"]
         L1 --> L2 --> L3
@@ -160,7 +161,7 @@ flowchart TB
 
 | Layer | What it does | Reproducible? | Cost |
 |---|---|---|---|
-| **L1 Deterministic** | 282 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
+| **L1 Deterministic** | 285 typed matchers over the model, fail-closed (unknown matcher never matches), plus cross-server attack-path synthesis | Yes, fully | Free, offline |
 | **L2 ML** (optional) | Scores agentic text surfaces (MCP tool/server descriptions, system prompts, embedded MCP Apps HTML bodies) for prompt injection / jailbreaks. Three tiers: zero-dep heuristic (default), ONNX (`attestral[onnx]`, model-grade, no torch), or DeBERTa (`attestral[ml]`) | Pinned model + revision | Free, offline after first cache |
 | **L3 LLM** (optional) | Elicits novel design threats, and a judge cross-examines findings to cut false positives | Verdicts recorded in the chain | Your API key |
 
@@ -198,6 +199,7 @@ attestral scan ./my-project --ml --ml-threshold 0.7       # tune sensitivity
 # LLM threat elicitation on top of the deterministic layer
 export ANTHROPIC_API_KEY=...
 attestral scan ./my-project --llm
+attestral scan ./my-project --llm-deep    # fan across 4 adversarial lenses, dedup (deeper, ~4x cost)
 
 # LLM-as-judge: cross-examine findings to cut false positives.
 # Verdicts (confirmed / false_positive / needs_review) are recorded in the chain.
@@ -268,6 +270,16 @@ A scanner stops at a list of findings. Attestral turns the reviewed design into 
 ### Integrity, and now authenticity
 
 The SHA-256 chain is **tamper-evident**: edit any past finding and every later hash, and the head, stop matching. On its own that proves the chain is internally consistent, not that it is the chain *you* sealed, an attacker could edit a finding, recompute the whole chain and a new head, and `verify` would still say VALID. `attestral sign` closes that with an **Ed25519 signature over the head, wrapped in a DSSE envelope** (the same envelope Sigstore and in-toto use). Now `attestral verify --public-key` checks both: integrity (no entry altered) *and* authenticity (this is the chain the key holder sealed, not a recomputed forgery). Signing needs the `attestral[sign]` extra; the integrity check still runs with zero dependencies.
+
+### Sovereign mode: run fully local, and prove it
+
+In data-residency markets (GCC, defense, regulated finance), "no client code, config, or data leaves the environment" is frequently the only compliant posture, not a preference. Attestral is local by default; `--sovereign` makes that **enforced and provable**. It refuses the online layers fail-closed (`--llm`, `--judge`, and the networked ML tiers), arms an egress guard that blocks any outbound connection at the socket for the whole review (loopback and UNIX sockets still work; a blocked attempt is recorded, never hidden), and seals a **self-verifying no-egress attestation** bound to the evidence-chain head. `attestral verify` recomputes the attestation and its chain binding, so a tampered receipt is caught.
+
+```bash
+attestral scan . --sovereign                      # runs offline; prints the no-egress attestation
+attestral scan . --sovereign -o review --format json   # embeds the attestation in review.json
+attestral verify review.json                      # chain VALID + no-egress attestation VALID
+```
 
 ### Verifiable conformance attestation
 
@@ -449,6 +461,18 @@ attestral memory verify mem.jsonl --keyring writers.yaml --fail-on-untrusted
 attestral validate ./my-project
 attestral validate ./my-project -o proof --fail-on-reachable   # write proof.md + chain, gate CI
 
+# PENTEST: the executed red-team tier - for each reachable path, spawn an isolated
+# sandbox agent, plant a canary, and MEASURE whether it exfiltrates (parent-side
+# sink oracle) while the sandbox's egress guard blocks the real outbound (contained).
+# Attestral's own stubs only: no live agent, no real secret or network.
+attestral pentest ./my-project
+attestral pentest ./my-project --fail-on-exfil -o pentest.json   # gate CI on a working exploit
+
+# CLOSE THE LOOP: compile the runtime policy, but first run the executed pentest and
+# DENY any server whose egress carried a proven canary out. static review ->
+# sandbox-proven exploit -> runtime-enforced deny.
+attestral compile ./my-project --close-loop -o mcp-guard-policy.yaml
+
 # BLAST-RADIUS: rank every agent surface by its if-compromised reach, so
 # hardening prioritises itself (the lethal-trifecta host rises to the top)
 attestral blast-radius ./my-project
@@ -497,7 +521,7 @@ attestral drift policy.yaml examples/demo-project/runtime-events.jsonl --fail-on
 
 ## Real-world benchmark
 
-Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **282 rules** today; this table shows the historical progression, not the current pack size):
+Run on [TerraGoat](https://github.com/bridgecrewio/terragoat) (Bridgecrew's deliberately-vulnerable Terraform), same repo, as the rule pack grew (the pack is **285 rules** today; this table shows the historical progression, not the current pack size):
 
 | | TerraGoat AWS | TerraGoat Azure | TerraGoat GCP | Distinct rules |
 |---|---|---|---|---|

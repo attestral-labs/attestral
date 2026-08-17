@@ -10,7 +10,7 @@ rules:
     match: { attr_equals: { _image_untagged: true } }
     description: An untagged image reference resolves to :latest at pull time, so the running code can change between deploys and no prior review of a specific build holds.
     recommendation: Pin the image to an immutable digest (image@sha256:...), or at minimum an explicit, immutable version tag.
-    frameworks: ["OWASP LLM05 Supply Chain", "NIST CM-2", "SOC2 CC8.1"]
+    frameworks: ["OWASP-LLM04:2026 Supply Chain", "NIST CM-2", "SOC2 CC8.1"]
 
   - id: ATL-512
     title: Container does not disable privilege escalation

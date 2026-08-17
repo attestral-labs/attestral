@@ -6,6 +6,64 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **Executed red-team harness (`attestral pentest`).** The tier-2 sandbox stops narrating the exploit and
+  runs it. For each reachable attack path, Attestral spawns an isolated sandbox agent (its own OS process),
+  plants a harmless canary in a stub secret store, and lets the agent try to exfiltrate it. Two facts are
+  measured, not asserted: `exfiltrated` (the parent-side sink oracle actually received the canary bytes -
+  the child cannot fake it) and `contained` (the sandbox's `EgressGuard` blocked the real outbound to the
+  attacker host, so the proof could not leak). Deterministic, offline, own-stubs-only; a live-target driver
+  plugs into the same `PentestResult` schema and stays gated. `--fail-on-exfil` turns a working exploit into
+  a red build. New `run_pentest`/`run_pentests`/`render_pentest`/`pentest_report`/`PentestResult` in
+  `redteam.py`; `tests/test_pentest.py`.
+- **Closing the loop: `attestral compile --close-loop`.** Runs the executed pentest, then DENIES any server
+  whose egress carried a proven canary out (`redteam.proven_exploit_findings` emits an `ATL-RT-EXFIL`
+  critical against the egress server's component id, which `compile_policy` already denies). A demonstrated
+  exploit becomes a default-deny in the compiled runtime policy: static review -> sandbox-proven exploit ->
+  runtime-enforced deny, with no coupling from the compiler to the red-team code.
+- **MCP corpus harvester (`evaluation/corpus_harvest.py`).** Pulls the official MCP registry and PulseMCP,
+  normalizes and de-dupes by GitHub repo (owner/repo, upgraded to the immutable numeric id with
+  `--enrich-github`), so recall/false-positive claims rest on a counted, source-tagged denominator instead
+  of a vendor-inflated directory total. Stdlib only; the HTTP layer is injectable, so the logic is
+  unit-tested offline. `tests/test_corpus_harvest.py`.
+- **Sovereign mode (`attestral scan --sovereign`) + a signed no-egress attestation.** Data-residency
+  markets (GCC, defense, regulated finance) often make "no client data leaves the environment" the only
+  compliant posture, not a preference. Sovereign mode makes Attestral's local-by-default design enforced
+  and provable: it refuses the online layers (`--llm`/`--judge` and the networked ML tiers) fail-closed,
+  arms an `EgressGuard` that blocks any outbound connection at the socket for the duration of the review
+  (loopback and UNIX sockets pass; a blocked attempt is recorded, never hidden), and seals a
+  self-verifying `no-egress-attestation` bound to the evidence-chain head. `attestral verify` recomputes
+  the attestation's hash and its chain binding, so a tampered receipt is caught. New `EgressGuard`,
+  `no_egress_attestation`, `verify_attestation`, and `attestation_line` in `evidence.py`; `tests/test_sovereign.py`.
+- **Deadbugz MCP rug-pull detection (ATL-172, ATL-173).** Two high-severity agentic rules for the
+  live Deadbugz supply-chain campaign (Pillar Security, 2026-08-12): ATL-172 fires when an MCP server's
+  endpoint is hosted on a disposable/ephemeral tunneling domain (onrender/ngrok/trycloudflare and 11
+  more, matched on the registrable host suffix so `onrender.com.evil.org` never trips it), and ATL-173
+  when a server launches from a nested hidden dot-cache path (the real IOC `~/.config/.cache/.sys/.deadbug-mcp.py`),
+  while an ordinary single dotfile stays quiet. New fail-closed `_disposable_host` / `_hidden_launch_path`
+  ingester attributes; fixture `examples/deadbugz-rugpull`; benchmark case.
+- **CI confused-deputy detection (ATL-223) + a GitHub Actions workflow ingester.** New `ci_workflow`
+  ingestion of `.github/workflows/*.yml` emits four fail-closed derived attributes (untrusted trigger,
+  AI-agent step, secrets in scope, shell-capable agent). ATL-223 (critical) matches the four-way
+  conjunction - the CI-level lethal trifecta behind CVE-2026-54316 (an AI coding agent reachable from
+  an unprivileged GitHub issue with runner secrets in scope). Fixture `examples/ci-agent-confused-deputy`;
+  benchmark case.
+- **`attestral scan --llm-deep`.** LLM elicitation fanned across four adversarial lenses (injection,
+  privilege escalation, exfiltration, supply chain) with dedup. The elicitation layer was rebuilt:
+  structured-output findings, content-stable finding ids (waivers stay attached across runs), grounded
+  component ids (no dangling references), capability-gated request params, and operator notes on every
+  skip or error - it no longer fails silently.
+- **CVE pin-table refresh** (`ingest/dependencies.py`): langflow CVE-2026-9198 (CISA KEV) and
+  CVE-2026-55255, flowise/flowise-components <3.1.3 (CVE-2026-69251/69253/69258/73601),
+  mcp-grafana <1.1.0 (CVE-2026-19516), n8n <2.32.1 (CVE-2026-72768), vllm CVE-2026-73557.
+- **Framework citations normalized to OWASP LLM Top 10 2026** (Excessive Agency -> LLM03:2026, Supply
+  Chain -> LLM04:2026, Improper Output Handling -> LLM10:2026, plus year-pinning), and MITRE ATLAS
+  AML.T0115 (Publish Poisoned AI Artifacts) added to the supply-chain rules.
+- **ML tier cost benchmark** (`evaluation/ml_bench.py` + `ml-efficiency.md`): measured latency,
+  throughput, RSS, and footprint per tier. Confirms DeBERTa earns its weight on recall (0.414 vs the
+  heuristic's 0.144; 13/15 vs 0/15 on paraphrased injection) at a large efficiency cost, and that
+  int8-dynamic quantization collapses recall on this detector - so no int8 tier ships. Adds
+  `scripts/quantize_onnx.py` to reproduce the negative result.
+
 - **`attr_missing` rules no longer false-positive on prefix-sharing sibling resource types - found by
   scanning real provider Terraform.** The rule engine matches a `target` by type prefix, which is
   deliberate for the split-resource pattern (a rule on `aws_s3_bucket` checking `acl`, or

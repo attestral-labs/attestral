@@ -245,7 +245,7 @@ rules:
     match: { attr_list_contains: { args: "-y" }}
     description: The server is launched with an auto-confirm installer (npx -y / uvx), fetching and running remote package code with no pinned integrity check. A compromised or typosquatted package becomes code execution in the agent's context.
     recommendation: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm flag.
-    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0104", "NIST SA-12", "OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "Agentic-SoK 2026 R4"]
+    frameworks: ["OWASP-LLM04:2026 Supply Chain", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0115", "MITRE ATLAS AML.T0104", "NIST SA-12", "OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "Agentic-SoK 2026 R4"]
 
   - id: ATL-171
     title: MCP server launch command fetches and executes remote code
@@ -254,7 +254,25 @@ rules:
     match: { attr_equals: { _launch_fetch_exec: true } }
     description: The server's launch command pipes a downloaded script straight into a shell (`curl … | sh`, `wget -qO- … | bash`, PowerShell `iex(iwr …)`), so merely loading this config runs attacker-changeable remote code in the agent's context - before the model reasons about anything. This is the config-injection RCE class behind the 2026 coding-agent incidents (TrustFall, poisoned repo-shipped `.mcp.json`) - the payload lives at a URL that can change after the config was reviewed, and a cloned or shared repo carries the launch to whoever opens it. Distinct from ATL-105 (a package auto-installer) and ATL-155 (a fetch-exec one-liner in an instruction file); this is the server launch itself.
     recommendation: Never fetch-and-pipe-to-shell in a launch command. Vendor the setup script into the repo with a pinned content hash and run it under explicit human approval, or install the server from an integrity-checked package pinned to an exact version; a launch command should invoke a reviewed binary, not download one.
-    frameworks: ["OWASP-ASI04:2026", "OWASP-ASI05:2026", "MITRE ATLAS AML.T0010", "OWASP-MCP MCP04:2025", "NIST SI-7"]
+    frameworks: ["OWASP-ASI04:2026", "OWASP-ASI05:2026", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0115", "OWASP-MCP MCP04:2025", "NIST SI-7"]
+
+  - id: ATL-172
+    title: MCP server endpoint hosted on a disposable tunneling domain
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _disposable_host: true } }
+    description: The server's url points at a free-tier or ephemeral-tunnel host (onrender.com, ngrok, trycloudflare, replit, glitch), so it has no accountable owner and can be swapped or torn down at will - the rug-pull staging pattern of the Deadbugz campaign (Pillar Security, 2026-08-12), where malicious PRs added a `productivity-suite-mcp.onrender.com` endpoint that turned on credential harvesting after a few tool calls. A durable tool belongs on an endpoint someone answers for; a tunnel endpoint is exactly what an attacker who wants deniable, replaceable infrastructure would choose.
+    recommendation: Pin the server to a controlled, owned endpoint (your org's domain or the vendor's official one) or run it locally from an integrity-checked package pinned to an exact version; treat any tunnel-hosted MCP entry arriving in a PR as hostile until its author and hosting are verified.
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP-LLM04:2026 Supply Chain", "MITRE ATLAS AML.T0115", "MITRE ATLAS AML.T0010"]
+
+  - id: ATL-173
+    title: MCP server launched from a hidden, obfuscated cache path
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _hidden_launch_path: true } }
+    description: The launch command runs a script buried in nested hidden dot-directories (e.g. `~/.config/.cache/.sys/.deadbug-mcp.py`, the Deadbugz dropper path - Pillar Security, 2026-08-12). Legitimate servers launch from a package or a visible project path; a payload is hidden this deep precisely so `ls`, file pickers, and a casual config review never surface it. One ordinary hidden segment (`~/.config/app/server.py`, `.venv/bin/x`) never fires - only the nested concealment pattern does.
+    recommendation: Delete the config entry and the hidden script, then audit how it got there (the Deadbugz vector was an unreviewed PR editing the MCP config). Launch servers from an integrity-checked package pinned to an exact version, or from a visible, reviewed path inside the project.
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP-LLM04:2026 Supply Chain", "MITRE ATLAS AML.T0011", "MITRE ATLAS AML.T0010"]
 
   - id: ATL-106
     title: MCP server pinned to a mutable tag
@@ -263,7 +281,7 @@ rules:
     match: { attr_any_contains: { args: ["@latest", ":latest"] } }
     description: The tool server tracks a mutable tag, so its code can change under you after review (a tool-poisoning rug-pull) with no re-attestation.
     recommendation: Pin to an immutable version or digest so the reviewed tool is the tool that runs.
-    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0109", "MITRE ATLAS AML.T0010", "OWASP-ASI04:2026", "OWASP-MCP MCP04:2025"]
+    frameworks: ["OWASP-LLM04:2026 Supply Chain", "MITRE ATLAS AML.T0109", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0115", "OWASP-ASI04:2026", "OWASP-MCP MCP04:2025"]
 
   - id: ATL-107
     title: MCP server grants outbound network or browser access
@@ -272,7 +290,7 @@ rules:
     match: { attr_any_contains: { args: ["server-fetch", "mcp-server-fetch", "puppeteer", "playwright", "browser"] } }
     description: A fetch or browser tool gives the agent an outbound channel, which is both an SSRF surface and a data-exfiltration path if a prompt injection lands.
     recommendation: Constrain the tool to an allowlist of destinations; deny access to internal metadata endpoints and private ranges.
-    frameworks: ["OWASP LLM02 Sensitive Information Disclosure", "OWASP-ASI02:2026", "NIST SC-7", "Agentic-SoK 2026 R1"]
+    frameworks: ["OWASP-LLM02:2026 Sensitive Information Disclosure", "OWASP-ASI02:2026", "NIST SC-7", "Agentic-SoK 2026 R1"]
 
   # --- v0.6 expansion: more AWS + Azure + GCP + Kubernetes ---
 
@@ -302,7 +320,7 @@ rules:
     match: { attr_equals: { image_tag_mutability: "MUTABLE" } }
     description: Mutable tags let an existing tag be overwritten with new code after review, enabling a supply-chain rug-pull with no re-attestation.
     recommendation: Set image_tag_mutability = "IMMUTABLE" and deploy by digest.
-    frameworks: ["OWASP LLM05 Supply Chain", "NIST SA-12", "SOC2 CC8.1"]
+    frameworks: ["OWASP-LLM04:2026 Supply Chain", "NIST SA-12", "SOC2 CC8.1"]
 
   - id: ATL-022
     title: ECR image scanning on push disabled
@@ -656,7 +674,7 @@ rules:
     match: { attr_any_contains: { image: [":latest"] } }
     description: A :latest (or other mutable) tag means the running code can change under you between deploys, defeating reproducibility and any prior review of the image.
     recommendation: Pin the image to an immutable digest (image@sha256:...).
-    frameworks: ["OWASP LLM05 Supply Chain", "NIST CM-2", "SOC2 CC8.1"]
+    frameworks: ["OWASP-LLM04:2026 Supply Chain", "NIST CM-2", "SOC2 CC8.1"]
 
   - id: ATL-506
     title: Container runs as the root user
@@ -715,7 +733,7 @@ rules:
     match: { attr_equals: { _auto_approve: true } }
     description: An auto-approve list or autonomy flag lets every tool call run end-to-end, so one injected instruction executes with no human ever seeing it.
     recommendation: Remove blanket auto-approval; allowlist only low-risk read-only tools and require confirmation for write, execute, and network actions.
-    frameworks: ["OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6", "Agentic-SoK 2026 R6"]
+    frameworks: ["OWASP-ASI03:2026", "OWASP-LLM03:2026 Excessive Agency", "NIST AC-6", "Agentic-SoK 2026 R6"]
 
   - id: ATL-109
     title: Remote MCP server reachable over plaintext HTTP with no authentication
@@ -814,7 +832,7 @@ rules:
     match: { attr_equals: { _remote_install_oneliner: true } }
     description: An agent-instruction file (CLAUDE.md, `.cursorrules`, AGENTS.md, a skill) contains a fetch-remote-and-execute one-liner (`curl ... | sh`, `wget ... | bash`, `iex(iwr ...)`). Standing instruction and skill files are read into the model's context and drive its actions every run, so a curl-pipe-shell here is remote code the agent may run on demand, pulled from a URL that can change under you after review - the untrusted-external-instructions class, delivered as an executable one-liner rather than as prose.
     recommendation: Never put a fetch-and-execute one-liner in a standing instruction or skill file. If a setup step is genuinely needed, pin it to a reviewed script vendored in the repo (with a content hash), require explicit human approval before it runs, and prefer a package manager with integrity checking over piping a URL into a shell.
-    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI06:2026", "OWASP LLM06 Excessive Agency", "NIST SI-7", "CWE-494"]
+    frameworks: ["OWASP-ASI05:2026", "OWASP-ASI06:2026", "OWASP-LLM03:2026 Excessive Agency", "NIST SI-7", "CWE-494"]
 
   # --- Research wave 2026-07: committed-config credential and transport
   # --- surfaces. Anchored to Check Point's Claude Code research (2026-02-25,
@@ -830,7 +848,7 @@ rules:
     match: { attr_equals: { _foreign_api_base: true } }
     description: A repo-committed agent settings file (`.claude/settings.json`) sets a model-API base URL (`ANTHROPIC_BASE_URL`, `ANTHROPIC_BEDROCK_BASE_URL`, `OPENAI_BASE_URL`, `*_API_BASE`) to a host that is neither the vendor's own domain nor loopback, so every model call - `Authorization` header and API key included - is sent to that foreign endpoint. Because the env block is resolved from repo-controlled config, a cloned or poisoned repo redirects the credential silently; Check Point demonstrated exactly this exfiltration against Claude Code, where the override applied before the user ever confirmed workspace trust (CVE-2026-21852, fixed in 2.0.65).
     recommendation: Remove the base-URL override from committed settings. If a proxy or gateway is genuinely required, configure it in user-scoped settings you control and point it only at a host your org owns; treat any repo-supplied `*_BASE_URL` / `*_API_BASE` value as a credential-theft attempt until reviewed.
-    frameworks: ["OWASP-ASI03:2026", "MITRE ATLAS AML.T0098", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "CVE-2026-21852"]
+    frameworks: ["OWASP-ASI03:2026", "MITRE ATLAS AML.T0098", "OWASP-LLM02:2026 Sensitive Information Disclosure", "NIST IA-5", "CVE-2026-21852"]
 
   - id: ATL-157
     title: Remote MCP server config embeds a literal auth token in its headers block
@@ -921,7 +939,7 @@ rules:
     match: { attr_equals: { _embedded_secret: true } }
     description: An agent-instruction file (CLAUDE.md, `.cursorrules`, AGENTS.md, a skill) contains a credential-shaped value - an API key, a provider token, a private-key block, or a connection string with an inline password. Instruction files are committed to version control, shared across a team, copied into logs, and read back into the model's context every run, so a secret placed in one leaks along every one of those paths and cannot be rotated out of the history. The value is detected by shape (a provider prefix, a key block, or a long high-entropy assignment that is not a placeholder), never guessed.
     recommendation: Remove the secret from the instruction file and rotate it - assume it is already compromised once committed. Reference credentials from a secret manager or an environment variable the agent reads at run time, never inline in prompt or instruction text, and add the file's path to your secret-scanning pre-commit hook.
-    frameworks: ["OWASP LLM07 System Prompt Leakage", "OWASP LLM02 Sensitive Information Disclosure", "OWASP-ASI06:2026", "NIST IA-5", "CWE-798"]
+    frameworks: ["OWASP-LLM08:2026 Hidden Context Exposure", "OWASP-LLM02:2026 Sensitive Information Disclosure", "OWASP-ASI06:2026", "NIST IA-5", "CWE-798"]
 
   - id: ATL-150
     title: Tool input schema dereferences an external $ref
@@ -939,7 +957,7 @@ rules:
     match: { attr_equals: { _shared_memory_credential: true } }
     description: A vector or persistent-memory server (chroma, pinecone, weaviate, qdrant, pgvector, mem0, and the like) is reached through a single static credential in its environment, so every user's embedded data lands in one store behind one key with no per-tenant boundary. If the agent serves more than one user, a query - or a prompt injection steering one - can retrieve or poison another tenant's vectors (cross-tenant embedding leakage). Unlike the public-endpoint confused-deputy case (ATL-115 / the shared-identity fleet rule), this isolation gap exists for a purely internal multi-user agent with no exposed endpoint.
     recommendation: Partition the store per tenant (a namespace or collection per user, or per-tenant credentials), or exchange the caller's own identity for a scoped, short-lived credential per request, so a query can only reach the caller's own vectors. One shared key gives every user the union of everyone's data.
-    frameworks: ["OWASP LLM08 Vector and Embedding Weaknesses", "OWASP-ASI06:2026", "OWASP-ASI03:2026", "NIST AC-4", "NIST SC-4", "CB4A TM-6 (draft-hartman-credential-broker-4-agents-00)"]
+    frameworks: ["OWASP-LLM09:2026 Vector and Embedding Weaknesses", "OWASP-ASI06:2026", "OWASP-ASI03:2026", "NIST AC-4", "NIST SC-4", "CB4A TM-6 (draft-hartman-credential-broker-4-agents-00)"]
 
   - id: ATL-164
     title: One MCP server concentrates standing credentials for many providers
@@ -948,7 +966,7 @@ rules:
     match: { attr_equals: { _credential_concentration: true } }
     description: A single server's environment holds long-lived credentials for four or more distinct providers (LLM vendors, clouds, or SaaS APIs) at once, so this one process is a high-density credential target - compromise of it, by prompt injection, a supply-chain backdoor, or an SSRF, inherits every one of those keys in a single step. This is the architecture behind the March 2026 LiteLLM incident, where an AI gateway holding dozens of providers' keys turned one compromise into an estimated 500,000 leaked corporate identities. A credential broker (CB4A) exists precisely so an agent process never holds a reusable, agent-readable secret; concentrating many providers behind one is the blast-radius its threat model rates CRITICAL.
     recommendation: Do not co-locate credentials for many providers in one process. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, narrowly scoped token per call so the process holds no reusable key, or at minimum split the providers across isolated processes so one compromise does not inherit them all. If this server is an LLM gateway, run it with per-request minted tokens, not a static key vault.
-    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP-LLM02:2026 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
 
   - id: ATL-165
     title: One Kubernetes workload concentrates standing credentials for many providers
@@ -957,7 +975,7 @@ rules:
     match: { attr_equals: { _credential_concentration: true } }
     description: A container's environment holds long-lived credentials for four or more distinct providers (LLM vendors, clouds, or SaaS APIs) at once, so this one workload is a high-density credential target - a compromise, by a supply-chain backdoor in its image, an RCE, or an SSRF, inherits every key in a single step. This is the deployment-manifest counterpart to ATL-164, where the LiteLLM-class gateway that concentrates many providers' keys usually lives, in a Deployment's env rather than a committed MCP config. A credential broker (CB4A) exists so a workload never holds a reusable, agent-readable key, and concentrating many providers behind one is the blast radius its threat model rates CRITICAL.
     recommendation: Do not co-locate credentials for many providers in one workload. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, scoped token per call so the pod holds no reusable key, source each key from its own scoped `secretKeyRef` rather than a shared bundle, and split the providers across isolated workloads so one compromise does not inherit them all.
-    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP-LLM02:2026 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
 
   - id: ATL-166
     title: Credential-broker route fails open (no strict inbound authentication)
@@ -975,7 +993,7 @@ rules:
     match: { attr_equals: { _inline_client_secret: true } }
     description: The gateway's token-exchange clientAuth carries a literal clientSecret in the config file rather than a secretRef or an environment reference, so the broker's own OAuth client credential is committed in plaintext. A broker exists to keep standing credentials out of reach; hardcoding the broker's client secret makes the broker config itself the leak. An env reference or an obvious placeholder is the correct pattern and is never flagged.
     recommendation: Source the token-exchange clientSecret from a secretRef (Kubernetes) or an environment reference the deployment supplies, never a literal in the committed config, and rotate any secret that was committed in plaintext.
-    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "CWE-798"]
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-LLM02:2026 Sensitive Information Disclosure", "NIST IA-5", "CWE-798"]
 
   - id: ATL-168
     title: A deployment env surface concentrates standing credentials for many providers
@@ -984,7 +1002,7 @@ rules:
     match: { attr_equals: { _credential_concentration: true } }
     description: A docker-compose service or a .env file holds long-lived credentials for four or more distinct providers (LLM vendors, clouds, or SaaS APIs) at once, so this one surface is a high-density credential target whose leak or compromise inherits every key in a single step. A holistic sweep of the most popular MCP repositories found this LiteLLM-class concentration in zero committed MCP configs, because the pattern does not live in the config, it lives in the deployment that runs it, and a docker-compose file or a .env is where a small team actually concentrates the keys. This is the deployment-surface counterpart to ATL-164 (MCP config) and ATL-165 (Kubernetes), the blast radius the CB4A draft rates CRITICAL (TM-1).
     recommendation: Do not concentrate many providers' credentials in one compose service or one .env. Front each provider with a credential broker (CB4A Model A/B, for example agentgateway or Vault) that injects a short-lived, scoped token per call so the process holds no reusable key, split the providers across isolated services, and never commit a .env with real keys to version control.
-    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP LLM02 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
+    frameworks: ["CB4A TM-1 (draft-hartman-credential-broker-4-agents-00)", "OWASP-ASI06:2026", "OWASP-LLM02:2026 Sensitive Information Disclosure", "NIST IA-5", "NIST SC-28"]
 
   - id: ATL-116
     title: Agent skill grants shell or unrestricted tool access
@@ -993,7 +1011,7 @@ rules:
     match: { attr_equals: { _skill_broad_tools: true } }
     description: A packaged agent skill (SKILL.md) declares allowed-tools that include shell/exec or a wildcard, so any agent that auto-loads the skill inherits command execution - excessive agency bundled into a shareable, silently-loaded artifact.
     recommendation: Scope the skill's allowed-tools to the minimum read-only set it needs; never distribute a skill that grants shell or wildcard tool access.
-    frameworks: ["OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6", "Agentic-SoK 2026 R6"]
+    frameworks: ["OWASP-ASI03:2026", "OWASP-LLM03:2026 Excessive Agency", "NIST AC-6", "Agentic-SoK 2026 R6"]
 
   - id: ATL-169
     title: Agent skill claims read-only behavior while its grant hands it a shell
@@ -1002,7 +1020,7 @@ rules:
     match: { attr_equals: { _skill_deceptive_readonly: true } }
     description: The skill's frontmatter description promises read-only / no-side-effects behavior while its allowed-tools grant affirmatively includes shell, exec, or wildcard access. The description is the surface the operator and the invoking agent trust when deciding to load and run the skill; the grant is what actually executes - so the contradiction is a deceptive capability claim, the skill-manifest analogue of tool poisoning (permission understating, OWASP AST04). Distinct from ATL-116, which fires on the broad grant alone; this finding is the claim/grant mismatch, and a skill that lies about one capability should not be trusted on the rest.
     recommendation: Make the manifest tell the truth - if the skill is genuinely read-only, drop shell/exec/wildcard from allowed-tools; if it needs a shell, say so in the description. Treat any skill whose stated behavior contradicts its declared grant as untrusted until re-reviewed, the same way you would a poisoned tool description.
-    frameworks: ["OWASP-AST04:2026 Insecure Metadata", "OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+    frameworks: ["OWASP-AST04:2026 Insecure Metadata", "OWASP-ASI03:2026", "OWASP-LLM03:2026 Excessive Agency", "NIST AC-6"]
 
   - id: ATL-170
     title: Agent skill directs writes into standing agent-memory files
@@ -1020,7 +1038,7 @@ rules:
     match: { attr_equals: { _has_known_cve: true } }
     description: The server launches a package version that carries a published security advisory (for example mcp-remote at or below 0.1.15, CVE-2025-6514, an OS command injection that reaches remote code execution when connecting to an untrusted remote server). The exact advisory id is recorded on the component.
     recommendation: Upgrade the package to a fixed version immediately, and pin to that exact version (or a digest) so a downgrade cannot silently reintroduce the flaw.
-    frameworks: ["OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0104", "OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "CVE-2025-6514"]
+    frameworks: ["OWASP-LLM04:2026 Supply Chain", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0115", "MITRE ATLAS AML.T0104", "OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "CVE-2025-6514"]
 
   - id: ATL-118
     title: Agent hook configuration runs commands (config injection)
@@ -1038,7 +1056,7 @@ rules:
     match: { model_capability_combo: [["filesystem", "database", "saas_data", "memory"], ["network", "messaging"]] }
     description: Across the configured servers the agent can read private data (files, databases, SaaS, or persistent memory) and reach an outbound channel, so one indirect prompt injection anywhere in its inputs can quietly exfiltrate what it reads.
     recommendation: Split the workflow so no single agent session combines private-data access with unrestricted egress, or gate the egress tool behind human approval and a destination allowlist.
-    frameworks: ["OWASP-ASI02:2026", "OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051", "Agentic-SoK 2026 R3", "Agentic-SoK 2026 R5"]
+    frameworks: ["OWASP-ASI02:2026", "OWASP-LLM01:2026 Prompt Injection", "MITRE ATLAS AML.T0051", "Agentic-SoK 2026 R3", "Agentic-SoK 2026 R5"]
 
   - id: ATL-203
     title: Tool fleet combines shell execution with outbound network reach
@@ -1056,7 +1074,7 @@ rules:
     match: { model_taint_flow: { sources: ["network", "saas_data", "memory"], sinks: ["shell"] } }
     description: The fleet contains a server that ingests untrusted external content (web/fetch, SaaS data, or memory) and a server that can execute commands, so injected content flowing from source to sink becomes indirect-injection-to-code-execution. The source and sink servers are named in the finding, and the flow is recorded as taint edges in the model.
     recommendation: Break the path - keep untrusted-input tools and execution tools in separate agent sessions, or interpose a validation/allowlist step so retrieved content can never drive the executor.
-    frameworks: ["OWASP-ASI02:2026", "OWASP LLM01 Prompt Injection", "Agentic-SoK 2026 R3", "Agentic-SoK 2026 R6", "MITRE ATLAS AML.T0051"]
+    frameworks: ["OWASP-ASI02:2026", "OWASP-LLM01:2026 Prompt Injection", "Agentic-SoK 2026 R3", "Agentic-SoK 2026 R6", "MITRE ATLAS AML.T0051"]
 
   # ATL-202's egress side is tool traffic (network/messaging servers). An MCP
   # App's iframe is a second, quieter egress side: its CSP connectDomains are
@@ -1068,7 +1086,7 @@ rules:
     match: { model_capability_combo: [["filesystem", "database", "saas_data", "memory"], ["ui_egress"]] }
     description: One server in the fleet reads private data (files, databases, SaaS, or persistent memory) and a different server ships an app UI whose CSP allows external connect origins, so tool results that flow into the rendered iframe can be posted to the domains that UI declared. The private-data server and the UI-declaring server are different servers, so only the assembled system model sees the pairing - an egress review of tool traffic misses a UI iframe's own connect origins entirely.
     recommendation: Split the fleet so the private-data server and the UI-declaring server never share an agent session, or pin the app's connectDomains back to 'none' or specific first-party origins so the iframe cannot carry data out.
-    frameworks: ["OWASP-ASI02:2026", "OWASP-ASI09:2026", "OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0051", "NIST SC-7"]
+    frameworks: ["OWASP-ASI02:2026", "OWASP-ASI09:2026", "OWASP-LLM01:2026 Prompt Injection", "MITRE ATLAS AML.T0051", "NIST SC-7"]
 
   # --- Cross-server tool shadowing wave: the attack surface created by
   # --- running several MCP servers side by side. Anchored to SAFE-MCP
@@ -1143,7 +1161,7 @@ rules:
     match: { attr_equals: { _wildcard_tools: true } }
     description: The subagent declares no tools list (or a wildcard), so it inherits the main agent's full tool surface - excessive agency in a delegate whose prompt and purpose were written for a narrower job.
     recommendation: Declare an explicit, minimal tools list in the subagent's frontmatter.
-    frameworks: ["OWASP LLM06 Excessive Agency", "OWASP-ASI02:2026", "NIST AC-6"]
+    frameworks: ["OWASP-LLM03:2026 Excessive Agency", "OWASP-ASI02:2026", "NIST AC-6"]
 
   - id: ATL-121
     title: A2A agent endpoint declares no authentication
@@ -1225,7 +1243,7 @@ rules:
     match: { attr_equals: { _output_unrailed: true } }
     description: The rails config declares input flows but no output flows, so the rails inspect what enters the dialog and never what leaves it - a manipulated reply (a leaked secret, an exfiltrating markdown link, an injected instruction to a downstream consumer) exits un-railed.
     recommendation: Add output rails symmetric with the input side (rails.output.flows, e.g. self check output) so every reply is validated before it leaves the model.
-    frameworks: ["OWASP LLM05:2025 Improper Output Handling", "OWASP LLM02 Sensitive Information Disclosure", "NIST SI-15"]
+    frameworks: ["OWASP-LLM10:2026 Improper Output Handling", "OWASP-LLM02:2026 Sensitive Information Disclosure", "NIST SI-15"]
 
   - id: ATL-125
     title: MCP server declares the sampling capability
@@ -1252,7 +1270,7 @@ rules:
     match: { attr_equals: { _bypass_permissions: true } }
     description: A committed settings file sets the permission mode to bypass, so tool calls (shell, file writes, MCP tools) run with no human approval - and because the mode is resolved from repo-controlled config, a cloned or poisoned repo silently skips the workspace-trust gate before the user ever sees a prompt (CVE-2026-33068).
     recommendation: Remove the bypass mode from committed settings; keep the approval prompt on by default and grant standing approval per low-risk tool, never globally, and never from a file a repo can ship.
-    frameworks: ["OWASP-ASI03:2026", "OWASP-MCP MCP02:2025", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+    frameworks: ["OWASP-ASI03:2026", "OWASP-MCP MCP02:2025", "OWASP-LLM03:2026 Excessive Agency", "NIST AC-6"]
 
   - id: ATL-128
     title: Repo settings pre-enable project MCP servers
@@ -1315,7 +1333,7 @@ rules:
     match: { model_railed_dialog_unrailed_execution: true }
     description: The team installed a guardrails layer and it is real - but it governs conversation, while an auto-approved shell-capable tool executes commands with no human checkpoint entirely outside the railed channel, so the safety the rails imply does not extend to the agent's most dangerous capability. Neither config can see the other; only the system model holds both. The finding names the rails config and the execution tool.
     recommendation: Require human approval on execution tools (remove blanket auto-approve) or enforce tool-level policy where the tools run - dialog rails cannot see tool side effects.
-    frameworks: ["OWASP-ASI03:2026", "OWASP-ASI05:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+    frameworks: ["OWASP-ASI03:2026", "OWASP-ASI05:2026", "OWASP-LLM03:2026 Excessive Agency", "NIST AC-6"]
 
   - id: ATL-213
     title: Cross-repo toxic flow - the fleet completes an attack chain no single repo does
@@ -1324,7 +1342,7 @@ rules:
     match: { model_cross_repo_toxic_flow: true }
     description: Across a fleet of repositories, the union of the agents' capabilities forms a complete attack chain - a way in (untrusted-input tools), a way to run code (a shell tool), and a way out (an egress channel) - but no single repo forms that chain alone, so each repository looks clean in isolation. A prompt injection entering one repo's agent drives a tool in another. This flow exists only across the repo boundary, which is exactly why a per-repo scan of any one repository cannot surface it; only a fleet model spanning them can. Produced by `attestral fleet`; the finding names which repo contributes the entry, the pivot, and the exfiltration.
     recommendation: Treat the fleet as one trust domain and break the chain at a repo boundary - keep untrusted-input tools and code-execution tools in separate agents that do not share a session or delegate to one another, or gate the cross-repo delegation with human approval.
-    frameworks: ["OWASP-AgSec TOOL-1", "OWASP-ASI08:2026", "OWASP LLM06 Excessive Agency", "MITRE ATLAS AML.T0051", "NIST AC-4"]
+    frameworks: ["OWASP-AgSec TOOL-1", "OWASP-ASI08:2026", "OWASP-LLM03:2026 Excessive Agency", "MITRE ATLAS AML.T0051", "NIST AC-4"]
 
   # --- Supply-chain + transport + execution hardening wave (2026): MCP-server
   # --- launch surfaces that current tool-poisoning / dependency-tampering
@@ -1341,7 +1359,7 @@ rules:
     match: { attr_any_contains: { args: ["github:", "git+", "gitlab:", "bitbucket:", "git://"] } }
     description: The server is launched from a raw Git ref or URL (npx github:owner/repo, pip install git+https://...), which bypasses the registry entirely - no immutable version, no published provenance, no review - and executes whatever that ref points to today. npm is moving to block Git-URL installs by default for exactly this bypass.
     recommendation: Publish the server to a registry and pin it to an exact version or digest; never install an agent tool server directly from a mutable Git ref or URL.
-    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "NIST SA-12"]
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP-LLM04:2026 Supply Chain", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0115", "NIST SA-12"]
 
   - id: ATL-135
     title: MCP server pulls packages from a non-default registry
@@ -1350,7 +1368,7 @@ rules:
     match: { attr_any_contains: { args: ["--registry", "--index-url", "--extra-index-url"] } }
     description: The launch command overrides the package registry (--registry / --index-url / --extra-index-url), so the tool server's code is fetched from a mirror outside the default supply chain - the setup that dependency-confusion and poisoned-mirror attacks rely on to slip substituted code into a trusted install.
     recommendation: Install from the default public registry (or a vetted internal proxy pinned by digest); drop the registry override unless the mirror is a controlled, audited source.
-    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP LLM05 Supply Chain", "MITRE ATLAS AML.T0010", "NIST SA-12"]
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP-LLM04:2026 Supply Chain", "MITRE ATLAS AML.T0010", "MITRE ATLAS AML.T0115", "NIST SA-12"]
 
   - id: ATL-136
     title: MCP server disables TLS certificate verification
@@ -1386,7 +1404,7 @@ rules:
     match: { attr_list_contains: { _capabilities: "shell" } }
     description: An agent wired in framework code exposes a tool that runs shell commands or eval/exec (subprocess, os.system, exec), so one injected instruction becomes command execution - excessive agency defined in Python, outside the MCP fleet and the config files most reviews look at.
     recommendation: Replace the shell/exec tool with narrowly scoped, allowlisted operations; if command execution is unavoidable, run it in a non-networked sandbox and gate it behind human approval.
-    frameworks: ["OWASP-ASI05:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+    frameworks: ["OWASP-ASI05:2026", "OWASP-LLM03:2026 Excessive Agency", "NIST AC-6"]
 
   - id: ATL-140
     title: MCP server reached over plaintext WebSocket
@@ -1404,7 +1422,7 @@ rules:
     match: { attr_equals: { _permissive_allow: true } }
     description: The committed agent settings (.claude/settings.json) carry an `allow` entry that grants a code-execution tool with no argument scope - `Bash(*)`, bare `Bash`, or `*` - so every command runs pre-approved with no human checkpoint for anyone who opens the repo. This is standing, unrestricted agency shipped in a file, distinct from the bypass-approval mode ATL-128 flags.
     recommendation: Remove the unscoped allow entry. Grant only the specific, argument-scoped commands the workflow needs (e.g. `Bash(git status)`, `Bash(npm test)`), and let everything else prompt.
-    frameworks: ["OWASP-ASI03:2026", "OWASP-ASI05:2026", "OWASP LLM06 Excessive Agency", "NIST AC-6"]
+    frameworks: ["OWASP-ASI03:2026", "OWASP-ASI05:2026", "OWASP-LLM03:2026 Excessive Agency", "NIST AC-6"]
 
   - id: ATL-142
     title: A2A agent authenticates with a long-lived static API key
@@ -1422,7 +1440,7 @@ rules:
     match: { attr_equals: { _has_mutable_pin: true } }
     description: A package in the published registry manifest is pinned to a mutable version (`latest`, or no version at all), so everyone who installs from it gets whatever the registry serves that day, not the reviewed artifact. That is a supply-chain rug-pull surface at the registry layer, the published-manifest analogue of ATL-106's mutable image tag.
     recommendation: Pin every package to an exact, immutable version (and an integrity hash where the ecosystem supports it) in the manifest, so the tool that was reviewed is the tool that installs.
-    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP LLM03 Supply Chain", "NIST CM-2"]
+    frameworks: ["OWASP-ASI04:2026", "OWASP-MCP MCP04:2025", "OWASP-LLM04:2026 Supply Chain", "NIST CM-2"]
 
   - id: ATL-144
     title: Bedrock AgentCore runtime role attached to the full-access managed policy
@@ -1431,7 +1449,7 @@ rules:
     match: { attr_contains: { policy_arn: "BedrockAgentCoreFullAccess" } }
     description: BedrockAgentCoreFullAccess is the dev/quickstart default the AgentCore starter toolkit auto-generates, and it grants broad, account-wide AgentCore actions, including GetWorkloadAccessTokenForUserId, which mints a workload access token from a caller-supplied user id with no identity-provider verification. Left attached in production, a compromised agent runtime can mint tokens for arbitrary users, not just act within its own workload.
     recommendation: Replace the managed policy with a role scoped to the exact AgentCore resource ARNs the runtime needs, and deny GetWorkloadAccessTokenForUserId unless the agent genuinely has no JWT available (prefer GetWorkloadAccessTokenForJWT, which validates signature, issuer, and expiry).
-    frameworks: ["NIST AC-6", "OWASP-ASI03:2026", "OWASP LLM06 Excessive Agency"]
+    frameworks: ["NIST AC-6", "OWASP-ASI03:2026", "OWASP-LLM03:2026 Excessive Agency"]
 
   - id: ATL-145
     title: Agent dependency pinned to a version with a known CVE
@@ -1440,7 +1458,7 @@ rules:
     match: { attr_equals: { _has_known_cve: true } }
     description: The agent's declared dependencies pin a package version that carries a published security advisory (for example langchain-core below 0.3.81 / 1.2.5, CVE-2025-68664 "LangGrinch", a serialization-injection flaw that exfiltrates environment secrets). The vulnerability lives in the dependency tree, which a config-only review never sees; the exact advisory id is recorded on the component.
     recommendation: Upgrade the dependency to a fixed version immediately and pin it exactly (or by hash / lockfile) so a resolver cannot silently reintroduce the vulnerable version.
-    frameworks: ["OWASP LLM03 Supply Chain", "OWASP-ASI04:2026", "NIST SA-10", "CWE-1395"]
+    frameworks: ["OWASP-LLM04:2026 Supply Chain", "OWASP-ASI04:2026", "NIST SA-10", "CWE-1395"]
 
   # --- Fleet-level flows (2026): three architecture-level crossings the system
   # --- model sees and a per-server linter cannot. Fixture: examples/agent-fleet-flows/.
@@ -1452,7 +1470,7 @@ rules:
     match: { model_taint_flow: { sources: ["network", "saas_data"], sinks: ["memory"] } }
     description: The fleet pairs a server that ingests untrusted external content (web/fetch or SaaS data) with a persistent memory / vector store, so attacker-controlled text can be written into long-term memory and steer the agent on future, unrelated sessions - memory poisoning that outlives the run it entered on. The source and sink servers are named in the finding.
     recommendation: Treat retrieved external content as untrusted and never persist it verbatim - attribute and validate every memory write to a trusted source, or keep the untrusted-input tool and the memory store in separate agent sessions.
-    frameworks: ["OWASP-ASI06:2026", "OWASP LLM01 Prompt Injection", "MITRE ATLAS AML.T0070", "Agentic-SoK 2026 R3"]
+    frameworks: ["OWASP-ASI06:2026", "OWASP-LLM01:2026 Prompt Injection", "MITRE ATLAS AML.T0070", "Agentic-SoK 2026 R3"]
 
   - id: ATL-215
     title: Sampling-capable server shares a runtime with autonomous tool execution
@@ -1470,7 +1488,7 @@ rules:
     match: { model_injection_reaches_cloud: true }
     description: An untrusted-input tool (web/fetch, SaaS data, or memory the agent reads back) and a cloud-credentialed tool server share one agent, so an indirect prompt injection in the content the agent ingests can drive cloud APIs with those credentials - agent-to-cloud reachability across a trust boundary that no per-component check can see. Unlike ATL-209 this needs no public endpoint, so it covers the common internal case; the source and cloud servers are named in the finding.
     recommendation: Do not co-locate an untrusted-input tool with a broadly-credentialed cloud tool in one session - put cloud access behind a scoped broker with short-lived, per-task credentials, or split the untrusted-input and cloud tools into separate agents.
-    frameworks: ["OWASP-ASI02:2026", "OWASP-ASI03:2026", "OWASP LLM01 Prompt Injection", "NIST AC-4"]
+    frameworks: ["OWASP-ASI02:2026", "OWASP-ASI03:2026", "OWASP-LLM01:2026 Prompt Injection", "NIST AC-4"]
 
   - id: ATL-221
     title: Credential broker is declared but bypassed by a standing credential
@@ -1488,7 +1506,37 @@ rules:
     match: { model_cross_boundary_reach: true }
     description: An injectable tool surface that holds no credential of its own is co-resident with a server that carries cloud credentials, and that credential reaches specific Terraform or Kubernetes resources in the same model, so a prompt injection in the benign surface can be laundered through the co-resident deputy's standing credential to reach named infrastructure. This is the agent-to-cloud confused deputy as a graph property, and it crosses the trust boundary into concrete IaC sinks a per-server scanner never sees, because the sink lives in the cloud model, not in the MCP server. It is distinct from ATL-115 (a single server that is itself a confused deputy) and ATL-112 (a server that merely holds a cloud credential); this names the reachable resource at the end of the laundered path.
     recommendation: Break the co-residence or the credential path. Isolate the injectable surface into its own agent session (mcp-guard capability isolation) so it cannot induce the credentialed deputy, or move the deputy's egress behind a per-call credential broker so an injection reaches no standing key, or scope the credential so it no longer reaches the named resources. A benign fetcher beside a cloud-privileged server is a cloud breach one injection away.
-    frameworks: ["OWASP-ASI01:2026", "OWASP-LLM01:2025", "NIST AC-4", "NIST AC-6", "CWE-441"]
+    frameworks: ["OWASP-ASI01:2026", "OWASP-LLM01:2026 Prompt Injection", "NIST AC-4", "NIST AC-6", "CWE-441"]
+
+  - id: ATL-223
+    title: AI coding agent runs in a CI job reachable by untrusted input with secrets in scope
+    severity: critical
+    target: ci_workflow
+    match:
+      attr_equals:
+        _untrusted_trigger: true
+        _invokes_ai_agent: true
+        _secrets_in_scope: true
+        _agent_step_has_shell: true
+    description: >-
+      This CI job runs an AI coding agent with shell access, is triggerable by an
+      unprivileged outsider (an issue, an issue comment, a fork pull_request_target,
+      or a workflow_run), and holds repository or CI secrets in scope at the same
+      time. Untrusted text the agent reads (an issue body, a PR title, a fetched
+      page) becomes a confused-deputy path straight to the runner credentials, since
+      the agent can be steered to read a secret and exfiltrate it through the shell
+      it already holds. This is the CI-level lethal trifecta behind CVE-2026-54316,
+      and only the assembled workflow model sees all three halves at once - the
+      untrusted trigger, the secret in scope, and the shell-capable agent - because
+      no single step is a finding on its own.
+    recommendation: >-
+      Split the untrusted-triggered job from any job that holds secrets. Gate the
+      agent behind a maintainer approval (a protected environment, or a
+      pull_request_target guard that checks the actor is a collaborator), drop the
+      GITHUB_TOKEN to read-only for the untrusted-triggered job, and never expose a
+      repository secret to a step that executes agent-controlled shell. If the agent
+      only needs to comment, give it a token scoped to that and nothing else.
+    frameworks: ["OWASP-LLM03:2026 Excessive Agency", "OWASP-ASI02:2026", "NIST AC-4", "NIST AC-6", "CWE-441"]
 
   - id: ATL-217
     title: Information-flow lattice violation across the tool fleet
@@ -1497,7 +1545,7 @@ rules:
     match: { model_ifc_violation: true }
     description: The same flow ATL-202/207 flag heuristically, stated as a formal information-flow property. With confidentiality and integrity labels on each tool surface, a high-confidentiality source reaches a low-confidentiality egress sink (data can leave the boundary), or a low-integrity source reaches a trust-critical sink (untrusted input can drive an action), with no declassifier or endorser on the path. The named label path makes the finding defensible and citable (FIDES / CaMeL) rather than a severity with an opinion.
     recommendation: Interpose a declassifier (validation, allowlist, or human approval) between the labelled source and sink so the flow is broken, or split the source and sink capabilities into separate agent sessions so no single context spans the lattice violation.
-    frameworks: ["OWASP-ASI02:2026", "OWASP-ASI03:2026", "OWASP LLM01 Prompt Injection", "NIST AC-4", "NIST SC-7"]
+    frameworks: ["OWASP-ASI02:2026", "OWASP-ASI03:2026", "OWASP-LLM01:2026 Prompt Injection", "NIST AC-4", "NIST SC-7"]
 
   - id: ATL-218
     title: Agent runtime assumes an IAM role with administrator or wildcard access
@@ -1506,4 +1554,4 @@ rules:
     match: { model_agent_reaches_admin_iam: true }
     description: An agent runtime assumes an AWS IAM role that grants AdministratorAccess or a wildcard policy (Effect Allow, Action "*", Resource "*") - either a Kubernetes agent/tool workload binding through its ServiceAccount's IRSA role-arn annotation, or a Bedrock AgentCore runtime/gateway naming the role in its execution role_arn. Any prompt injection or tool compromise inside that runtime inherits full control of the cloud account, so the blast radius of one agentic incident becomes the entire account. Neither the agent identity nor the IAM role is the finding alone - only the assembled model joins the runtime to the cloud grant by ARN-name resolution, and the runtime and its admin role are named in the finding.
     recommendation: Scope the role the workload assumes to the specific actions and resources the agent needs. Remove the AdministratorAccess attachment and replace the wildcard statement with an explicit allow-list, and give each agent runtime its own narrowly-scoped role rather than sharing one admin role across workloads.
-    frameworks: ["NIST AC-6", "OWASP-ASI02:2026", "OWASP LLM06 Excessive Agency"]
+    frameworks: ["NIST AC-6", "OWASP-ASI02:2026", "OWASP-LLM03:2026 Excessive Agency"]

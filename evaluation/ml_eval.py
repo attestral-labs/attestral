@@ -2,12 +2,16 @@
 
 Three measurements, mirroring the rules benchmark's tiers:
 
-1. **Independent labeled set** (`data/deepset-prompt-injections.jsonl`,
-   vendored from the Apache-2.0 `deepset/prompt-injections` dataset, 662
-   rows): precision / recall / F1 per installed tier at the shipped default
-   threshold, plus a threshold sweep. The base DeBERTa model's published
-   training mix does not list this dataset, so it is an out-of-training-set
-   read for the model tier and a fully independent one for the heuristic.
+1. **Labeled set** (`data/deepset-prompt-injections.jsonl`, vendored from the
+   Apache-2.0 `deepset/prompt-injections` dataset, 662 rows): precision /
+   recall / F1 per installed tier at the shipped default threshold, plus a
+   threshold sweep. Fully independent for the heuristic tier (a curated pattern
+   bank written against no dataset). NOT independent for the model tier: the
+   protectai DeBERTa model card lists `deepset/prompt-injections` among its
+   training datasets, so treat the model tier's deepset numbers as a
+   partially-in-training read, not a held-out one - the self-authored
+   paraphrase / obfuscation / multilingual slices below are the model tier's
+   uncontaminated measurement.
 2. **Real MCP surfaces** (`--repos <dir>`): every text surface Attestral's
    own ingest extracts from a directory of real MCP server repos - the
    false-positive read on surfaces nobody wrote to be scanned. Flagged
@@ -264,7 +268,8 @@ def fleet_reassembly_read(engine, groups: list[dict], cfg: MLConfig) -> dict:
             "rate": round(rate, 4), "flagged_items": flagged}
 
 
-def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None) -> dict:
+def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None,
+        label: str | None = None) -> dict:
     labeled = load_jsonl(LABELED)
     pos = sum(r["label"] for r in labeled)
     print(f"labeled set: {len(labeled)} rows ({pos} injection / {len(labeled) - pos} benign)")
@@ -287,10 +292,13 @@ def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None) -> dict:
         except (ValueError, KeyError):
             pass
     for tier in engines:
+        # A --label run (e.g. an int8-quantized export) gets its own results
+        # key, so a variant read never clobbers the canonical tier numbers.
+        key = label or tier
         engine = build_engine(tier, cfg)
         if engine is None:
-            print(f"\n== {tier}: SKIPPED (dependencies or weights not installed)")
-            out["tiers"][tier] = {"skipped": True}
+            print(f"\n== {key}: SKIPPED (dependencies or weights not installed)")
+            out["tiers"][key] = {"skipped": True}
             continue
 
         scored = [(score_text(engine, r["text"], cfg), r["label"]) for r in labeled]
@@ -302,7 +310,7 @@ def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None) -> dict:
 
         para = paraphrase_slice(engine, cfg)
 
-        print(f"\n== {tier} @ threshold {cfg.threshold}")
+        print(f"\n== {key} @ threshold {cfg.threshold}")
         print(f"   precision {at_default['precision']:.3f}  recall {at_default['recall']:.3f}"
               f"  f1 {at_default['f1']:.3f}  (tp {at_default['tp']} fp {at_default['fp']}"
               f" fn {at_default['fn']} tn {at_default['tn']})")
@@ -311,7 +319,7 @@ def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None) -> dict:
 
         tier_out = {"labeled": at_default, "sweep": sweep, "row_scores": row_scores,
                     "paraphrase_slice": para}
-        prior = out["tiers"].get(tier) or {}
+        prior = out["tiers"].get(key) or {}
         if not surfaces and "real_surfaces" in prior:
             tier_out["real_surfaces"] = prior["real_surfaces"]  # keep the FP read
         if surfaces:
@@ -335,7 +343,7 @@ def run(engines: list[str], cfg: MLConfig, repos_dir: Path | None) -> dict:
             tier_out["fleet_reassembly"] = prior["fleet_reassembly"]  # keep the read
         if tool_groups:
             tier_out["fleet_reassembly"] = fleet_reassembly_read(engine, tool_groups, cfg)
-        out["tiers"][tier] = tier_out
+        out["tiers"][key] = tier_out
 
     RESULTS.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
     print(f"\nwrote {RESULTS.relative_to(HERE.parent)}")
@@ -348,9 +356,18 @@ def main() -> None:
     ap.add_argument("--repos", type=Path,
                     help="Directory of real MCP repos for the false-positive read.")
     ap.add_argument("--threshold", type=float, default=MLConfig().threshold)
+    ap.add_argument("--model",
+                    help="Model override (HF id or local export dir) for the model tiers.")
+    ap.add_argument("--label",
+                    help="Results key for this run (default: the engine name); "
+                         "requires --engine. Lets a variant (e.g. an int8 export) "
+                         "record next to, not over, the canonical tier numbers.")
     args = ap.parse_args()
-    cfg = MLConfig(threshold=args.threshold)
-    run([args.engine] if args.engine else TIERS, cfg, args.repos)
+    if args.label and not args.engine:
+        ap.error("--label requires --engine")
+    cfg = MLConfig(threshold=args.threshold,
+                   **({"model": args.model} if args.model else {}))
+    run([args.engine] if args.engine else TIERS, cfg, args.repos, label=args.label)
 
 
 if __name__ == "__main__":
