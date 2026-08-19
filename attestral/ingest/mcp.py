@@ -699,6 +699,79 @@ def _tool_names(tools) -> list[str]:
     return names
 
 
+# Obfuscated / hidden-content tool poisoning (ATL-175). A legitimate MCP
+# description is plain, human-readable text; hidden or encoded imperative
+# content smuggled into a server or tool description reaches the model while a
+# human reviewer never sees it, the tool-poisoning primitive behind MCPTox,
+# Invariant Labs' tool-poisoning research (2025), Trail of Bits' "Deceiving
+# users with ANSI terminal codes in MCP" (2025), and the Cisco/AWS unicode
+# character-smuggling work (2025). This is the defensive inverse of the
+# obfuscation techniques (tag-smuggling, zero-width, ANSI) Attestral's own
+# red-team library generates. Every detector is deliberately narrow and fails
+# closed - plain prose derives nothing.
+#
+# 1. Unicode Tags block (U+E0000-U+E007F): invisible glyphs that carry an ASCII
+#    payload no human, and no ordinary rendering, ever shows. The highest-signal
+#    smuggling primitive - these code points appear nowhere in legitimate text.
+_UNICODE_TAG_RE = re.compile(r"[\U000E0000-\U000E007F]")
+# 2. An ANSI escape sequence (ESC followed by '['): terminal control codes that
+#    hide, colour, or rewrite text in a terminal-hosted agent so the payload is
+#    invisible to the user but present in the string the model reads.
+_ANSI_ESC_RE = re.compile(r"\x1b\[")
+# 3. A zero-width character wedged BETWEEN two word characters (not a stray
+#    leading BOM): used to split a keyword so a scanner misses it while the model
+#    still reconstructs the instruction. Requiring a word char on each side keeps
+#    a lone BOM at the start/end of a string - the benign case - from firing.
+_ZERO_WIDTH_BETWEEN_RE = re.compile(r"\w[\u200b\u200c\u200d\ufeff]+\w")
+# 4. An HTML comment whose body carries an imperative keyword: markup a UI hides
+#    but the model still ingests as instructions. Bare markup with no imperative
+#    keyword (a genuine developer note) never fires.
+_HIDDEN_INSTRUCTION_KEYWORDS = (
+    "ignore", "important", "system", "assistant", "must", "do not", "override",
+)
+_HTML_COMMENT_RE = re.compile(r"<!--(.*?)-->", re.DOTALL)
+
+# A 5th detector - a base64 blob (>= 24 chars) that DECODES to text carrying an
+# instruction keyword - is deliberately NOT shipped. It cannot hold the
+# zero-false-positive bar: an AI-adjacent tool legitimately embeds encoded
+# example payloads in its description, and a base64 of an innocuous chat example
+# like {"role":"system"} or a sentence containing "must" would decode to
+# printable text with an instruction keyword - a benign fire. The four detectors
+# above key on characters that are invisible or unreadable to a human by
+# construction, so their mere presence is the signal; base64 is a normal way to
+# carry data in text, so decoding it and keyword-matching risks exactly the
+# noise that gets a scanner muted.
+
+
+def _html_comment_hides_instruction(text: str) -> bool:
+    """True when an HTML comment in the text conceals an imperative keyword."""
+    for body in _HTML_COMMENT_RE.findall(text):
+        low = body.lower()
+        if any(kw in low for kw in _HIDDEN_INSTRUCTION_KEYWORDS):
+            return True
+    return False
+
+
+def _description_has_hidden_content(surfaces: list) -> bool:
+    """True when any description surface (the server description, a tool name, or
+    a tool description) carries hidden or encoded imperative content: Unicode
+    Tags-block glyphs, an ANSI escape sequence, a zero-width character wedged
+    between letters, or an instruction-bearing HTML comment. High-signal and
+    fail-closed - a plain, human-readable description derives nothing."""
+    for raw in surfaces:
+        text = str(raw) if raw is not None else ""
+        if not text:
+            continue
+        if (
+            _UNICODE_TAG_RE.search(text)
+            or _ANSI_ESC_RE.search(text)
+            or _ZERO_WIDTH_BETWEEN_RE.search(text)
+            or _html_comment_hides_instruction(text)
+        ):
+            return True
+    return False
+
+
 # --- MCP Apps UI extension (ext-apps spec 2026-01-26, SEP-1865) --------------
 # A server may declare interactive UI resources: a resource whose `_meta`
 # carries the `io.modelcontextprotocol/ui` object with CSP-style fields.
@@ -1082,6 +1155,18 @@ def component_from_server(name: str, cfg, source: str) -> Component:
         tool_names = _tool_names(cfg.get("tools"))
         if tool_names:
             attrs["_tool_names"] = tool_names
+        # Obfuscated / hidden-content tool poisoning (ATL-175): hidden or encoded
+        # imperative content smuggled into a description surface (Unicode Tags,
+        # ANSI escapes, wedged zero-width chars, or an instruction-bearing HTML
+        # comment). Computed from the server description plus every tool name and
+        # description. Set only when true, like the other concealment attrs.
+        hidden_surfaces = (
+            [attrs.get("description", "")]
+            + [td["description"] for td in tool_descs]
+            + list(tool_names)
+        )
+        if _description_has_hidden_content(hidden_surfaces):
+            attrs["_description_has_hidden_content"] = True
         ext_refs = _external_schema_refs(cfg.get("tools"))
         if ext_refs:
             attrs["_tool_schema_external_ref"] = True

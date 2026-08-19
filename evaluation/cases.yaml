@@ -43,6 +43,10 @@ positive:
     path: examples/workspace-autoload
     expect: [ATL-174]
     cite: "MCP auto-load on workspace trust (Cursor / Amazon Q, July 2026): a repo-committed .cursor/mcp.json stdio server the IDE launches on open, before review. OWASP-MCP MCP09 Shadow MCP Servers; MITRE ATLAS AML.T0081 Modify AI Agent Configuration; MCP Security Best Practices 2025-11-25"
+  - id: hidden-content-poisoning
+    path: examples/hidden-content-poisoning
+    expect: [ATL-175]
+    cite: "Obfuscated / hidden-content tool poisoning: a tool or server description carrying instructions invisible to a reviewer but read by the model (Unicode Tags smuggling per Cisco/AWS; ANSI escapes per Trail of Bits 2025; zero-width split; instruction-bearing HTML comment). The defensive inverse of Attestral's red-team obfuscation library. OWASP-MCP MCP03:2025 Tool Poisoning; MITRE ATLAS AML.T0051 LLM Prompt Injection"
   - id: ci-agent-confused-deputy
     path: examples/ci-agent-confused-deputy
     expect: [ATL-223]

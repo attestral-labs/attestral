@@ -6,6 +6,32 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **New rule ATL-175 - MCP tool or server description hides invisible or encoded instructions.** The
+  defensive inverse of the obfuscation techniques (tag-smuggling, zero-width split, ANSI line-jumping) in
+  Attestral's own red-team library: where the pentest side *generates* hidden payloads, this rule *detects*
+  them in a config. A legitimate MCP description is plain, human-readable text; hidden imperative content in
+  it is the tool-poisoning primitive behind MCPTox and Invariant Labs' tool-poisoning research. The new
+  `_description_has_hidden_content` derived attribute in `ingest/mcp.py` fires on four high-signal, fail-closed
+  detectors across the server description plus every tool name and description: Unicode Tags-block glyphs
+  (U+E0000-E007F, the Cisco/AWS unicode character-smuggling channel), ANSI terminal escape sequences (Trail of
+  Bits, "Deceiving users with ANSI terminal codes in MCP", 2025), a zero-width character wedged between word
+  characters, and an HTML comment concealing an imperative keyword. A base64-decode detector was deliberately
+  omitted - it cannot hold the zero-false-positive bar (an AI-adjacent tool legitimately embeds encoded
+  example payloads). Fixture `examples/hidden-content-poisoning`; `tests/test_hidden_content_poisoning.py`;
+  the rule also structurally catches the HTML-comment injection already planted in `examples/ecosystem-composite`.
+  Cites OWASP-MCP MCP03:2025 (Tool Poisoning), MITRE ATLAS AML.T0051 (LLM Prompt Injection), OWASP-ASI04:2026,
+  and OWASP-LLM01:2026. Pack 286 -> 287.
+- **Attack-technique library + red-team playbook (`attestral pentest --techniques`).** For each reachable
+  path, Attestral now synthesizes the concrete injection payloads a real attacker would try, across a
+  17-technique taxonomy in 7 classes: direct override, indirect / second-order (tool-result, HTML-comment,
+  markdown-image exfil), obfuscation (base64, unicode tag-block smuggling, homoglyph, zero-width split, ANSI
+  line-jumping), tool-poisoning (description poisoning, tool-name shadowing, attractive-metadata), multi-turn
+  crescendo, memory / context poisoning, and A2A session smuggling. Each payload is canary-anchored (a
+  sanitized test artifact for your OWN agent, no real secret) and framework-mapped (AgentDojo, MCPTox,
+  Invariant Labs, Trail of Bits, EchoLeak, OWASP LLM/Agentic, MITRE ATLAS). `--probe` (gated on an API key,
+  injectable query so tests need none) measures whether a real model actually FOLLOWS each technique,
+  closing the honesty gap the stub harness leaves. New `ATTACK_TECHNIQUES` / `synthesize_attacks` /
+  `probe_followthrough` / `render_techniques` in `redteam.py`; `tests/test_attack_techniques.py`.
 - **New rule ATL-174 - MCP server auto-launches from a repo-committed IDE workspace-trust config.** A
   stdio MCP server declared in a project-trust IDE config committed inside the repo (`.cursor/mcp.json`,
   `.amazonq/mcp.json`, `.vscode/mcp.json`, or a project `.claude/` config) is started by the IDE the moment
