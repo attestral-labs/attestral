@@ -23,9 +23,10 @@ skipped, never fatal to the scan.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
-from attestral.model import Component, SystemModel
+from attestral.model import Component, Edge, SystemModel
 
 # Top-level modules whose import marks a file as an agent surface. Requiring one
 # of these is the low-false-positive gate: no framework import, not an agent.
@@ -205,6 +206,44 @@ def _agent_name(tree: ast.AST, default: str) -> str:
     return default
 
 
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-") or "agent"
+
+
+def _crewai_agents(tree: ast.AST, tool_caps: dict[str, set[str]]) -> list[tuple[str, set[str]]]:
+    """(role, capabilities) for each CrewAI `Agent(role=..., tools=[...])`.
+
+    An agent's capabilities are the union of the tools it is handed, resolved by
+    name against the file's @tool functions. A `role` is required (CrewAI agents
+    always carry one), so a bare `Agent()` without a role is never split out - the
+    precision-over-recall gate for the multi-agent path.
+    """
+    agents: list[tuple[str, set[str]]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or _dotted(node.func).split(".")[-1] != "Agent":
+            continue
+        role: str | None = None
+        tool_names: list[str] = []
+        for kw in node.keywords:
+            if kw.arg == "role" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                role = kw.value.value
+            elif kw.arg == "tools" and isinstance(kw.value, (ast.List, ast.Tuple)):
+                for el in kw.value.elts:
+                    if isinstance(el, ast.Name):
+                        tool_names.append(el.id)
+                    elif isinstance(el, ast.Call) and isinstance(el.func, ast.Name):
+                        tool_names.append(el.func.id)
+                    elif isinstance(el, ast.Attribute):
+                        tool_names.append(el.attr)
+        if not role:
+            continue
+        caps: set[str] = set()
+        for tn in tool_names:
+            caps |= tool_caps.get(tn, set())
+        agents.append((role, caps))
+    return agents
+
+
 def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) -> None:
     try:
         tree = ast.parse(pyfile.read_text(encoding="utf-8", errors="replace"))
@@ -217,13 +256,47 @@ def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) 
     if not tools:
         return
 
-    caps: set[str] = set()
-    for _, tcaps in tools:
-        caps |= tcaps
     try:
         rel = str(pyfile.relative_to(root))
     except ValueError:
         rel = str(pyfile)
+
+    # CrewAI multi-agent: split a crew into one component per agent, so a toxic
+    # flow that spans agents (an untrusted-input agent that delegates to a shell
+    # agent and an egress agent) is a real cross-agent attack path instead of a
+    # single blob that hides the structure. Only when >= 2 role-bearing agents
+    # resolve; a single-agent crew falls through to the one-surface path below.
+    if "crewai" in frameworks:
+        tool_caps = {name: tcaps for name, tcaps in _tool_functions(tree)}
+        crew = _crewai_agents(tree, tool_caps)
+        if len(crew) >= 2:
+            ids: list[str] = []
+            for role, acaps in crew:
+                slug = _slug(role)
+                cid = f"code_agent.{slug}"
+                s = 1
+                while cid in taken:
+                    s += 1
+                    cid = f"code_agent.{slug}#{s}"
+                taken.add(cid)
+                ids.append(cid)
+                model.add(Component(
+                    id=cid, type="code_agent", name=role, source=rel,
+                    attributes={
+                        "_capabilities": sorted(acaps),
+                        "_framework": ["crewai"],
+                        "_crew_agent": True,
+                    },
+                    trust_boundary="agent_runtime",
+                ))
+            for a, b in zip(ids, ids[1:]):
+                model.edges.append(Edge(source_id=a, target_id=b, kind="invokes",
+                                        attributes={"via": "crew delegation"}))
+            return
+
+    caps: set[str] = set()
+    for _, tcaps in tools:
+        caps |= tcaps
 
     base = _agent_name(tree, pyfile.stem)
     cid = f"code_agent.{base}"
