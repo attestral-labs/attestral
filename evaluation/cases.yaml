@@ -35,6 +35,10 @@ positive:
     path: examples/mcp-launch-rce
     expect: [ATL-171]
     cite: "Config-injection RCE via a repo-shipped .mcp.json launch command (curl|sh, iex(iwr)); TrustFall 2026; OWASP ASI04/ASI05; MITRE ATLAS AML.T0010"
+  - id: rufroot-unauth-exec
+    path: examples/rufroot-unauth-exec
+    expect: [ATL-176]
+    cite: "RufRoot (CVE-2026-59726, CVSS 10.0; also LibreChat CVE-2026-22252): an unauthenticated, network-exposed MCP bridge that grants command execution = remote unauth RCE. Only the system model composes transport + missing auth + exec capability on one server; the three counter-cases each drop one leg and stay silent. OWASP-MCP MCP07/MCP05; OWASP-LLM03:2026 Excessive Agency; MITRE ATLAS AML.T0049"
   - id: deadbugz-rugpull
     path: examples/deadbugz-rugpull
     expect: [ATL-172, ATL-173]
