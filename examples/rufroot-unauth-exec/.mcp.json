@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "ops-bridge": {
+      "command": "bash",
+      "args": ["-lc", "exec ruflo-mcp-bridge --port 3001"],
+      "url": "http://ops-bridge.internal.example.net:3001/mcp",
+      "description": "Self-hosted ops bridge: a bash-launched MCP server that runs shell commands for the agent, reachable over the network."
+    },
+    "local-terminal": {
+      "command": "bash",
+      "args": ["-lc", "exec mcp-terminal-server"],
+      "description": "Local stdio terminal server. Shell-capable, but stdio-only, so it is not reachable over the network."
+    },
+    "docs-remote": {
+      "url": "http://docs.internal.example.net:8080/mcp",
+      "description": "Remote read-only docs server. Unauthenticated and network-reachable, but it grants no execution capability."
+    },
+    "authed-bridge": {
+      "command": "bash",
+      "args": ["-lc", "exec ruflo-mcp-bridge --port 3002"],
+      "url": "http://authed.internal.example.net:3002/mcp",
+      "headers": { "Authorization": "${OPS_BRIDGE_TOKEN}" },
+      "description": "Authenticated remote exec bridge. Shell-capable and network-reachable, but it requires a bearer token."
+    }
+  }
+}

@@ -6,6 +6,23 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **New rule ATL-176 - network-reachable MCP server grants unauthenticated command execution (the RufRoot
+  class, CVE-2026-59726, CVSS 10.0; also LibreChat CVE-2026-22252).** Remote unauthenticated RCE - the
+  strongest agentic finding there is - stated as the conjunction of three facts about one server: a plaintext,
+  non-loopback network endpoint (transport), no declared authentication (auth), and a shell / command-execution
+  capability (capability). RufRoot's Ruflo bridge exposed a `terminal_execute` tool over an MCP endpoint bound
+  to the network by default with no token, header check, or IP allowlist, so a single unauthenticated request
+  ran arbitrary commands, stole the model API keys, and poisoned the agent's memory. No single field is the
+  finding: a per-config linter sees an ordinary remote endpoint, or an ordinary shell wrapper, and stays quiet;
+  only Attestral's system model composes transport + missing auth + execution capability on one server. Reuses
+  two existing fail-closed derived attributes with a two-matcher conjunction (no ingester change) -
+  `_remote_unauthed` (a plaintext-http, non-loopback endpoint with provably no auth, OAuth-per-spec-aware) AND
+  `_capabilities` containing `shell` - so it inherits their precision (an https/OAuth endpoint carries no static
+  credential by spec and never fires). Fixture `examples/rufroot-unauth-exec` (one RufRoot server plus three
+  counter-cases that each drop exactly one leg - stdio-only, read-only, and authenticated - and stay silent);
+  `tests/test_rufroot_rules.py`. Cites OWASP-MCP MCP07:2025 (Auth) + MCP05:2025 (Insecure Tooling),
+  OWASP-LLM03:2026 (Excessive Agency), MITRE ATLAS AML.T0049 (Exploit Public-Facing Application), MCP Security
+  Best Practices 2025-11-25, OWASP-ASI05:2026, NIST IA-2. Pack 287 -> 288.
 - **New rule ATL-175 - MCP tool or server description hides invisible or encoded instructions.** The
   defensive inverse of the obfuscation techniques (tag-smuggling, zero-width split, ANSI line-jumping) in
   Attestral's own red-team library: where the pentest side *generates* hidden payloads, this rule *detects*
