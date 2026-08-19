@@ -6,6 +6,14 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **CrewAI multi-agent topology ingestion.** `agent_code.py` now models a CrewAI `Crew` as one `code_agent`
+  component PER AGENT (each `Agent(role=..., tools=[...])` with only its own tools' capabilities) plus
+  `invokes` delegation edges, instead of collapsing the whole crew into a single blob. A lethal trifecta
+  split across agents (a web/untrusted-input agent that delegates to a shell agent and an egress agent) is
+  now a real CROSS-AGENT attack path the fleet synthesis surfaces, with the pivot on a different agent than
+  the entry and the sink - a flow only a system model reveals. Single-agent crews and every other framework
+  (LangGraph/AutoGen/OpenAI Agents SDK/Pydantic AI) are unchanged. Fixture `examples/crewai-crossagent`;
+  `tests/test_crewai_topology.py`. (LangGraph node/edge topology is the natural follow-up.)
 - **New rule ATL-176 - network-reachable MCP server grants unauthenticated command execution (the RufRoot
   class, CVE-2026-59726, CVSS 10.0; also LibreChat CVE-2026-22252).** Remote unauthenticated RCE - the
   strongest agentic finding there is - stated as the conjunction of three facts about one server: a plaintext,
