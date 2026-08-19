@@ -827,10 +827,20 @@ def blast_radius_cmd(path: str, limit: int) -> None:
                    "(subprocess + POSIX rlimits + new session, cwd, and cleared env), "
                    "container (docker --network none - real egress structurally impossible), "
                    "or inprocess (fastest, weakest). Overrides --no-isolate.")
+@click.option("--techniques", is_flag=True,
+              help="Also print the attack-technique playbook: concrete, sanitized injection "
+                   "payloads across the taxonomy (direct, indirect, obfuscation, tool-poisoning, "
+                   "multi-turn) for each reachable path.")
+@click.option("--probe", is_flag=True,
+              help="With an API key, probe whether a real model actually follows each technique "
+                   "(gated; prints a susceptibility read). Skips cleanly without a key.")
+@click.option("--variants", is_flag=True,
+              help="Also print the evasion matrix: the base injection wrapped in each obfuscation "
+                   "(base64, rot13, hex, homoglyph, unicode tag-block, zero-width, HTML comment, ANSI).")
 @click.option("-o", "--output", default=None,
               help="Write the pentest report JSON here. Terminal-first: nothing written without -o.")
 def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, isolation: str | None,
-            output: str | None) -> None:
+            techniques: bool, probe: bool, variants: bool, output: str | None) -> None:
     """Execute a contained proof-of-exploit for each reachable attack path.
 
     The executed red-team tier. For every path the design makes reachable,
@@ -850,8 +860,36 @@ def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, isolation: str | N
         return
     results = redteam.run_pentests(model, isolate=not no_isolate, isolation=isolation)
     click.echo(redteam.render_pentest(model, results=results))
+
+    if techniques:
+        click.echo("")
+        click.echo(redteam.render_techniques(model))
+    if variants:
+        click.echo("")
+        click.echo(redteam.render_variants(model))
+    if probe:
+        click.echo("")
+        click.echo("Follow-through probe (does a real model act on each technique?):")
+        p0 = all_attack_paths(model)[0]
+        ran = False
+        for t in redteam.ATTACK_TECHNIQUES:
+            r = redteam.probe_followthrough(model, p0, t)
+            if r.get("followed") is None:
+                verdict = r.get("note", "skipped")
+            else:
+                ran = True
+                verdict = "FOLLOWED" if r["followed"] else "refused"
+            click.echo(f"  [{t.id}] {t.name}: {verdict}")
+        if not ran:
+            click.echo("  (set ANTHROPIC_API_KEY to run the probe against a real model)")
+
     if output:
-        Path(output).write_text(json.dumps(redteam.pentest_report(results), indent=2))
+        report = redteam.pentest_report(results)
+        if techniques:
+            report["techniques"] = redteam.techniques_report(model)
+        if variants:
+            report["variants"] = redteam.variants_report(model)
+        Path(output).write_text(json.dumps(report, indent=2))
         click.echo(f"\nwrote {output}")
     if fail_on_exfil and any(r.exfiltrated for r in results):
         click.echo("\nGate: a reachable path exfiltrated the canary in the sandbox.", err=True)

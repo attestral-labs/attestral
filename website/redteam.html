@@ -332,6 +332,57 @@ Executed pentest (tier 2 - 1 path(s), isolated sandbox, planted canary, no live 
 
   <div class="wrap">
     <section>
+      <style>
+        .tech-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:28px}
+        .tech-class{border:1px solid var(--rule);border-radius:2px;background:var(--card);padding:18px}
+        .tech-class .cl{font-family:var(--mono);font-size:.7rem;letter-spacing:.11em;text-transform:uppercase;color:var(--seal)}
+        .tech-class .n{font-family:var(--mono);font-size:.7rem;color:var(--muted);float:right}
+        .tech-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;clear:both}
+        .tech-chip{font-size:.82rem;border:1px solid var(--rule);border-radius:2px;padding:5px 9px;color:var(--ink)}
+        .tech-chip b{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-right:6px;font-weight:500}
+        @media(max-width:680px){.tech-grid{grid-template-columns:1fr}}
+      </style>
+      <div class="kicker">The attack-technique library</div>
+      <h2>17 techniques, 7 classes, grounded in the benchmarks.</h2>
+      <p class="sec-lede">For each reachable path, <code>--techniques</code> synthesizes the concrete injection payloads a real attacker would try, canary-anchored and framework-mapped to AgentDojo, MCPTox, Invariant Labs, Trail of Bits, OWASP and MITRE ATLAS. <code>--probe</code> then measures whether a real model actually follows each one.</p>
+      <div class="tech-grid">
+        <div class="tech-class"><span class="cl">Direct override</span><span class="n">3</span><div class="tech-chips">
+          <span class="tech-chip"><b>ATK-01</b>Instruction override</span>
+          <span class="tech-chip"><b>ATK-11</b>Refusal suppression</span>
+          <span class="tech-chip"><b>ATK-13</b>Authority frame</span>
+        </div></div>
+        <div class="tech-class"><span class="cl">Indirect / second-order</span><span class="n">3</span><div class="tech-chips">
+          <span class="tech-chip"><b>ATK-02</b>HTML-comment</span>
+          <span class="tech-chip"><b>ATK-03</b>Tool-result poisoning</span>
+          <span class="tech-chip"><b>ATK-14</b>Markdown-image exfil</span>
+        </div></div>
+        <div class="tech-class"><span class="cl">Obfuscation</span><span class="n">5</span><div class="tech-chips">
+          <span class="tech-chip"><b>ATK-04</b>Base64</span>
+          <span class="tech-chip"><b>ATK-05</b>Tag-block smuggling</span>
+          <span class="tech-chip"><b>ATK-06</b>Homoglyph</span>
+          <span class="tech-chip"><b>ATK-07</b>Zero-width split</span>
+          <span class="tech-chip"><b>ATK-12</b>Line-jumping / ANSI</span>
+        </div></div>
+        <div class="tech-class"><span class="cl">Tool poisoning</span><span class="n">3</span><div class="tech-chips">
+          <span class="tech-chip"><b>ATK-08</b>Description poisoning</span>
+          <span class="tech-chip"><b>ATK-09</b>Tool-name shadowing</span>
+          <span class="tech-chip"><b>ATK-15</b>Attractive metadata</span>
+        </div></div>
+        <div class="tech-class"><span class="cl">Multi-turn</span><span class="n">1</span><div class="tech-chips">
+          <span class="tech-chip"><b>ATK-10</b>Crescendo escalation</span>
+        </div></div>
+        <div class="tech-class"><span class="cl">Memory &amp; multi-agent</span><span class="n">2</span><div class="tech-chips">
+          <span class="tech-chip"><b>ATK-16</b>Memory poisoning</span>
+          <span class="tech-chip"><b>ATK-17</b>A2A session smuggling</span>
+        </div></div>
+      </div>
+      <p class="note">Payloads are <b>sanitized test artifacts for your own agent</b>: a benign canary marker, a placeholder attacker channel, no real secret and no destructive action. The two system-model-only classes, tool-name shadowing and A2A session smuggling, are the ones a single-file linter can never see.</p>
+      <p class="note">Every payload composes with an <b>evasion layer</b> via <code>--variants</code> (base64, ROT13, hex, homoglyph, unicode tag-block, zero-width, HTML-comment, ANSI), so you can test which obfuscation slips past an input filter. And offense informs defense: the same taxonomy, inverted, is a detection rule (<b>ATL-175</b>) that catches a tool description hiding invisible or encoded instructions.</p>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <section>
       <div class="kicker">Close the loop</div>
       <h2>A proven exploit becomes a runtime deny.</h2>
       <p class="sec-lede">This is the arc the rest of the tool is built around, and the part a rule-list scanner or a pure-LLM tool cannot assemble: the design review, the executed proof, and the enforced policy are one pipeline.</p>

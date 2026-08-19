@@ -18,17 +18,18 @@ were chosen by people who know the rules).
 attestral scan examples/ecosystem-composite
 ```
 
-18 components · 38 findings · 5 critical · 21 high · 8 medium · 3 low · 1 info
+18 components · 39 findings · 5 critical · 22 high · 8 medium · 3 low · 1 info
 
 ## The seeded findings, and what caught them
 
-**Layer 1, deterministic rules + system model (33 findings; every planted
+**Layer 1, deterministic rules + system model (34 findings; every planted
 issue detected):**
 
 | Seeded | Caught by |
 |---|---|
 | Exports bucket `public-read`, wildcard IAM, SSH open to the world, RDS without IAM auth | ATL-001 · ATL-003 · ATL-002 · ATL-056 |
 | Shell-capable runbook server, tokens in `env`, six `npx -y`/`uvx` auto-installs, outbound browser+fetch, persistent memory store | ATL-103 · ATL-104 · ATL-105 · ATL-107 · ATL-114 |
+| `sync_notes` tool description hiding an instruction in an HTML comment (structural catch, no language model needed) | ATL-175 |
 | Published `server.json` floating on `version: latest` | ATL-143 |
 | Privileged root container, `hostPath` mount, `latest` image tag, inline `STRIPE_SECRET_KEY`, missing limits/seccomp/caps hardening | ATL-501 · ATL-506 · ATL-510 · ATL-505 · ATL-531 · ATL-504/512/513/514/518/520/522 |
 | Fleet-level: lethal trifecta, shell+network, untrusted-input-to-execution flow, memory poisoning path, no agent/cloud boundary controls | ATL-202 · ATL-203 · ATL-207 · ATL-214 · ATL-201 |
@@ -51,7 +52,7 @@ model tier):**
 attestral scan examples/ecosystem-composite --ml --ml-engine deberta
 ```
 
-18 components · 36 findings · 5 critical · 19 high · 8 medium · 3 low · 1 info
+18 components · 37 findings · 5 critical · 20 high · 8 medium · 3 low · 1 info
 
 The disagreement row is the instructive one. `AGENTS.md` hides an
 exfiltration instruction in ordinary workflow prose; the model tier reads it

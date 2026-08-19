@@ -283,6 +283,15 @@ rules:
     recommendation: Do not ship auto-launching MCP servers in repo IDE configs. Remove the entry (or keep only remote, authenticated `url` servers there), gate any workspace config behind an explicit reviewed opt-in before it may launch a local process, and treat a `.cursor`/`.amazonq`/`.vscode`/`.claude` MCP config arriving in a pull request as hostile until its launch command and author are verified.
     frameworks: ["OWASP-MCP MCP09:2025", "MITRE ATLAS AML.T0081", "MCP Security Best Practices 2025-11-25", "OWASP-ASI04:2026", "MITRE ATLAS AML.T0010"]
 
+  - id: ATL-175
+    title: MCP tool or server description hides invisible or encoded instructions
+    severity: high
+    target: mcp_server
+    match: { attr_equals: { _description_has_hidden_content: true } }
+    description: A description surface on this server - the server description, a tool name, or a tool description - carries content that is invisible or unreadable to a human reviewer but still reaches the model - Unicode Tags-block glyphs (U+E0000-E007F, the unicode character-smuggling channel Cisco and AWS documented in 2025), an ANSI terminal escape sequence (Trail of Bits, "Deceiving users with ANSI terminal codes in MCP", 2025), a zero-width character wedged between letters, or an HTML comment concealing an imperative keyword. A legitimate description is plain, readable prose; hidden imperative content in it is the tool-poisoning primitive behind MCPTox and Invariant Labs' tool-poisoning research, and the exact steering channel the reviewer who approved this server never saw. This is the defensive inverse of the obfuscation techniques (tag-smuggling, zero-width, ANSI) in Attestral's own red-team library.
+    recommendation: Treat this server as hostile until the hidden content is explained. Strip every non-printable and control character from tool and server descriptions, reject any description carrying Unicode Tags-block glyphs, ANSI escapes, wedged zero-width characters, or instruction-bearing HTML comments, and pin the server to a reviewed, integrity-checked version so a later description swap cannot reintroduce it.
+    frameworks: ["OWASP-MCP MCP03:2025", "MITRE ATLAS AML.T0051", "OWASP-ASI04:2026", "OWASP-LLM01:2026 Prompt Injection", "MCP Security Best Practices 2025-11-25"]
+
   - id: ATL-106
     title: MCP server pinned to a mutable tag
     severity: medium
