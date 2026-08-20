@@ -1,0 +1,3391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The demo tapes - Attestral</title>
+<meta name="description" content="Attestral end to end, played back like a recording, in two tapes: the scan that finds the lethal trifecta, the fix, the compile to a default-deny policy, then the incident: streamed, contained in 62 seconds, replayed, and signed into evidence. Every terminal frame is byte-verified real output.">
+<link rel="canonical" href="https://attestral.vercel.app/demo.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Attestral">
+<meta property="og:title" content="The Attestral demo tapes: one config, end to end.">
+<meta property="og:description" content="Two auto-playing tapes of real scanner output: the design review that catches the lethal trifecta, and the incident that gets contained in 62 seconds and signed into evidence.">
+<meta property="og:url" content="https://attestral.vercel.app/demo.html">
+<meta property="og:image" content="https://attestral.vercel.app/assets/og-demo.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Attestral demo tapes: one config, end to end.">
+<meta name="twitter:description" content="Two auto-playing tapes of real scanner output: the design review, then the incident: contained in 62 seconds and signed into evidence.">
+<meta name="twitter:image" content="https://attestral.vercel.app/assets/og-demo.png">
+<meta name="theme-color" content="#96222E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%2396222E'/%3E%3Cg stroke='%23F3F4F1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M28,76L50,24L72,76'/%3E%3Cpath d='M36.5,56L45,64L59.7,47'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#F3F4F1; --panel:#FBFBF9; --text:#171F1C; --muted:#5D6660;
+    --faint:#7C867F; --line:#D3D6D0; --seal:#96222E; --seal-soft:rgba(150,34,46,.06);
+    --green:#1F6A4A; --amber:#8A6A1F;
+    --term-bg:#0F1410; --term-chrome:#161B16; --term-line:#28302A; --term-fg:#DDE2DD;
+    --term-dim:#77837B; --term-crit:#E5697A; --term-high:#D0A04C; --term-med:#C4B27A;
+    --term-ok:#7CC7A1; --term-key:#9BA79C;
+    --serif:'Libre Caslon Text',Georgia,serif;
+    --sans:'Public Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#12160F; --panel:#1A1F16; --text:#E9ECE4; --muted:#9BA79C;
+      --faint:#77837B; --line:#2B3129; --seal:#E06B76; --seal-soft:rgba(224,107,118,.10);
+      --green:#5FBE90; --amber:#D0A04C;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#12160F; --panel:#1A1F16; --text:#E9ECE4; --muted:#9BA79C;
+    --faint:#77837B; --line:#2B3129; --seal:#E06B76; --seal-soft:rgba(224,107,118,.10);
+    --green:#5FBE90; --amber:#D0A04C;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);
+    font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:clamp(24px,5vw,56px) clamp(16px,4vw,40px) 96px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--seal);margin:0 0 14px;font-weight:600}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(28px,5.4vw,42px);line-height:1.08;
+    letter-spacing:-.015em;text-wrap:balance;margin:0 0 16px;max-width:22ch}
+  .lede{font-size:clamp(16.5px,2.1vw,18.5px);color:var(--muted);max-width:64ch;margin:0 0 18px}
+  .metachips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 20px}
+  .shelf{display:flex;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+  .tapecard{font-family:var(--mono);text-align:left;background:var(--panel);border:1px solid var(--line);
+    border-radius:2px;padding:10px 16px 9px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:230px}
+  .tapecard:hover{border-color:var(--seal)}
+  .tapecard:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
+  .tapecard.cur{border-color:var(--seal);box-shadow:inset 3px 0 0 var(--seal)}
+  .tapecard .tn{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);font-weight:700}
+  .tapecard .tt{font-family:var(--serif);font-size:16.5px;color:var(--text)}
+  .tapecard .ts{font-size:10.5px;color:var(--faint)}
+  .mchip{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);border:1px solid var(--line);background:var(--panel);border-radius:2px;
+    padding:4px 11px;white-space:nowrap}
+  .mchip.hot{color:var(--seal);border-color:var(--seal)}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(21px,3.2vw,26px);line-height:1.15;
+    letter-spacing:-.01em;text-wrap:balance;margin:0 0 12px}
+  p{margin:0 0 16px;max-width:65ch}
+  a{color:var(--seal);text-underline-offset:3px}
+  strong{font-weight:640}
+  section{padding-top:44px;margin-top:48px;border-top:1px solid var(--line)}
+  code{font-family:var(--mono);font-size:.9em;background:var(--seal-soft);padding:1px 6px;border-radius:2px}
+
+  /* ---------- player ---------- */
+  .player{border:1px solid var(--line);border-radius:2px;overflow:hidden;background:var(--term-bg);
+    box-shadow:0 24px 60px -26px rgba(150,34,46,.22),0 18px 44px -22px rgba(12,16,12,.5)}
+  .tbar{display:flex;align-items:center;gap:10px;background:var(--term-chrome);
+    border-bottom:1px solid var(--term-line);padding:10px 14px}
+  .dots{display:flex;gap:6px}
+  .dots i{width:10px;height:10px;border-radius:50%;background:#2E362F;display:block}
+  .dots i:first-child{background:#8f2230aa}
+  .ttitle{font-family:var(--mono);font-size:12px;color:#8D998F;flex:1;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tstate{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:#8D998F;
+    display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .tstate .led{width:7px;height:7px;border-radius:50%;background:var(--term-ok)}
+  .tstate.paused .led{background:var(--term-high)}
+  .tstate.ended .led{background:var(--term-dim)}
+
+  /* live HUD */
+  .hudstrip{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#151B14;
+    border-bottom:1px solid var(--term-line);padding:7px 16px;font-family:var(--mono);
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#6C7870}
+  .hcell b{font-weight:700;color:var(--term-fg);margin-left:5px;font-variant-numeric:tabular-nums;
+    display:inline-block;transition:transform .18s}
+  .hcell.crit b{color:var(--term-crit)}
+  .hcell.high b{color:var(--term-high)}
+  .hcell.med b{color:var(--term-med)}
+  .hcell b.bump{transform:scale(1.45)}
+  .hact{margin-left:auto;color:var(--seal);font-weight:600;letter-spacing:.16em}
+  @media (prefers-color-scheme:dark){.hact{color:#E5697A}}
+
+  .screen{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 300px}
+  .term{height:clamp(340px,52vh,520px);overflow-y:auto;overflow-x:hidden;padding:18px 20px 26px;
+    font-family:var(--mono);font-size:13px;line-height:1.55;color:var(--term-fg);
+    white-space:pre-wrap;overflow-wrap:break-word;scrollbar-width:thin;scrollbar-color:#2E362F transparent}
+  .term::-webkit-scrollbar{width:8px}
+  .term::-webkit-scrollbar-thumb{background:#2E362F;border-radius:2px}
+  .term .ln{display:block;min-height:1.55em}
+  .p{color:var(--term-crit);font-weight:700}
+  .c{color:#F2F4F0;font-weight:600}
+  .dim{color:var(--term-dim)}
+  .crit{color:var(--term-crit);font-weight:700}
+  .high{color:var(--term-high);font-weight:700}
+  .med{color:var(--term-med)}
+  .ok{color:var(--term-ok);font-weight:600}
+  .id{color:#F2F4F0;font-weight:700}
+  .jk{color:var(--term-key)}
+  .add{color:var(--term-ok)}
+  .del{color:var(--term-crit);font-weight:400}
+  .hunk{color:var(--term-med)}
+  .cursor{display:inline-block;width:.62em;height:1.15em;background:var(--term-fg);
+    vertical-align:text-bottom;animation:blink 1.06s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* impact pulses */
+  .fxring{position:absolute;inset:0;pointer-events:none;border-radius:0;z-index:3}
+  .fxring.flash-crit{animation:pulseCrit .95s ease-out forwards}
+  .fxring.flash-ok{animation:pulseOk .95s ease-out forwards}
+  @keyframes pulseCrit{0%{box-shadow:inset 0 0 0 0 rgba(229,105,122,0)}
+    22%{box-shadow:inset 0 0 72px -14px rgba(229,105,122,.5)}
+    100%{box-shadow:inset 0 0 0 0 rgba(229,105,122,0)}}
+  @keyframes pulseOk{0%{box-shadow:inset 0 0 0 0 rgba(124,199,161,0)}
+    22%{box-shadow:inset 0 0 72px -14px rgba(124,199,161,.42)}
+    100%{box-shadow:inset 0 0 0 0 rgba(124,199,161,0)}}
+
+  /* opening slate */
+  .slate{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:11px;background:var(--term-bg);font-family:var(--mono);color:var(--term-dim);
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;transition:opacity .45s;z-index:4;text-align:center;padding:0 20px}
+  .slate .sdot{width:9px;height:9px;border-radius:50%;background:var(--term-crit);
+    animation:blink 1.2s steps(1) infinite}
+  .slate .big{color:var(--term-fg);font-size:16px;letter-spacing:.26em;font-weight:700}
+  .slate.gone{opacity:0;pointer-events:none}
+
+  /* act title card */
+  .actcard{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(12,16,12,.90);z-index:4;opacity:0;pointer-events:none;transition:opacity .3s}
+  .actcard.show{opacity:1}
+  .actcard .aname{font-family:var(--mono);font-size:clamp(15px,2.6vw,20px);letter-spacing:.3em;
+    text-transform:uppercase;color:var(--term-fg);border-top:1px solid var(--term-crit);
+    border-bottom:1px solid var(--term-crit);padding:14px 26px}
+
+  /* live model view (educational side panel) */
+  .viz{border-left:1px solid var(--term-line);background:#131912;padding:12px 13px 8px;
+    display:flex;flex-direction:column;gap:9px;min-width:0}
+  .vchip{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--term-crit);font-weight:700;border:1px solid rgba(150,34,46,.40);border-radius:2px;
+    padding:3px 10px;align-self:flex-start;transition:opacity .28s}
+  .vdef{font-family:var(--mono);font-size:10px;color:#9BA79C;line-height:1.5;margin:0;
+    min-height:30px;transition:opacity .28s}
+  .viz.fading .vchip,.viz.fading .vdef{opacity:0}
+  .viz svg{display:block;width:100%;height:auto;flex:1}
+  /* svg base */
+  .viz text{font-family:var(--mono)}
+  .vbound{fill:none;stroke:#2E362F;stroke-width:1.2;stroke-dasharray:5 4}
+  .vblab{font-size:8px;fill:#6C7870;letter-spacing:.08em}
+  .vnode{fill:#1C231D;stroke:#5A665D;stroke-width:1.1;transition:opacity .45s,stroke .3s}
+  .vname{font-size:10px;fill:#DDE2DD;font-weight:700}
+  .vsub{font-size:8px;fill:#8D998F}
+  .vsub.after,.vsub.driftt{display:none}
+  .vedge{stroke:#2E362F;stroke-width:1.2;transition:opacity .45s}
+  .vbadge{font-size:8px;font-weight:700}
+  .vbadge.bh{fill:var(--term-high)}.vbadge.bm{fill:var(--term-med)}
+  .vbadge.bc{fill:var(--term-crit)}.vbadge.bok{fill:var(--term-ok)}
+  .vsha{font-size:7.5px;fill:var(--term-ok)}
+  .vdeny{font-size:8px;fill:var(--term-crit);font-weight:700}
+  .tri line{stroke:var(--term-crit);stroke-width:1.6;stroke-dasharray:6 5;
+    animation:march 1.05s linear infinite}
+  @keyframes march{to{stroke-dashoffset:-11}}
+  .tricap{font-size:7.8px;fill:#C77680}
+  .vghost{fill:none;stroke:var(--term-crit);stroke-width:1;stroke-dasharray:4 3}
+  .vglab{font-size:8px;fill:var(--term-crit)}
+  .vdd{font-size:8.5px;fill:var(--term-ok);letter-spacing:.14em;font-weight:700}
+  /* progressive reveal: everything dynamic starts hidden */
+  #vfs,#vgh,#vfe,#vpg,.vedge,.tri,.vbadge,.vsha,.vdeny,.vddg,.vghostg{opacity:0;pointer-events:none}
+  .s-node-fs #vfs,.s-node-gh #vgh,.s-node-fe #vfe,.s-node-pg #vpg{opacity:1}
+  .s-edges .vedge{opacity:1}
+  .s-badges .vbadge.f1{opacity:1}
+  .s-trifecta .tri{opacity:1}
+  .s-trifecta #vfe .vnode,.s-trifecta #vpg .vnode,.s-trifecta #vgh .vnode{stroke:var(--term-crit)}
+  /* the fix: trifecta clears, fetch leaves the session, subs swap */
+  .s-fixed .tri{opacity:0}
+  .s-fixed .vbadge.f1{opacity:0}
+  .s-fixed #vfe{opacity:.22}
+  .s-fixed #vfe .vnode,.s-fixed #vpg .vnode,.s-fixed #vgh .vnode{stroke:#5A665D}
+  .s-fixed .vsub.before{display:none}
+  .s-fixed .vsub.after{display:block}
+  .s-clean .vbadge.f2{opacity:1}
+  .s-policy .vbound{stroke-dasharray:none;stroke:#4A554D}
+  .s-policy .vsha{opacity:1}
+  .s-policy .vddg{opacity:1}
+  /* drift: rug-pull + unattested + out-of-root */
+  .s-drift .vbadge.f2{opacity:0}
+  .s-drift #vgh .vnode,.s-drift #vfs .vnode{stroke:var(--term-crit)}
+  .s-drift #vgh .vsha,.s-drift #vfs .vsha{opacity:0}
+  .s-drift .vsub.after{display:none}
+  .s-drift .vsub.driftt{display:block;fill:var(--term-crit)}
+  .s-drift #vpg .vsub.after{display:block}
+  .s-drift .vghostg{opacity:1}
+  .s-drift .vbadge.f3{opacity:1}
+  .s-quarantine .vdeny{opacity:1}
+  /* tape 002: the guard sits in front; containment closes the incident */
+  .vguardg{opacity:0;transition:opacity .45s}
+  .s-guardline .vguardg{opacity:1}
+  .s-contained .vbadge.f3{opacity:0}
+  .s-contained .vbadge.f4{opacity:1}
+  .s-contained #vgh,.s-contained #vfs{opacity:.35}
+  .s-contained #vgh .vnode,.s-contained #vfs .vnode{stroke:#5A665D}
+  .s-contained .vghostg{opacity:.35}
+  .s-contained .vdeny{opacity:1}
+  @media (max-width:880px){.screen{grid-template-columns:1fr}.viz{display:none}}
+
+  /* end slate */
+  .endslate{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:13px;background:rgba(11,15,11,.94);z-index:4;opacity:0;pointer-events:none;transition:opacity .5s;
+    text-align:center;padding:0 24px}
+  .endslate.show{opacity:1;pointer-events:auto}
+  .endslate .eh{font-weight:400;font-family:var(--serif);font-size:clamp(22px,3.4vw,30px);color:#F2F4F0;font-weight:600;margin:0}
+  .endslate .el{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--term-crit);margin:0}
+  .endslate .ec{font-family:var(--mono);font-size:13px;color:var(--term-fg);background:#1C231D;
+    border:1px solid #2E362F;border-radius:8px;padding:8px 16px;margin:2px 0 4px}
+  .endslate .en{font-family:var(--mono);font-size:11px;color:#8D998F;margin:0}
+
+  /* scrubber + controls */
+  .deck{background:var(--term-chrome);border-top:1px solid var(--term-line);padding:12px 16px 12px}
+  .scrub{position:relative;height:22px;cursor:pointer}
+  .scrub .track{position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background:#28302A}
+  .scrub .fill{position:absolute;left:0;top:9px;height:4px;border-radius:2px;background:var(--term-crit);
+    width:0%;transition:width .12s linear}
+  .scrub .tick{position:absolute;top:6px;width:2px;height:10px;background:#4A554D;border-radius:1px}
+  .scrub .tick.done{background:var(--term-crit)}
+  .deckrow{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .btn{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--term-fg);
+    background:transparent;border:1px solid #2E362F;border-radius:2px;padding:6px 12px;cursor:pointer}
+  .btn:hover{border-color:#5A665D;background:#1C231D}
+  .btn:focus-visible{outline:2px solid var(--term-crit);outline-offset:2px}
+  .btn.primary{border-color:var(--term-crit);color:#fff;background:rgba(150,34,46,.35)}
+  .btn.primary:hover{background:rgba(150,34,46,.55)}
+  .scene-ind{font-family:var(--mono);font-size:12px;color:#8D998F;margin-left:auto;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .chaps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chap{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;color:#8D998F;
+    background:transparent;border:1px solid #28302A;border-radius:2px;padding:4px 10px;cursor:pointer;
+    display:inline-flex;gap:6px;align-items:center}
+  .chap i{font-style:normal;color:#5A665D;font-weight:700}
+  .chap:hover{border-color:#5A665D;color:var(--term-fg)}
+  .chap:focus-visible{outline:2px solid var(--term-crit);outline-offset:2px}
+  .chap.cur{border-color:var(--term-crit);color:var(--term-fg)}
+  .chap.cur i{color:var(--term-crit)}
+  .hint{font-family:var(--mono);font-size:10.5px;color:#5A665D;margin-top:9px}
+
+  /* subtitle strip (in-player captions) */
+  .subs{background:#12170F;border-top:1px solid var(--term-line);padding:13px 18px;min-height:78px}
+  .capact{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:#E5697A;font-weight:700;margin:0 0 5px;transition:opacity .28s}
+  .captext{margin:0;color:#CBD4CC;font-size:14.5px;line-height:1.55;max-width:78ch;transition:opacity .28s}
+  .subs.fading .captext,.subs.fading .capact{opacity:0}
+
+  /* study funnel */
+  .funnel{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:2px;overflow:hidden;margin:6px 0 16px}
+  .fcell{background:var(--panel);padding:18px 16px}
+  .fcell .n{font-family:var(--mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+  .fcell .k{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-top:9px;line-height:1.4}
+  .fcell.hit .n{color:var(--seal)}
+  .caption{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin:8px 0 0}
+
+  /* washout bars */
+  .bars{display:flex;flex-direction:column;gap:14px;margin:14px 0 6px}
+  .bar{display:grid;grid-template-columns:130px 1fr;gap:14px;align-items:center}
+  .bar .lab{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+  .track2{height:26px;background:var(--seal-soft);border-radius:2px;position:relative;overflow:hidden;border:1px solid var(--line)}
+  .fill2{height:100%;border-radius:2px;display:flex;align-items:center;padding-left:10px;
+    font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;white-space:nowrap}
+  .fill2.loud{width:48%;background:var(--amber)}
+  .fill2.real{width:3%;min-width:2px;background:var(--seal)}
+
+  /* loop strip */
+  .loop{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:2px;overflow:hidden;margin:8px 0 0}
+  .lcell{background:var(--panel);padding:18px 16px}
+  .lcell .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--seal);font-weight:600}
+  .lcell p{font-size:13.5px;color:var(--muted);margin:8px 0 0;line-height:1.55}
+
+  pre.shell{background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:16px 18px;
+    overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.6;margin:12px 0;color:var(--text)}
+  pre.shell .cm{color:var(--faint)}
+  .foot{margin-top:52px;font-family:var(--mono);font-size:12.5px;color:var(--faint);line-height:1.7}
+
+  @media (max-width:640px){
+    body{font-size:16px}
+    .loop{grid-template-columns:1fr 1fr}
+    .funnel{grid-template-columns:1fr}
+    .bar{grid-template-columns:96px 1fr}
+    .term{font-size:11.5px;padding:14px 12px 20px}
+    .ttitle{display:none}
+    .hact{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .cursor,.slate .sdot,.pip .edge{animation:none}
+    .captext,.capact,.scrub .fill,.slate,.pip,.actcard,.endslate,.hcell b{transition:none}
+    .fxring{display:none}
+  }
+
+  .copybtn{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--panel);
+    border:1px solid var(--line);border-radius:2px;padding:7px 14px;cursor:pointer}
+  .copybtn:hover{border-color:var(--seal);color:var(--seal)}
+  .copybtn:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
+
+  .theme-toggle{background:transparent;border:1px solid var(--line);color:var(--text);
+    width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+  .theme-toggle:hover{border-color:var(--seal);color:var(--seal)}
+  .swrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:baseline;justify-content:space-between;padding:20px 0}
+  .wordmark{font-family:var(--serif);font-size:1.35rem;font-weight:700;color:var(--text);text-decoration:none}
+  .wordmark span{color:var(--seal)}
+  .wordmark svg{vertical-align:-4px;margin-right:9px}
+  .wordmark svg .p{fill:var(--seal)}
+  .wordmark svg .k{stroke:var(--ground)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:.92rem}
+  .nav-links a{color:var(--text);text-decoration:none}
+  .nav-links a:hover{color:var(--seal)}
+  .nav-links a[aria-current="page"]{color:var(--seal)}
+  @media(max-width:560px){.nav{flex-wrap:wrap;gap:4px 18px}.nav-links{flex-wrap:wrap;gap:14px 18px}}
+/*navgroup-css*/
+  .nav-group{position:relative;display:inline-flex;align-items:center}
+  .nav-group-label{color:var(--text);cursor:default;display:inline-flex;align-items:center;gap:6px}
+  .nav-group-label::after{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-1px) rotate(45deg);opacity:.55}
+  .nav-group:hover .nav-group-label,.nav-group:focus-within .nav-group-label{color:var(--seal)}
+  .nav-menu{position:absolute;top:calc(100% + 12px);left:-12px;min-width:186px;background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:7px 0;display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .14s ease,transform .14s ease;z-index:70;box-shadow:0 14px 34px -20px rgba(0,0,0,.55)}
+  .nav-group:hover .nav-menu,.nav-group:focus-within .nav-menu{opacity:1;visibility:visible;transform:none}
+  .nav-menu a{padding:7px 18px;white-space:nowrap;font-size:.9rem;border-bottom:none !important}
+  .nav-menu a:hover{background:var(--seal-soft);color:var(--seal)}
+  .nav-menu a[aria-current="page"]{color:var(--seal);border-bottom:none !important;padding-bottom:7px}
+  .nav-cta{border:1px solid var(--seal);color:var(--seal) !important;padding:5px 13px;border-radius:2px}
+  .nav-cta:hover{background:var(--seal);color:var(--ground) !important}
+  @media(max-width:680px){.nav-group{display:block;width:100%}.nav-menu{position:static;opacity:1;visibility:visible;transform:none;box-shadow:none;border:none;background:transparent;padding:2px 0 6px 14px;min-width:0}.nav-menu a{padding:4px 0}}
+  /*end-navgroup-css*/
+  .sitefoot{border-top:1px solid var(--line);padding:40px 0 56px;font-size:.85rem;color:var(--muted)}
+  .sitefoot a{color:var(--seal)}
+</style>
+<script>
+  try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="swrap nav">
+    <a class="wordmark" href="index.html"><svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><rect class="p" x="8" y="8" width="84" height="84" rx="18"/><g class="k" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28,76L50,24L72,76"/><path d="M36.5,56L45,64L59.7,47"/></g></svg>Attestral<span>.</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <div class="nav-group">
+        <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Product</span>
+        <div class="nav-menu">
+          <a href="capabilities.html">Capabilities</a>
+          <a href="pipeline.html">Pipeline</a>
+          <a href="system.html">System</a>
+          <a href="review.html">Review layers</a>
+          <a href="architecture.html">Architecture</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Prove it</span>
+        <div class="nav-menu">
+          <a href="proof.html">Proof</a>
+          <a href="redteam.html">Red-team</a>
+          <a href="runtime.html">Runtime</a>
+        </div>
+      </div>
+      <a href="research.html">Research</a>
+      <a href="playground.html">Playground</a>
+      <a href="demo.html" aria-current="page">Demo</a>
+      <a href="docs.html">Docs</a>
+      <a class="nav-cta" href="index.html#start">Get started</a>
+      <a href="https://github.com/attestral-labs/attestral">GitHub</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">☾</button>
+    </nav>
+  </div>
+</header>
+
+<div class="dwrap">
+  <p class="eyebrow">Attestral &middot; end-to-end demo</p>
+  <h1>From an innocent config to a runtime that cannot drift quietly.</h1>
+  <p class="lede">The whole Attestral loop on one real <code>mcp.json</code>, played back like a recording, in two tapes. Tape one: the scan that finds the lethal trifecta, the fix, the compile to a default-deny policy, and the rug-pull that gets caught. Tape two: the incident itself, streamed, contained in 62 seconds, replayed, and signed into evidence.</p>
+  <div class="metachips">
+    <span class="mchip hot">A two-tape series</span>
+    <span class="mchip">attestral v0.20.0</span>
+    <span class="mchip">every frame byte-verified</span>
+  </div>
+
+  <div class="shelf" id="shelf" role="tablist" aria-label="Choose a tape">
+    <button class="tapecard cur" id="tape0" role="tab" aria-selected="true" type="button">
+      <span class="tn">Tape 001</span>
+      <span class="tt">The design review</span>
+      <span class="ts">scan &rsaquo; fix &rsaquo; compile &rsaquo; drift &middot; 7 scenes</span>
+    </button>
+    <button class="tapecard" id="tape1" role="tab" aria-selected="false" type="button">
+      <span class="tn">Tape 002</span>
+      <span class="tt">The incident</span>
+      <span class="ts">stream &rsaquo; lockdown &rsaquo; replay &rsaquo; attest &middot; 5 scenes</span>
+    </button>
+  </div>
+
+  <div class="player" id="player">
+    <div class="tbar">
+      <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="ttitle">~/project &middot; attestral demo tape 001</div>
+      <div class="tstate" id="tstate"><span class="led"></span><span id="tstateTxt">READY</span></div>
+    </div>
+    <div class="hudstrip" aria-hidden="true">
+      <span class="hcell">Model <b id="hudModel">&mdash;</b></span>
+      <span class="hcell crit">Crit <b id="hudCrit">0</b></span>
+      <span class="hcell high">High <b id="hudHigh">0</b></span>
+      <span class="hcell med">Med <b id="hudMed">0</b></span>
+      <span class="hact" id="hudAct">Act I &middot; Catch</span>
+    </div>
+    <div class="screen" id="screen">
+      <div class="slate" id="slate">
+        <div class="sdot"></div>
+        <div class="big">ATTESTRAL</div>
+        <div>the demo tapes &middot; one config, end to end</div>
+        <div>two tapes &middot; every frame is real output</div>
+      </div>
+      <div class="term" id="term" tabindex="0" aria-label="Terminal recording"></div>
+      <div class="viz" id="viz" aria-hidden="true">
+        <span class="vchip" id="vconcept">The system model</span>
+        <p class="vdef" id="vdef">What the terminal is doing, drawn live.</p>
+        <svg id="vsvg" viewBox="0 0 300 368">
+          <rect class="vbound" x="28" y="18" width="244" height="310" rx="10"></rect>
+          <text class="vblab" x="40" y="31">agent session</text>
+          <text class="vbadge bc f1" x="260" y="31" text-anchor="end">1C 1H</text>
+          <text class="vbadge bok f2" x="260" y="31" text-anchor="end">0 findings</text>
+          <text class="vbadge bc f3" x="260" y="31" text-anchor="end">3 DRIFT</text>
+          <text class="vbadge bok f4" x="260" y="31" text-anchor="end">CONTAINED</text>
+          <rect class="vnode" x="105" y="40" width="90" height="24" rx="6"></rect>
+          <text class="vname" x="150" y="56" text-anchor="middle">agent</text>
+          <line class="vedge" x1="150" y1="64" x2="150" y2="282"></line>
+          <g class="vguardg">
+            <rect x="60" y="68" width="180" height="12" rx="3" fill="#1C231D" stroke="#5A665D" stroke-width="1"></rect>
+            <text x="150" y="77" text-anchor="middle" style="font-size:7.5px" fill="#7CC7A1">mcp-guard</text>
+          </g>
+
+          <g id="vfs">
+            <rect class="vnode" x="60" y="84" width="180" height="42" rx="7"></rect>
+            <text class="vname" x="70" y="100">filesystem</text>
+            <text class="vsub before" x="70" y="116">root: /Users/dev</text>
+            <text class="vsub after" x="70" y="116" fill="#7CC7A1">root: /Users/dev/project ✓</text>
+            <text class="vsub driftt" x="70" y="116">read ~/.ssh ✗ outside root</text>
+            <text class="vbadge bh f1" x="232" y="100" text-anchor="end">2H</text>
+            <text class="vbadge bok f2" x="232" y="100" text-anchor="end">✓</text>
+            <text class="vsha" x="232" y="114" text-anchor="end">sha ✓</text>
+            <text class="vdeny" x="232" y="114" text-anchor="end">→ deny</text>
+          </g>
+          <g id="vgh">
+            <rect class="vnode" x="60" y="150" width="180" height="42" rx="7"></rect>
+            <text class="vname" x="70" y="166">github</text>
+            <text class="vsub before" x="70" y="182">token in env · egress</text>
+            <text class="vsub after" x="70" y="182" fill="#7CC7A1">broker token ✓</text>
+            <text class="vsub driftt" x="70" y="182">manifest ✗ rug-pull</text>
+            <text class="vbadge bh f1" x="232" y="166" text-anchor="end">1H 1M</text>
+            <text class="vbadge bok f2" x="232" y="166" text-anchor="end">✓</text>
+            <text class="vsha" x="232" y="180" text-anchor="end">sha ✓</text>
+            <text class="vdeny" x="232" y="180" text-anchor="end">→ deny</text>
+          </g>
+          <g id="vfe">
+            <rect class="vnode" x="60" y="216" width="180" height="42" rx="7"></rect>
+            <text class="vname" x="70" y="232">fetch</text>
+            <text class="vsub before" x="70" y="248">web input · egress</text>
+            <text class="vsub after" x="70" y="248" fill="#7CC7A1">→ its own session ✓</text>
+            <text class="vbadge bm f1" x="232" y="232" text-anchor="end">1M</text>
+          </g>
+          <g id="vpg">
+            <rect class="vnode" x="60" y="282" width="180" height="42" rx="7"></rect>
+            <text class="vname" x="70" y="298">postgres</text>
+            <text class="vsub before" x="70" y="314">customers db</text>
+            <text class="vsub after" x="70" y="314" fill="#7CC7A1">read replica ✓</text>
+            <text class="vbadge bh f1" x="232" y="298" text-anchor="end">1H</text>
+            <text class="vbadge bok f2" x="232" y="298" text-anchor="end">✓</text>
+            <text class="vsha" x="232" y="312" text-anchor="end">sha ✓</text>
+          </g>
+
+          <g class="tri">
+            <line x1="12" y1="237" x2="60" y2="237"></line>
+            <line x1="150" y1="64" x2="150" y2="303"></line>
+            <line x1="240" y1="171" x2="290" y2="171"></line>
+            <text class="tricap" x="28" y="348">1 injected page enters via fetch · 2 agent reads customers</text>
+            <text class="tricap" x="28" y="360">3 data exits via github · one session, complete attack path</text>
+          </g>
+          <g class="vddg">
+            <text class="vdd" x="272" y="341" text-anchor="end">DEFAULT DENY</text>
+          </g>
+          <g class="vghostg">
+            <rect class="vghost" x="60" y="332" width="140" height="20" rx="5"></rect>
+            <text class="vglab" x="70" y="346">fetch ✗ unattested</text>
+          </g>
+        </svg>
+      </div>
+      <div class="actcard" id="actcard"><div class="aname" id="actname"></div></div>
+      <div class="endslate" id="endslate">
+        <p class="el">End of tape</p>
+        <p class="eh">The loop held.</p>
+        <p class="el" style="letter-spacing:.12em">measure &rsaquo; catch &rsaquo; enforce &rsaquo; attest</p>
+        <div class="ec">pip install attestral</div>
+        <p class="en">runs local &middot; no API key &middot; Apache 2.0</p>
+        <button class="btn primary" id="btnReplayEnd">&#8634;&#xFE0E; Replay the tape</button>
+      </div>
+    </div>
+    <div class="subs" id="capwrap" aria-live="polite">
+      <p class="capact" id="capact">Demo tape</p>
+      <p class="captext" id="captext">Press play. A developer, a normal MCP config, and the two minutes where the design review earns its keep.</p>
+    </div>
+    <div class="deck">
+      <div class="scrub" id="scrub" role="slider" aria-label="Tape position" aria-valuemin="1" aria-valuemax="7" aria-valuenow="1">
+        <div class="track"></div>
+        <div class="fill" id="fill"></div>
+      </div>
+      <div class="deckrow">
+        <button class="btn primary" id="btnPlay">&#9654;&#xFE0E; Play</button>
+        <button class="btn" id="btnRestart">&#8634;&#xFE0E; Restart</button>
+        <button class="btn" id="btnPrev">&#8249; Scene</button>
+        <button class="btn" id="btnNext">Scene &#8250;</button>
+        <button class="btn" id="btnSpeed">1&times; speed</button>
+        <span class="scene-ind" id="sceneInd">scene 1 / 7</span>
+      </div>
+      <div class="chaps" id="chaps"></div>
+      <div class="hint" id="hint">space play/pause &middot; &larr; &rarr; scenes &middot; click the bar or a chapter to jump</div>
+    </div>
+  </div>
+
+  <section>
+    <p class="eyebrow">The number behind scene two</p>
+    <h2>The same detection, run across 390 popular MCP servers.</h2>
+    <p>ATL-202 is not a demo trick. We pointed the same system-model detection at the 390 most popular open-source MCP server repositories (each at least 200 GitHub stars), scanning the launch configuration each repo documents. 233 shipped a config concrete enough to model. 76 of those, <strong>32.6&nbsp;percent</strong>, assemble the lethal trifecta in one agent session.</p>
+    <div class="funnel">
+      <div class="fcell"><div class="n">390</div><div class="k">popular MCP server repos<br>(&ge; 200 stars)</div></div>
+      <div class="fcell"><div class="n">233</div><div class="k">shipped a modelable config</div></div>
+      <div class="fcell hit"><div class="n">76</div><div class="k">assemble the lethal trifecta</div></div>
+    </div>
+    <p>The number is stable and it reproduces: 32.7 percent at 222 repos, 32.6 percent at 390, and every trifecta finding re-fired identically on a clean re-scan. We were just as hard on our own noise. A naive "no auth" alarm fired on 48 percent of servers, and fell to 0.9 percent once the check understood the MCP spec's OAuth flow.</p>
+    <div class="bars">
+      <div class="bar">
+        <div class="lab">naive "no auth"</div>
+        <div class="track2"><div class="fill2 loud">48%</div></div>
+      </div>
+      <div class="bar">
+        <div class="lab">OAuth-aware</div>
+        <div class="track2"><div class="fill2 real">&lt;1%</div></div>
+      </div>
+    </div>
+    <p class="caption">The loud per-server alarms washed out; the compositional finding survived. Deduped, documented launch configs; aggregate figures only, no server named. The one named example stays under coordinated disclosure until its window closes.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">What you just watched</p>
+    <h2>The loop, not a linter.</h2>
+    <p>The critical finding never lived in any single file, and the runtime catch never required a signature update. Both came from the same place: a system model of what the agent can actually reach, kept honest from review to runtime.</p>
+    <div class="loop">
+      <div class="lcell"><span class="k">Measure</span><p>Build the system model: components, edges, trust boundaries, from MCP configs, Terraform, and Kubernetes.</p></div>
+      <div class="lcell"><span class="k">Catch</span><p>Deterministic design rules plus ML injection scoring, run on the model, so combination risks like ATL-202 exist to be found.</p></div>
+      <div class="lcell"><span class="k">Enforce</span><p>The attested design compiles to a default-deny mcp-guard policy. Drift diffs the runtime against it and only ever narrows.</p></div>
+      <div class="lcell"><span class="k">Attest</span><p>Findings live in a tamper-evident evidence chain. Waivers expire, reports are signed, auditors get the artifact.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Run it yourself</p>
+    <h2>The tape is a recording, and it is pinned by tests.</h2>
+    <p>Every input ships in the repo. Tape one's opening config is <code>examples/first-run</code>; the remediated config and the telemetry stream both tapes run on are <code>examples/demo-tape</code>, so each command in either tape replays from committed files. Two suites pin the recording to the live tool: the fixture-sync guard keeps the README counts matched to real scans, and <code>tests/test_demo_tape.py</code> asserts the tapes' on-screen claims, the clean scan, the exact three drift findings, and the sign/verify/tamper round trip.</p>
+    <p>The telemetry stream is demo-authored, and the tapes treat it as such. Everything computed over it is the tool's real output: the drift findings, the pushed lockdown and its hash-chained journal, the replay reconstruction, and the signed incident attestation, including the verification failure when one byte of the stream is edited. Every terminal frame is a byte-exact capture of attestral v0.20.0.</p>
+    <pre class="shell">pip install attestral
+attestral scan examples/first-run     <span class="cm"># tape 001, scene 2, verbatim</span>
+cd examples/demo-tape &amp;&amp; attestral compile .
+attestral drift --remediate mcp-guard-policy.yaml runtime-events.jsonl
+attestral incident --gen-key k --journal live-policy.yaml.journal.jsonl \
+    mcp-guard-policy.yaml runtime-events.jsonl          <span class="cm"># tape 002's evidence</span>
+attestral scan --local                <span class="cm"># audit the MCP configs on this machine</span></pre>
+    <button class="copybtn" type="button" data-copy="pip install attestral">Copy: pip install attestral</button>
+  </section>
+
+  <p class="foot">
+    Attestral / measure &rsaquo; catch &rsaquo; enforce &rsaquo; attest<br>
+    Recorded from live attestral v0.20.0 output; transcripts byte-verified against the captures; study figures from the vetted 390-repo results.
+  </p>
+</div>
+
+<footer class="sitefoot">
+  <div class="swrap">Attestral - open source at <a href="https://github.com/attestral-labs/attestral">github.com/attestral-labs/attestral</a> &#183; An Attestral Labs project &#183; &#169; 2026 &#183; Apache 2.0</div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+var TAPES=[
+ {
+  "id": "001",
+  "label": "Tape 001 · The design review",
+  "outro": "Design review became runtime policy, and the policy caught the drift. That is the whole product: one loop from the first scan to the quarantine proposal, with an evidence chain the whole way. Tape 002 picks up at the moment of impact.",
+  "hud": {
+   "model": "—",
+   "crit": 0,
+   "high": 0,
+   "med": 0
+  },
+  "base": [],
+  "scenes": [
+   {
+    "title": "The config",
+    "act": "Act I · Catch",
+    "n": "01",
+    "concept": "System model",
+    "condef": "The config becomes a graph: components, their capabilities, and the trust boundary they share.",
+    "cap": "A normal mcp.json: the filesystem server, GitHub, a web fetcher, the customer database. Nothing looks wrong on its own. That is the point.",
+    "steps": [
+     {
+      "t": "cmd",
+      "x": "cat mcp.json"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "{"
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "  \"mcpServers\""
+         ],
+         [
+          "",
+          ": {"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "    \"filesystem\""
+         ],
+         [
+          "",
+          ": {"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"command\""
+         ],
+         [
+          "",
+          ": \"npx\","
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"args\""
+         ],
+         [
+          "",
+          ": [\"-y\", \"@modelcontextprotocol/server-filesystem\", \"/Users/dev\"],"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"description\""
+         ],
+         [
+          "",
+          ": \"Let the assistant read and write my files.\""
+         ]
+        ]
+       },
+       {
+        "x": "    },"
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "node-fs"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "jk",
+          "    \"github\""
+         ],
+         [
+          "",
+          ": {"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"command\""
+         ],
+         [
+          "",
+          ": \"npx\","
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"args\""
+         ],
+         [
+          "",
+          ": [\"-y\", \"@modelcontextprotocol/server-github\"],"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"env\""
+         ],
+         [
+          "",
+          ": { \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"ghp_realtokenpastedhere1234567890abcd\" },"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"description\""
+         ],
+         [
+          "",
+          ": \"Read issues and open pull requests.\""
+         ]
+        ]
+       },
+       {
+        "x": "    },"
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "node-gh"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "jk",
+          "    \"fetch\""
+         ],
+         [
+          "",
+          ": {"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"command\""
+         ],
+         [
+          "",
+          ": \"uvx\","
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"args\""
+         ],
+         [
+          "",
+          ": [\"mcp-server-fetch\"],"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"description\""
+         ],
+         [
+          "",
+          ": \"Fetch and summarize web pages.\""
+         ]
+        ]
+       },
+       {
+        "x": "    },"
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "node-fe"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "jk",
+          "    \"postgres\""
+         ],
+         [
+          "",
+          ": {"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"command\""
+         ],
+         [
+          "",
+          ": \"npx\","
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"args\""
+         ],
+         [
+          "",
+          ": [\"-y\", \"@modelcontextprotocol/server-postgres\", \"postgresql://app:hunter2@prod-db.internal:5432/customers\"],"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "jk",
+          "      \"description\""
+         ],
+         [
+          "",
+          ": \"Query the customer database.\""
+         ]
+        ]
+       },
+       {
+        "x": "    }"
+       },
+       {
+        "x": "  }"
+       },
+       {
+        "x": "}"
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "node-pg"
+     },
+     {
+      "t": "pause",
+      "ms": 1100
+     }
+    ]
+   },
+   {
+    "title": "The scan",
+    "act": "Act I · Catch",
+    "n": "02",
+    "concept": "Lethal trifecta",
+    "condef": "Private data, untrusted input, and an outbound channel, all live in one session. The finding is on the graph, not in any file.",
+    "cap": "One command builds a system model of the fleet. The critical finding is not on any server, it is on the combination: the lethal trifecta. Run across 390 popular open-source MCP servers, this same detection fired on one in three modelable configs.",
+    "steps": [
+     {
+      "t": "cmd",
+      "x": "attestral scan ."
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "scanning agentic surfaces for prompt injection…",
+        "c": "dim",
+        "d": 300
+       },
+       {
+        "x": "attestral · .",
+        "d": 450
+       },
+       {
+        "x": "Reviewed 4 components across 1 source file: 4 agent / MCP surface"
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "edges"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "Design review, not SAST: reads declared config and agent wiring, not arbitrary application logic.",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "",
+          "4 components · 8 findings · "
+         ],
+         [
+          "crit",
+          "1 critical"
+         ],
+         [
+          "",
+          " · "
+         ],
+         [
+          "high",
+          "5 high"
+         ],
+         [
+          "",
+          " · "
+         ],
+         [
+          "med",
+          "2 medium"
+         ]
+        ],
+        "d": 250
+       }
+      ]
+     },
+     {
+      "t": "hud",
+      "model": "4 components",
+      "crit": 1,
+      "high": 5,
+      "med": 2
+     },
+     {
+      "t": "viz",
+      "op": "badges"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": ""
+       },
+       {
+        "x": "CRITICAL (1)",
+        "c": "crit",
+        "d": 600
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-202"
+         ],
+         [
+          "",
+          "  Tool fleet forms an exfiltration chain (lethal trifecta)  "
+         ],
+         [
+          "dim",
+          "(model)"
+         ]
+        ],
+        "d": 400
+       }
+      ]
+     },
+     {
+      "t": "fx",
+      "kind": "flash-crit"
+     },
+     {
+      "t": "viz",
+      "op": "trifecta"
+     },
+     {
+      "t": "pause",
+      "ms": 2000
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "    fix: Split the workflow so no single agent session combines private-data access with unrestricted egress...",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-202",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "x": "HIGH (5)",
+        "c": "high",
+        "d": 350
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-102"
+         ],
+         [
+          "",
+          "  Filesystem or exec MCP server granted an over-broad root ($HOME, a system dir, or /)  "
+         ],
+         [
+          "dim",
+          "(mcp_server.filesystem)"
+         ]
+        ]
+       },
+       {
+        "x": "    fix: Scope the server to the narrowest directory it actually needs - the repository or a single data dir...",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-102",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-105"
+         ],
+         [
+          "",
+          "  MCP server auto-installs packages at launch  "
+         ],
+         [
+          "dim",
+          "(mcp_server.filesystem)"
+         ]
+        ]
+       },
+       {
+        "x": "    fix: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm...",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-105",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-105"
+         ],
+         [
+          "",
+          "  MCP server auto-installs packages at launch  "
+         ],
+         [
+          "dim",
+          "(mcp_server.github)"
+         ]
+        ]
+       },
+       {
+        "x": "    fix: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm...",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-105",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-105"
+         ],
+         [
+          "",
+          "  MCP server auto-installs packages at launch  "
+         ],
+         [
+          "dim",
+          "(mcp_server.postgres)"
+         ]
+        ]
+       },
+       {
+        "x": "    fix: Pin the package to an exact version and integrity hash; vendor or mirror it; drop the auto-confirm...",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-105",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-217"
+         ],
+         [
+          "",
+          "  Information-flow lattice violation across the tool fleet  "
+         ],
+         [
+          "dim",
+          "(model:ifc)"
+         ]
+        ]
+       },
+       {
+        "x": "    fix: Interpose a declassifier (validation, allowlist, or human approval) between the labelled source and...",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-217",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "x": "MEDIUM (2)",
+        "c": "med",
+        "d": 250
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-104"
+         ],
+         [
+          "",
+          "  Secrets passed to MCP server via environment  "
+         ],
+         [
+          "dim",
+          "(mcp_server.github)"
+         ]
+        ]
+       },
+       {
+        "x": "    fix: Use a secret manager or OS keychain; never place raw credentials where tool output can echo them.",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-104",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-107"
+         ],
+         [
+          "",
+          "  MCP server grants outbound network or browser access  "
+         ],
+         [
+          "dim",
+          "(mcp_server.fetch)"
+         ]
+        ]
+       },
+       {
+        "x": "    fix: Constrain the tool to an allowlist of destinations; deny access to internal metadata endpoints and...",
+        "c": "dim"
+       },
+       {
+        "x": "    run: attestral explain ATL-107",
+        "c": "dim"
+       },
+       {
+        "x": "(no files written - add -o to save a report)",
+        "c": "dim",
+        "d": 250
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 1200
+     }
+    ]
+   },
+   {
+    "title": "Explain",
+    "act": "Act I · Catch",
+    "n": "03",
+    "concept": "Explainability",
+    "condef": "Findings carry the risk, the exact fix, and the OWASP, MITRE ATLAS, and NIST controls they map to.",
+    "cap": "Every finding explains itself: the risk, the concrete fix, and the frameworks it maps to. One command, no dashboard.",
+    "steps": [
+     {
+      "t": "cmd",
+      "x": "attestral explain ATL-202"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "id",
+          "ATL-202"
+         ],
+         [
+          "dim",
+          "  ·  "
+         ],
+         [
+          "crit",
+          "critical"
+         ]
+        ],
+        "d": 250
+       },
+       {
+        "x": "Tool fleet forms an exfiltration chain (lethal trifecta)"
+       },
+       {
+        "x": ""
+       },
+       {
+        "x": "Across the configured servers the agent can read private data (files, databases, SaaS, or persistent memory) and reach an outbound channel, so one indirect prompt injection anywhere in its inputs can quietly exfiltrate what it reads.",
+        "d": 250
+       },
+       {
+        "x": ""
+       },
+       {
+        "x": "Recommendation",
+        "c": "high",
+        "d": 220
+       },
+       {
+        "x": "  Split the workflow so no single agent session combines private-data access with unrestricted egress, or gate the egress tool behind human approval and a destination allowlist."
+       },
+       {
+        "x": ""
+       },
+       {
+        "x": "Frameworks",
+        "c": "high",
+        "d": 220
+       },
+       {
+        "x": "  OWASP-ASI02:2026 · OWASP LLM01 Prompt Injection · MITRE ATLAS AML.T0051 · Agentic-SoK 2026 R3 · Agentic-SoK 2026 R5",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "dim",
+          "Applies to: "
+         ],
+         [
+          "",
+          "model"
+         ],
+         [
+          "dim",
+          "   (matcher: model_capability_combo)"
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 1400
+     }
+    ]
+   },
+   {
+    "title": "Remediate",
+    "act": "Act II · Fix",
+    "n": "04",
+    "concept": "Remediation",
+    "condef": "Every finding compiles to a concrete edit. The trifecta fix is architectural: split the session.",
+    "cap": "attestral remediate turns the findings into edits: scope the root, pin the versions, move the token to a broker, split the workflow so no single session holds the whole trifecta.",
+    "steps": [
+     {
+      "t": "act",
+      "x": "ACT II · FIX"
+     },
+     {
+      "t": "cmd",
+      "x": "attestral remediate ."
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "",
+          "Remediation "
+         ],
+         [
+          "dim",
+          "(8 findings, 5 with a concrete edit)"
+         ]
+        ],
+        "d": 250
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-202"
+         ],
+         [
+          "dim",
+          "  model  system model"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "x": "    fix:  Split the workflow so no single agent session combines private-data access with unrestricted egress, or gate the egress tool behind human approval and a destination allowlist.",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-102"
+         ],
+         [
+          "dim",
+          "  mcp_server.filesystem  mcp.json"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "x": "    fix:  Scope the server to the narrowest directory it actually needs - the repository or a single data directory below your home - never $HOME itself, a system path, or /. Pass an explicit allowed-directory argument (for example `/Users/you/project`, not `/Users/you` or `/`), and split the read and write roots if only reads are required.",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-105"
+         ],
+         [
+          "dim",
+          "  mcp_server.filesystem  mcp.json"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "    edit:"
+         ],
+         [
+          "",
+          " change `args` so it no longer includes: -y"
+         ]
+        ]
+       },
+       {
+        "x": "    now:  args = ['-y', '@modelcontextprotocol/server-filesystem', '/Users/dev']",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-105"
+         ],
+         [
+          "dim",
+          "  mcp_server.github  mcp.json"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "    edit:"
+         ],
+         [
+          "",
+          " change `args` so it no longer includes: -y"
+         ]
+        ]
+       },
+       {
+        "x": "    now:  args = ['-y', '@modelcontextprotocol/server-github']",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-105"
+         ],
+         [
+          "dim",
+          "  mcp_server.postgres  mcp.json"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "    edit:"
+         ],
+         [
+          "",
+          " change `args` so it no longer includes: -y"
+         ]
+        ]
+       },
+       {
+        "x": "    now:  args = ['-y', '@modelcontextprotocol/server-postgres', 'postgresql://app:hunter2@prod-db.internal:5432/customers']",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-217"
+         ],
+         [
+          "dim",
+          "  model:ifc  system model"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "x": "    fix:  Interpose a declassifier (validation, allowlist, or human approval) between the labelled source and sink so the flow is broken, or split the source and sink capabilities into separate agent sessions so no single context spans the lattice violation.",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-104"
+         ],
+         [
+          "dim",
+          "  mcp_server.github  mcp.json"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "    edit:"
+         ],
+         [
+          "",
+          " delete env key(s) GITHUB_PERSONAL_ACCESS_TOKEN from server 'github' in mcp.json; replace them with the generated CB4A broker route (`attestral fix --broker-output broker.yaml`)"
+         ]
+        ]
+       },
+       {
+        "x": "    now:  env = GITHUB_PERSONAL_ACCESS_TOKEN",
+        "c": "dim"
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "id",
+          "  ATL-107"
+         ],
+         [
+          "dim",
+          "  mcp_server.fetch  mcp.json"
+         ]
+        ],
+        "d": 120
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "    edit:"
+         ],
+         [
+          "",
+          " change `args` so it no longer includes: server-fetch, mcp-server-fetch, puppeteer, playwright, browser"
+         ]
+        ]
+       },
+       {
+        "x": "    now:  args = ['mcp-server-fetch']",
+        "c": "dim"
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 1200
+     }
+    ]
+   },
+   {
+    "title": "The fix",
+    "act": "Act II · Fix",
+    "n": "05",
+    "concept": "Least privilege",
+    "condef": "Narrowed root, pinned versions, brokered token, and the fetcher moved to its own session.",
+    "cap": "The edits applied: scoped root, pinned versions, brokered token, and the web fetcher moved to a separate session. The rescan is clean.",
+    "steps": [
+     {
+      "t": "cmd",
+      "x": "diff -u mcp.json.orig mcp.json"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "--- mcp.json.orig\t2026-08-11 21:55:51",
+        "c": "dim"
+       },
+       {
+        "x": "+++ mcp.json\t2026-08-11 21:41:43",
+        "c": "dim"
+       },
+       {
+        "x": "@@ -2,24 +2,18 @@",
+        "c": "hunk"
+       },
+       {
+        "x": "   \"mcpServers\": {"
+       },
+       {
+        "x": "     \"filesystem\": {"
+       },
+       {
+        "x": "       \"command\": \"npx\","
+       },
+       {
+        "x": "-      \"args\": [\"-y\", \"@modelcontextprotocol/server-filesystem\", \"/Users/dev\"],",
+        "c": "del"
+       },
+       {
+        "x": "-      \"description\": \"Let the assistant read and write my files.\"",
+        "c": "del"
+       },
+       {
+        "x": "+      \"args\": [\"@modelcontextprotocol/server-filesystem@2025.7.1\", \"/Users/dev/project\"],",
+        "c": "add"
+       },
+       {
+        "x": "+      \"description\": \"Let the assistant read and write files in this project.\"",
+        "c": "add"
+       },
+       {
+        "x": "     },"
+       },
+       {
+        "x": "     \"github\": {"
+       },
+       {
+        "x": "       \"command\": \"npx\","
+       },
+       {
+        "x": "-      \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"],",
+        "c": "del"
+       },
+       {
+        "x": "-      \"env\": { \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"ghp_realtokenpastedhere1234567890abcd\" },",
+        "c": "del"
+       },
+       {
+        "x": "-      \"description\": \"Read issues and open pull requests.\"",
+        "c": "del"
+       },
+       {
+        "x": "+      \"args\": [\"@modelcontextprotocol/server-github@2025.4.8\"],",
+        "c": "add"
+       },
+       {
+        "x": "+      \"description\": \"Read issues and open pull requests. Token comes from the credential broker.\"",
+        "c": "add"
+       },
+       {
+        "x": "     },"
+       },
+       {
+        "x": "-    \"fetch\": {",
+        "c": "del"
+       },
+       {
+        "x": "-      \"command\": \"uvx\",",
+        "c": "del"
+       },
+       {
+        "x": "-      \"args\": [\"mcp-server-fetch\"],",
+        "c": "del"
+       },
+       {
+        "x": "-      \"description\": \"Fetch and summarize web pages.\"",
+        "c": "del"
+       },
+       {
+        "x": "-    },",
+        "c": "del"
+       },
+       {
+        "x": "     \"postgres\": {"
+       },
+       {
+        "x": "       \"command\": \"npx\","
+       },
+       {
+        "x": "-      \"args\": [\"-y\", \"@modelcontextprotocol/server-postgres\", \"postgresql://app:hunter2@prod-db.internal:5432/customers\"],",
+        "c": "del"
+       },
+       {
+        "x": "-      \"description\": \"Query the customer database.\"",
+        "c": "del"
+       },
+       {
+        "x": "+      \"args\": [\"@modelcontextprotocol/server-postgres@2025.4.8\", \"postgresql://app@prod-db-replica.internal:5432/customers_readonly\"],",
+        "c": "add"
+       },
+       {
+        "x": "+      \"description\": \"Query the customer database (read replica).\"",
+        "c": "add"
+       },
+       {
+        "x": "     }"
+       },
+       {
+        "x": "   }"
+       },
+       {
+        "x": " }"
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "fixed"
+     },
+     {
+      "t": "pause",
+      "ms": 900
+     },
+     {
+      "t": "cmd",
+      "x": "attestral scan ."
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "scanning agentic surfaces for prompt injection…",
+        "c": "dim",
+        "d": 300
+       },
+       {
+        "x": "attestral · .",
+        "d": 450
+       },
+       {
+        "x": "Reviewed 3 components across 1 source file: 3 agent / MCP surface"
+       },
+       {
+        "x": "Design review, not SAST: reads declared config and agent wiring, not arbitrary application logic.",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "",
+          "3 components · "
+         ],
+         [
+          "ok",
+          "0 findings"
+         ]
+        ],
+        "d": 400
+       },
+       {
+        "x": ""
+       },
+       {
+        "x": "No findings. Clean scan.",
+        "c": "ok",
+        "d": 500
+       }
+      ]
+     },
+     {
+      "t": "hud",
+      "model": "3 components",
+      "crit": 0,
+      "high": 0,
+      "med": 0
+     },
+     {
+      "t": "viz",
+      "op": "clean"
+     },
+     {
+      "t": "fx",
+      "kind": "flash-ok"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "(no files written - add -o to save a report)",
+        "c": "dim",
+        "d": 250
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 1300
+     }
+    ]
+   },
+   {
+    "title": "Compile",
+    "act": "Act III · Enforce",
+    "n": "06",
+    "concept": "Attested policy",
+    "condef": "The clean review freezes into a default-deny policy: roots, capability envelopes, manifest hashes.",
+    "cap": "The clean review compiles into a default-deny runtime policy: every server's root, capability envelope, and tool-manifest hash, frozen exactly as attested.",
+    "steps": [
+     {
+      "t": "act",
+      "x": "ACT III · ENFORCE"
+     },
+     {
+      "t": "cmd",
+      "x": "attestral compile ."
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "",
+          "wrote "
+         ],
+         [
+          "id",
+          "mcp-guard-policy.yaml"
+         ],
+         [
+          "dim",
+          "  ·  target mcp-guard  ·  "
+         ],
+         [
+          "",
+          "default deny"
+         ],
+         [
+          "dim",
+          "  ·  3 allowed, 0 denied"
+         ]
+        ],
+        "d": 400
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "  [ALLOW]"
+         ],
+         [
+          "",
+          " filesystem"
+         ]
+        ],
+        "d": 150
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "  [ALLOW]"
+         ],
+         [
+          "",
+          " github"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "  [ALLOW]"
+         ],
+         [
+          "",
+          " postgres"
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "policy"
+     },
+     {
+      "t": "pause",
+      "ms": 800
+     },
+     {
+      "t": "cmd",
+      "x": "head -23 mcp-guard-policy.yaml"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "# mcp-guard policy - COMPILED FROM AN ATTESTED DESIGN REVIEW.",
+        "c": "dim"
+       },
+       {
+        "x": "# Do not hand-edit: change the design, re-review, re-compile.",
+        "c": "dim"
+       },
+       {
+        "x": "# model_hash: 6be49913ab1a1180…  chain_head: -",
+        "c": "dim"
+       },
+       {
+        "x": "version: 1"
+       },
+       {
+        "x": "metadata:"
+       },
+       {
+        "x": "  generated_by: attestral"
+       },
+       {
+        "x": "  generated_at: '2026-08-12T02:55:52+00:00'"
+       },
+       {
+        "x": "  model_hash: 6be49913ab1a1180c1d3164e12b9c2546d3ff6d60494408d52873246db5d26c3",
+        "c": "dim"
+       },
+       {
+        "x": "  review_chain_head: ''",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "",
+          "default: "
+         ],
+         [
+          "crit",
+          "deny"
+         ]
+        ],
+        "d": 250
+       },
+       {
+        "x": "budgets:"
+       },
+       {
+        "x": "  loop_repeat_threshold: 5"
+       },
+       {
+        "x": "  max_calls_per_server: 100"
+       },
+       {
+        "x": "servers:"
+       },
+       {
+        "x": "  filesystem:"
+       },
+       {
+        "x": "    allow: true"
+       },
+       {
+        "x": "    constraints:"
+       },
+       {
+        "x": "      root_paths:"
+       },
+       {
+        "x": "      - /Users/dev/project",
+        "c": "ok"
+       },
+       {
+        "x": "    attested_source: mcp.json"
+       },
+       {
+        "x": "    capabilities:"
+       },
+       {
+        "x": "    - filesystem"
+       },
+       {
+        "x": "    manifest_sha256: 19956c911b787e4a010dc7837242c6ac91d598b8d6b782d35acaf0ff8bd86069",
+        "c": "dim"
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 1400
+     }
+    ]
+   },
+   {
+    "title": "Drift",
+    "act": "Act III · Enforce",
+    "n": "07",
+    "concept": "Drift detection",
+    "condef": "Runtime telemetry is diffed against the attested design. Enforcement only ever narrows; a human approves.",
+    "cap": "Three weeks later, drift reads the guard's telemetry: a rug-pulled tool surface, a server added without review, a read outside the attested root. The proposed fix only ever narrows; a human approves.",
+    "steps": [
+     {
+      "t": "note",
+      "lines": [
+       {
+        "x": "# ── three weeks later ────────────────────────────────",
+        "c": "dim",
+        "d": 700
+       },
+       {
+        "x": "# mcp-guard has been enforcing the policy in front of every server,",
+        "c": "dim"
+       },
+       {
+        "x": "# journaling each tool call to runtime-events.jsonl",
+        "c": "dim"
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 600
+     },
+     {
+      "t": "cmd",
+      "x": "attestral drift --remediate mcp-guard-policy.yaml runtime-events.jsonl"
+     },
+     {
+      "t": "fx",
+      "kind": "flash-crit"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "crit",
+          "  [CRITICAL]"
+         ],
+         [
+          "id",
+          " DRF-005"
+         ],
+         [
+          "",
+          "  Tool manifest changed since attestation (rug-pull)  "
+         ],
+         [
+          "dim",
+          "(mcp_server.github)"
+         ]
+        ],
+        "d": 700
+       },
+       {
+        "s": [
+         [
+          "crit",
+          "  [CRITICAL]"
+         ],
+         [
+          "id",
+          " DRF-001"
+         ],
+         [
+          "",
+          "  Unattested server observed at runtime  "
+         ],
+         [
+          "dim",
+          "(mcp_server.fetch)"
+         ]
+        ],
+        "d": 500
+       },
+       {
+        "s": [
+         [
+          "high",
+          "  [HIGH    ]"
+         ],
+         [
+          "id",
+          " DRF-003"
+         ],
+         [
+          "",
+          "  Filesystem access outside attested roots  "
+         ],
+         [
+          "dim",
+          "(mcp_server.filesystem)"
+         ]
+        ],
+        "d": 500
+       },
+       {
+        "x": "6 events · 3 drift findings",
+        "d": 400
+       }
+      ]
+     },
+     {
+      "t": "hud",
+      "model": "6 events",
+      "crit": 2,
+      "high": 1,
+      "med": 0
+     },
+     {
+      "t": "viz",
+      "op": "drift"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": ""
+       },
+       {
+        "x": "PROPOSED tightening - a human reviews and re-compiles. A drift finding means the runtime diverged from the reviewed design, so this only ever narrows the policy toward denial (quarantine the offending server); it never widens the design to match the drift. A compromised runtime cannot drive its own policy.",
+        "c": "dim",
+        "d": 500
+       },
+       {
+        "s": [
+         [
+          "high",
+          "  PROPOSE"
+         ],
+         [
+          "id",
+          " DRF-005"
+         ],
+         [
+          "",
+          "  github: allow True->False  "
+         ],
+         [
+          "dim",
+          "(quarantine: DRF-005 - Event #4: observed manifest 52a2b7cfdf944a4c… != attested 31ce74daea4720f3… - the tool surface changed after review)"
+         ]
+        ],
+        "d": 300
+       },
+       {
+        "x": "    note: if this was a legitimate upgrade, re-attest the new surface under human review",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "high",
+          "  PROPOSE"
+         ],
+         [
+          "id",
+          " DRF-001"
+         ],
+         [
+          "",
+          "  fetch: allow absent->False  "
+         ],
+         [
+          "dim",
+          "(quarantine: DRF-001 - Event #6: server 'fetch' is not in the attested design)"
+         ]
+        ],
+        "d": 300
+       },
+       {
+        "x": "    note: needs re-review to admit the server into the design",
+        "c": "dim"
+       },
+       {
+        "s": [
+         [
+          "high",
+          "  PROPOSE"
+         ],
+         [
+          "id",
+          " DRF-003"
+         ],
+         [
+          "",
+          "  filesystem: allow True->False  "
+         ],
+         [
+          "dim",
+          "(quarantine: DRF-003 - Event #5: path '/Users/dev/.ssh/id_ed25519' outside attested roots ['/Users/dev/project'])"
+         ]
+        ],
+        "d": 300
+       },
+       {
+        "s": [
+         [
+          "",
+          "  narrowing check: "
+         ],
+         [
+          "ok",
+          "narrowing"
+         ]
+        ],
+        "d": 400
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "quarantine"
+     },
+     {
+      "t": "note",
+      "lines": [
+       {
+        "x": ""
+       },
+       {
+        "x": "# tape ends · measure › catch › enforce › attest",
+        "c": "dim",
+        "d": 900
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 400
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "002",
+  "label": "Tape 002 · The incident",
+  "outro": "The runtime diverged, the guard contained it in 62 seconds, and the whole incident is now a signed attestation anyone can verify offline. Detection, containment, evidence: one loop.",
+  "hud": {
+   "model": "3 components",
+   "crit": 0,
+   "high": 0,
+   "med": 0
+  },
+  "base": [
+   "node-fs",
+   "node-gh",
+   "node-pg",
+   "edges",
+   "fixed",
+   "clean",
+   "policy",
+   "guardline"
+  ],
+  "scenes": [
+   {
+    "title": "The stream",
+    "act": "Act I · Watch",
+    "n": "01",
+    "concept": "Streaming enforcement",
+    "condef": "Every event is judged against the attested policy as it arrives; enforcement can only narrow.",
+    "cap": "The attested policy from tape one is live and mcp-guard fronts every server. drift watches the telemetry stream; the moment an event crosses the design, a narrowed policy is pushed and journaled.",
+    "steps": [
+     {
+      "t": "note",
+      "lines": [
+       {
+        "x": "# tape 002 · picking up where tape 001 ended",
+        "c": "dim",
+        "d": 700
+       },
+       {
+        "x": "# the attested policy is live; mcp-guard fronts every server and",
+        "c": "dim"
+       },
+       {
+        "x": "# journals telemetry. drift watches the stream as it happens.",
+        "c": "dim"
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 500
+     },
+     {
+      "t": "cmd",
+      "x": "attestral drift --stdin --lockdown --enforce live-policy.yaml mcp-guard-policy.yaml < runtime-events.jsonl"
+     },
+     {
+      "t": "fx",
+      "kind": "flash-crit"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "crit",
+          "  [CRITICAL]"
+         ],
+         [
+          "id",
+          " DRF-005"
+         ],
+         [
+          "",
+          "  Tool manifest changed since attestation (rug-pull)  "
+         ],
+         [
+          "dim",
+          "(mcp_server.github)"
+         ]
+        ],
+        "d": 600
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "drift"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "ok",
+          "  LOCKDOWN pushed:"
+         ],
+         [
+          "",
+          " quarantined github -> live-policy.yaml"
+         ]
+        ],
+        "d": 350
+       }
+      ]
+     },
+     {
+      "t": "hud",
+      "model": "6 events",
+      "crit": 2,
+      "high": 1,
+      "med": 0
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "high",
+          "  [HIGH    ]"
+         ],
+         [
+          "id",
+          " DRF-003"
+         ],
+         [
+          "",
+          "  Filesystem access outside attested roots  "
+         ],
+         [
+          "dim",
+          "(mcp_server.filesystem)"
+         ]
+        ],
+        "d": 450
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "  LOCKDOWN pushed:"
+         ],
+         [
+          "",
+          " quarantined filesystem, github -> live-policy.yaml"
+         ]
+        ],
+        "d": 350
+       },
+       {
+        "s": [
+         [
+          "crit",
+          "  [CRITICAL]"
+         ],
+         [
+          "id",
+          " DRF-001"
+         ],
+         [
+          "",
+          "  Unattested server observed at runtime  "
+         ],
+         [
+          "dim",
+          "(mcp_server.fetch)"
+         ]
+        ],
+        "d": 450
+       },
+       {
+        "s": [
+         [
+          "ok",
+          "  LOCKDOWN pushed:"
+         ],
+         [
+          "",
+          " quarantined fetch, filesystem, github -> live-policy.yaml"
+         ]
+        ],
+        "d": 350
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "quarantine"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "6 events · 3 drift findings (stream ended)",
+        "d": 400
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 1300
+     }
+    ]
+   },
+   {
+    "title": "The containment",
+    "act": "Act II · Contain",
+    "n": "02",
+    "concept": "Narrowing proof",
+    "condef": "Each pushed policy is proven to only remove capability; the journal hash-chains every push.",
+    "cap": "The pushed policy quarantines exactly the offenders, with the reason inline. The journal is a hash chain: each push commits to the previous one, so containment itself is auditable.",
+    "steps": [
+     {
+      "t": "act",
+      "x": "ACT II · CONTAIN"
+     },
+     {
+      "t": "cmd",
+      "x": "sed -n '20,34p' live-policy.yaml"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "servers:"
+       },
+       {
+        "x": "  filesystem:"
+       },
+       {
+        "s": [
+         [
+          "",
+          "    allow: "
+         ],
+         [
+          "crit",
+          "false"
+         ]
+        ],
+        "d": 250
+       },
+       {
+        "x": "    constraints:"
+       },
+       {
+        "x": "      root_paths:"
+       },
+       {
+        "x": "      - /Users/dev/project",
+        "c": "ok"
+       },
+       {
+        "x": "    attested_source: mcp.json",
+        "c": "dim"
+       },
+       {
+        "x": "    capabilities:"
+       },
+       {
+        "x": "    - filesystem"
+       },
+       {
+        "x": "    manifest_sha256: 19956c911b787e4a010dc7837242c6ac91d598b8d6b782d35acaf0ff8bd86069",
+        "c": "dim"
+       },
+       {
+        "x": "    reason: 'quarantine: DRF-003 - Event #5: path ''/Users/dev/.ssh/id_ed25519'' outside",
+        "c": "dim"
+       },
+       {
+        "x": "      attested roots [''/Users/dev/project'']'",
+        "c": "dim"
+       },
+       {
+        "x": "  github:"
+       },
+       {
+        "s": [
+         [
+          "",
+          "    allow: "
+         ],
+         [
+          "crit",
+          "false"
+         ]
+        ],
+        "d": 250
+       },
+       {
+        "x": "    constraints: {}"
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 700
+     },
+     {
+      "t": "cmd",
+      "x": "jq -r '\"push #\\(.seq)  quarantined: \\(.quarantined|join(\", \"))  sha \\(.entry_sha[0:12])…\"' live-policy.yaml.journal.jsonl"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "s": [
+         [
+          "id",
+          "push #1"
+         ],
+         [
+          "",
+          "  quarantined: github"
+         ],
+         [
+          "dim",
+          "  sha 66d813aaf107…"
+         ]
+        ],
+        "d": 300
+       },
+       {
+        "s": [
+         [
+          "id",
+          "push #2"
+         ],
+         [
+          "",
+          "  quarantined: filesystem, github"
+         ],
+         [
+          "dim",
+          "  sha 2c05e04ffef0…"
+         ]
+        ],
+        "d": 300
+       },
+       {
+        "s": [
+         [
+          "id",
+          "push #3"
+         ],
+         [
+          "",
+          "  quarantined: fetch, filesystem, github"
+         ],
+         [
+          "dim",
+          "  sha 8852dbd97be0…"
+         ]
+        ],
+        "d": 300
+       }
+      ]
+     },
+     {
+      "t": "viz",
+      "op": "contained"
+     },
+     {
+      "t": "pause",
+      "ms": 1300
+     }
+    ]
+   },
+   {
+    "title": "The replay",
+    "act": "Act III · Prove",
+    "n": "03",
+    "concept": "Forensic replay",
+    "condef": "The recorded stream replays through a fresh monitor: when it diverged, what contained it, whether the journal holds.",
+    "cap": "After the incident, replay reconstructs the timeline from the recorded stream: first drift at event four, containment 62 seconds later, journal chain intact, final state contained.",
+    "steps": [
+     {
+      "t": "act",
+      "x": "ACT III · PROVE"
+     },
+     {
+      "t": "cmd",
+      "x": "attestral drift --replay --journal live-policy.yaml.journal.jsonl mcp-guard-policy.yaml runtime-events.jsonl"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "REPLAY - incident reconstruction: 6 event(s) against the attested design",
+        "d": 300
+       },
+       {
+        "x": ""
+       },
+       {
+        "s": [
+         [
+          "dim",
+          "    #4 22:24:52"
+         ],
+         [
+          "",
+          "  "
+         ],
+         [
+          "crit",
+          "DRF-005"
+         ],
+         [
+          "",
+          "  github: observed manifest 52a2b7cfdf944a4c… != attested 31ce74daea4720f3… - the tool surface changed after review"
+         ]
+        ],
+        "d": 260
+       },
+       {
+        "s": [
+         [
+          "dim",
+          "    #5 22:24:55"
+         ],
+         [
+          "",
+          "  "
+         ],
+         [
+          "high",
+          "DRF-003"
+         ],
+         [
+          "",
+          "  filesystem: path '/Users/dev/.ssh/id_ed25519' outside attested roots ['/Users/dev/project']"
+         ]
+        ],
+        "d": 260
+       },
+       {
+        "s": [
+         [
+          "dim",
+          "    #6 22:24:58"
+         ],
+         [
+          "",
+          "  "
+         ],
+         [
+          "crit",
+          "DRF-001"
+         ],
+         [
+          "",
+          "  fetch: server 'fetch' is not in the attested design"
+         ]
+        ],
+        "d": 260
+       },
+       {
+        "s": [
+         [
+          "dim",
+          "    #6 22:25:53"
+         ],
+         [
+          "",
+          "  "
+         ],
+         [
+          "ok",
+          "LOCKDOWN pushed"
+         ],
+         [
+          "",
+          "  quarantined: github"
+         ]
+        ],
+        "d": 260
+       },
+       {
+        "s": [
+         [
+          "dim",
+          "    #6 22:25:53"
+         ],
+         [
+          "",
+          "  "
+         ],
+         [
+          "ok",
+          "LOCKDOWN pushed"
+         ],
+         [
+          "",
+          "  quarantined: filesystem, github"
+         ]
+        ],
+        "d": 260
+       },
+       {
+        "s": [
+         [
+          "dim",
+          "    #6 22:25:53"
+         ],
+         [
+          "",
+          "  "
+         ],
+         [
+          "ok",
+          "LOCKDOWN pushed"
+         ],
+         [
+          "",
+          "  quarantined: fetch, filesystem, github"
+         ]
+        ],
+        "d": 260
+       },
+       {
+        "x": ""
+       },
+       {
+        "x": "  incident summary",
+        "c": "high",
+        "d": 450
+       },
+       {
+        "x": "  events             6"
+       },
+       {
+        "x": "  drift findings     3 (DRF-001 x1, DRF-003 x1, DRF-005 x1)"
+       },
+       {
+        "x": "  first drift        #4 at 22:24:52 (DRF-005)"
+       },
+       {
+        "x": "  containment        pushed at 22:25:53 - 61.91s after first drift"
+       },
+       {
+        "s": [
+         [
+          "",
+          "  journal chain      "
+         ],
+         [
+          "ok",
+          "intact"
+         ],
+         [
+          "",
+          " (3 entries)"
+         ]
+        ]
+       },
+       {
+        "s": [
+         [
+          "",
+          "  final state        "
+         ],
+         [
+          "ok",
+          "CONTAINED"
+         ],
+         [
+          "",
+          ""
+         ]
+        ],
+        "d": 500
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 1400
+     }
+    ]
+   },
+   {
+    "title": "The attestation",
+    "act": "Act III · Prove",
+    "n": "04",
+    "concept": "Signed incident",
+    "condef": "An in-toto statement over policy, events, journal, and timeline; DSSE-signed, verifiable offline.",
+    "cap": "attestral incident binds the policy digest, the event stream, the journal head, and the full reconstruction into one Ed25519-signed statement. Verification recomputes everything offline.",
+    "steps": [
+     {
+      "t": "cmd",
+      "x": "attestral incident --gen-key incident-key --signer oncall@example.com --journal live-policy.yaml.journal.jsonl mcp-guard-policy.yaml runtime-events.jsonl -o incident.json"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "wrote incident-key.key (private, keep secret) and incident-key.pub (public)",
+        "c": "dim",
+        "d": 300
+       },
+       {
+        "x": "wrote incident.json"
+       },
+       {
+        "s": [
+         [
+          "",
+          "Incident attestation  "
+         ],
+         [
+          "ok",
+          "CONTAINED"
+         ],
+         [
+          "",
+          ""
+         ]
+        ],
+        "d": 350
+       },
+       {
+        "x": "  first drift: DRF-005 at event #4 at 2026-08-12T22:24:52Z",
+        "c": "dim"
+       },
+       {
+        "x": "  findings 3 · pushes 3 · refusals 0 · journal intact",
+        "c": "dim"
+       },
+       {
+        "x": "  signed · binds policy digest, event stream, journal chain head, and the full reconstruction",
+        "c": "dim"
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 800
+     },
+     {
+      "t": "cmd",
+      "x": "attestral incident --verify --public-key incident-key.pub --journal live-policy.yaml.journal.jsonl mcp-guard-policy.yaml runtime-events.jsonl -o incident.json"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "incident attestation VERIFIED - the supplied policy, events, and journal reproduce exactly this reconstruction",
+        "c": "ok",
+        "d": 500
+       },
+       {
+        "s": [
+         [
+          "",
+          "Incident attestation  "
+         ],
+         [
+          "ok",
+          "CONTAINED"
+         ],
+         [
+          "",
+          ""
+         ]
+        ],
+        "d": 350
+       },
+       {
+        "x": "  first drift: DRF-005 at event #4 at 2026-08-12T22:24:52Z",
+        "c": "dim"
+       },
+       {
+        "x": "  findings 3 · pushes 3 · refusals 0 · journal intact",
+        "c": "dim"
+       },
+       {
+        "x": "  signed · binds policy digest, event stream, journal chain head, and the full reconstruction",
+        "c": "dim"
+       }
+      ]
+     },
+     {
+      "t": "fx",
+      "kind": "flash-ok"
+     },
+     {
+      "t": "pause",
+      "ms": 1300
+     }
+    ]
+   },
+   {
+    "title": "The tamper test",
+    "act": "Act III · Prove",
+    "n": "05",
+    "concept": "Tamper evidence",
+    "condef": "A doctored event line, journal, or verdict makes verification fail and name the step.",
+    "cap": "Change one byte of history and verification names the failing step. Contained is a claim you can check, not a status line in a dashboard.",
+    "steps": [
+     {
+      "t": "note",
+      "lines": [
+       {
+        "x": "# change one byte of history: the ssh read becomes an innocent file",
+        "c": "dim",
+        "d": 600
+       }
+      ]
+     },
+     {
+      "t": "cmd",
+      "x": "sed 's|/Users/dev/.ssh/id_ed25519|/Users/dev/project/notes.md|' runtime-events.jsonl > runtime-events-tampered.jsonl"
+     },
+     {
+      "t": "cmd",
+      "x": "attestral incident --verify --public-key incident-key.pub --journal live-policy.yaml.journal.jsonl mcp-guard-policy.yaml runtime-events-tampered.jsonl -o incident.json"
+     },
+     {
+      "t": "fx",
+      "kind": "flash-crit"
+     },
+     {
+      "t": "out",
+      "lines": [
+       {
+        "x": "incident attestation FAILED - first failing step: subject",
+        "c": "crit",
+        "d": 500
+       },
+       {
+        "x": "  all failing steps: subject, events, replay",
+        "c": "crit"
+       }
+      ]
+     },
+     {
+      "t": "note",
+      "lines": [
+       {
+        "x": ""
+       },
+       {
+        "x": "# tape ends · the incident is evidence",
+        "c": "dim",
+        "d": 900
+       }
+      ]
+     },
+     {
+      "t": "pause",
+      "ms": 500
+     }
+    ]
+   }
+  ]
+ }
+];
+
+/* ---------- engine ---------- */
+var term=document.getElementById("term"),slate=document.getElementById("slate"),
+    fill=document.getElementById("fill"),scrub=document.getElementById("scrub"),
+    capwrap=document.getElementById("capwrap"),capact=document.getElementById("capact"),
+    captext=document.getElementById("captext"),sceneInd=document.getElementById("sceneInd"),
+    btnPlay=document.getElementById("btnPlay"),btnRestart=document.getElementById("btnRestart"),
+    btnPrev=document.getElementById("btnPrev"),btnNext=document.getElementById("btnNext"),
+    btnSpeed=document.getElementById("btnSpeed"),tstate=document.getElementById("tstate"),
+    tstateTxt=document.getElementById("tstateTxt"),screenEl=document.getElementById("screen"),
+    viz=document.getElementById("viz"),vsvg=document.getElementById("vsvg"),
+    vconcept=document.getElementById("vconcept"),vdef=document.getElementById("vdef"),
+    actcard=document.getElementById("actcard"),
+    actname=document.getElementById("actname"),endslate=document.getElementById("endslate"),
+    btnReplayEnd=document.getElementById("btnReplayEnd"),chapsEl=document.getElementById("chaps"),
+    hudModel=document.getElementById("hudModel"),hudCrit=document.getElementById("hudCrit"),
+    hudHigh=document.getElementById("hudHigh"),hudMed=document.getElementById("hudMed"),
+    hudAct=document.getElementById("hudAct"),ttitleEl=document.querySelector(".ttitle"),
+    tapeBtns=[document.getElementById("tape0"),document.getElementById("tape1")];
+
+var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var speedSteps=[1,1.5,2],speedIdx=0;
+var curTape=0;
+var state={scene:0,playing:false,ended:false,runId:0,atomsDone:0,pinned:true};
+var atomsPerScene=[],atomsBefore=[],atomsTotal=1,ticks=[],chapBtns=[];
+
+function tape(){return TAPES[curTape];}
+function scenes(){return tape().scenes;}
+
+function weight(st){
+  if(st.t==="cmd")return st.x.length+6;
+  if(st.t==="out"||st.t==="note")return st.lines.length*3;
+  if(st.t==="pause")return 2;
+  if(st.t==="act")return 20;
+  if(st.t==="fx")return 2;
+  if(st.t==="hud")return 1;
+  if(st.t==="viz")return 2;
+  return 0;
+}
+function sceneAtoms(sc){var a=0;sc.steps.forEach(function(st){a+=weight(st);});return a;}
+
+function vizReset(){
+  var cls=vsvg.getAttribute("class")||"";
+  vsvg.setAttribute("class",cls.split(/\s+/).filter(function(c){return c.indexOf("s-")!==0;}).join(" "));
+}
+function vizApply(op){vsvg.classList.add("s-"+op);}
+function vizCatchUp(uptoScene){
+  vizReset();
+  (tape().base||[]).forEach(vizApply);
+  for(var k=0;k<uptoScene;k++){
+    scenes()[k].steps.forEach(function(st){if(st.t==="viz")vizApply(st.op);});
+  }
+}
+
+function setProgress(){
+  var f=Math.min(1,state.atomsDone/atomsTotal);
+  fill.style.width=(f*100)+"%";
+  ticks.forEach(function(t,i){
+    if(atomsBefore[i+1]/atomsTotal<=f)t.classList.add("done");else t.classList.remove("done");
+  });
+  scrub.setAttribute("aria-valuenow",String(state.scene+1));
+}
+function setStatus(txt,cls){tstateTxt.textContent=txt;tstate.className="tstate"+(cls?" "+cls:"");}
+
+function setHud(h,animate){
+  var map=[["model",hudModel],["crit",hudCrit],["high",hudHigh],["med",hudMed]];
+  map.forEach(function(pair){
+    var k=pair[0],el=pair[1];
+    if(h[k]===undefined)return;
+    var v=String(h[k]);
+    if(el.textContent!==v){
+      el.textContent=v;
+      if(animate&&!reduced){el.classList.add("bump");setTimeout(function(){el.classList.remove("bump");},240);}
+    }
+  });
+}
+function hudReset(){setHud(tape().hud||{model:"—",crit:0,high:0,med:0},false);}
+function hudCatchUp(uptoScene){
+  hudReset();
+  for(var k=0;k<uptoScene;k++){
+    scenes()[k].steps.forEach(function(st){if(st.t==="hud")setHud(st,false);});
+  }
+}
+
+function setCaption(sc){
+  capwrap.classList.add("fading");
+  viz.classList.add("fading");
+  setTimeout(function(){
+    capact.textContent=sc.act+" · "+sc.n+" "+sc.title;
+    captext.textContent=sc.cap;
+    if(sc.concept){vconcept.textContent=sc.concept;vdef.textContent=sc.condef||"";}
+    capwrap.classList.remove("fading");
+    viz.classList.remove("fading");
+  },reduced?0:200);
+  hudAct.textContent=sc.act;
+  sceneInd.textContent="scene "+(state.scene+1)+" / "+scenes().length;
+  chapBtns.forEach(function(b,i){b.classList.toggle("cur",i===state.scene);});
+}
+
+function mkLine(){var el=document.createElement("span");el.className="ln";term.appendChild(el);return el;}
+function fillLine(el,line){
+  if(line.s){line.s.forEach(function(sg){
+    var sp=document.createElement("span");
+    if(sg[0])sp.className=sg[0];
+    sp.textContent=sg[1];el.appendChild(sp);
+  });}
+  else{
+    if(line.c)el.className="ln "+line.c;
+    el.textContent=line.x;
+  }
+}
+function pin(){if(state.pinned)term.scrollTop=term.scrollHeight;}
+term.addEventListener("scroll",function(){
+  state.pinned=(term.scrollHeight-term.scrollTop-term.clientHeight)<48;
+});
+
+function sleep(ms){var f=speedSteps[speedIdx];return new Promise(function(res){setTimeout(res,ms/f);});}
+function alive(id){return state.runId===id&&state.playing;}
+
+function flash(kind){
+  if(reduced)return;
+  var el=document.createElement("div");el.className="fxring "+kind;
+  el.addEventListener("animationend",function(){el.remove();});
+  screenEl.appendChild(el);
+  setTimeout(function(){if(el.parentNode)el.remove();},1400);
+}
+
+async function typeCmd(cmdStr,id){
+  var el=mkLine();
+  var p=document.createElement("span");p.className="p";p.textContent="❯ ";el.appendChild(p);
+  var c=document.createElement("span");c.className="c";el.appendChild(c);
+  var cur=document.createElement("span");cur.className="cursor";el.appendChild(cur);
+  pin();
+  for(var i=0;i<cmdStr.length;i++){
+    if(!alive(id)){cur.remove();return false;}
+    c.textContent+=cmdStr[i];pin();
+    state.atomsDone++;
+    if(i%4===0)setProgress();
+    await sleep(28+Math.random()*24);
+  }
+  state.atomsDone+=6;setProgress();
+  await sleep(300);
+  cur.remove();pin();
+  return alive(id);
+}
+
+async function playLines(lines,id){
+  for(var i=0;i<lines.length;i++){
+    if(!alive(id))return false;
+    var ln=lines[i];
+    if(ln.d)await sleep(ln.d);
+    if(!alive(id))return false;
+    var el=mkLine();fillLine(el,ln);pin();
+    state.atomsDone+=3;setProgress();
+    await sleep(32);
+  }
+  return true;
+}
+
+function renderSceneInstant(sc){
+  sc.steps.forEach(function(st){
+    if(st.t==="cmd"){
+      var el=mkLine();
+      var p=document.createElement("span");p.className="p";p.textContent="❯ ";el.appendChild(p);
+      var c=document.createElement("span");c.className="c";c.textContent=st.x;el.appendChild(c);
+    }
+    if(st.t==="out"||st.t==="note"){st.lines.forEach(function(ln){fillLine(mkLine(),ln);});}
+    if(st.t==="hud")setHud(st,false);
+    if(st.t==="viz")vizApply(st.op);
+  });
+}
+
+async function playScene(i){
+  var id=++state.runId;
+  state.scene=i;
+  setCaption(scenes()[i]);
+  var sc=scenes()[i];
+  for(var s=0;s<sc.steps.length;s++){
+    var st=sc.steps[s];
+    if(!alive(id))return;
+    if(st.t==="cmd"){if(!await typeCmd(st.x,id))return;}
+    else if(st.t==="out"||st.t==="note"){if(!await playLines(st.lines,id))return;}
+    else if(st.t==="pause"){state.atomsDone+=2;setProgress();await sleep(st.ms);}
+    else if(st.t==="hud"){setHud(st,true);state.atomsDone+=1;setProgress();}
+    else if(st.t==="viz"){vizApply(st.op);state.atomsDone+=2;setProgress();}
+    else if(st.t==="fx"){flash(st.kind);state.atomsDone+=2;setProgress();}
+    else if(st.t==="act"){
+      if(!reduced){
+        actname.textContent=st.x;
+        actcard.classList.add("show");
+        await sleep(1150);
+        actcard.classList.remove("show");
+        await sleep(280);
+      }
+      state.atomsDone+=20;setProgress();
+    }
+  }
+  if(!alive(id))return;
+  fillLine(mkLine(),{x:""});
+  if(i+1<scenes().length){await sleep(450);if(alive(id))playScene(i+1);}
+  else{
+    state.playing=false;state.ended=true;
+    state.atomsDone=atomsTotal;setProgress();
+    setStatus("ENDED","ended");
+    btnPlay.innerHTML="&#8634;&#xFE0E; Replay";
+    endslate.classList.add("show");
+    capwrap.classList.add("fading");
+    setTimeout(function(){
+      capact.textContent="End of "+tape().label;
+      captext.textContent=tape().outro;
+      capwrap.classList.remove("fading");
+    },reduced?0:200);
+  }
+}
+
+function clearOverlays(){
+  actcard.classList.remove("show");
+  endslate.classList.remove("show");
+}
+
+function loadTape(t){
+  curTape=t;
+  var sc=scenes();
+  atomsPerScene=sc.map(sceneAtoms);
+  atomsTotal=atomsPerScene.reduce(function(x,y){return x+y;},0)||1;
+  atomsBefore=[];atomsPerScene.reduce(function(acc,v,i){atomsBefore[i]=acc;return acc+v;},0);
+  ticks.forEach(function(x){x.remove();});ticks=[];
+  sc.forEach(function(s,i){
+    if(i===0)return;
+    var tk=document.createElement("div");tk.className="tick";
+    tk.style.left=(atomsBefore[i]/atomsTotal*100)+"%";
+    tk.title=s.n+" "+s.title;
+    scrub.appendChild(tk);ticks.push(tk);
+  });
+  chapBtns.forEach(function(x){x.remove();});chapBtns=[];
+  sc.forEach(function(s,i){
+    var b=document.createElement("button");
+    b.className="chap";b.type="button";
+    var num=document.createElement("i");num.textContent=s.n;b.appendChild(num);
+    var lab=document.createElement("span");lab.textContent=s.title;b.appendChild(lab);
+    b.addEventListener("click",function(){jumpTo(i);});
+    chapsEl.appendChild(b);chapBtns.push(b);
+  });
+  tapeBtns.forEach(function(b,i){
+    if(!b)return;
+    b.classList.toggle("cur",i===t);
+    b.setAttribute("aria-selected",i===t?"true":"false");
+  });
+  if(ttitleEl)ttitleEl.textContent="~/project · attestral demo tape "+tape().id;
+  scrub.setAttribute("aria-valuemax",String(sc.length));
+  state.scene=0;state.ended=false;
+}
+
+function jumpTo(i){
+  state.runId++;
+  term.innerHTML="";
+  state.atomsDone=atomsBefore[i];
+  for(var k=0;k<i;k++)renderSceneInstant(scenes()[k]);
+  hudCatchUp(i);
+  vizCatchUp(i);
+  state.pinned=true;term.scrollTop=term.scrollHeight;
+  state.ended=false;
+  setProgress();
+  slate.classList.add("gone");
+  clearOverlays();
+  state.playing=true;
+  setStatus("PLAYING");
+  btnPlay.innerHTML="&#10074;&#10074;&#xFE0E; Pause";
+  playScene(i);
+}
+
+function selectTape(t){
+  if(t===curTape&&state.playing)return;
+  state.runId++;state.playing=false;
+  clearOverlays();
+  loadTape(t);
+  if(reduced){renderTapeReduced();return;}
+  jumpTo(0);
+}
+
+function pause(){
+  state.playing=false;state.runId++;
+  clearOverlays();
+  setStatus("PAUSED","paused");
+  btnPlay.innerHTML="&#9654;&#xFE0E; Play";
+}
+function resume(){
+  if(state.ended){jumpTo(0);return;}
+  jumpTo(state.scene);
+}
+
+function renderTapeReduced(){
+  slate.classList.add("gone");
+  term.innerHTML="";
+  vizReset();(tape().base||[]).forEach(vizApply);
+  hudReset();
+  scenes().forEach(function(sc){renderSceneInstant(sc);});
+  state.atomsDone=atomsTotal;setProgress();
+  setStatus("TRANSCRIPT","ended");
+  capact.textContent=tape().label+" · full transcript";
+  captext.textContent="Reduced motion is on, so the whole session is shown at once.";
+}
+
+btnPlay.addEventListener("click",function(){state.playing?pause():resume();});
+btnRestart.addEventListener("click",function(){jumpTo(0);});
+btnPrev.addEventListener("click",function(){jumpTo(Math.max(0,state.scene-1));});
+btnNext.addEventListener("click",function(){jumpTo(Math.min(scenes().length-1,state.scene+1));});
+btnSpeed.addEventListener("click",function(){
+  speedIdx=(speedIdx+1)%speedSteps.length;
+  btnSpeed.textContent=speedSteps[speedIdx]+"× speed";
+});
+btnReplayEnd.addEventListener("click",function(){jumpTo(0);});
+tapeBtns.forEach(function(b,i){if(b)b.addEventListener("click",function(){selectTape(i);});});
+scrub.addEventListener("click",function(e){
+  var r=scrub.getBoundingClientRect();
+  var f=(e.clientX-r.left)/r.width;
+  var target=0;
+  for(var i=0;i<scenes().length;i++){if(atomsBefore[i]/atomsTotal<=f)target=i;}
+  jumpTo(target);
+});
+document.addEventListener("keydown",function(e){
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+  if(e.code==="Space"){e.preventDefault();state.playing?pause():resume();}
+  if(e.key==="ArrowLeft"){jumpTo(Math.max(0,state.scene-1));}
+  if(e.key==="ArrowRight"){jumpTo(Math.min(scenes().length-1,state.scene+1));}
+});
+
+var m=/[?&]tape=0*(\d+)/.exec(location.search||"");
+var startTape=0;
+if(m){TAPES.forEach(function(tp,i){if(String(parseInt(tp.id,10))===m[1])startTape=i;});}
+loadTape(startTape);
+
+if(reduced){
+  renderTapeReduced();
+  [btnPlay,btnPrev,btnNext,btnSpeed,btnRestart].forEach(function(b){b.style.display="none";});
+  document.getElementById("hint").style.display="none";
+}else{
+  setStatus("READY","paused");
+  setTimeout(function(){if(!state.playing&&!state.ended&&state.runId===0)jumpTo(0);},1400);
+}
+})();
+
+</script>
+<script>
+  (function(){
+    var root=document.documentElement, KEY='attestral-theme';
+    var mq=window.matchMedia('(prefers-color-scheme: dark)');
+    var btn=document.getElementById('themeToggle');
+    function active(){return root.getAttribute('data-theme')||(mq.matches?'dark':'light');}
+    function paint(){if(btn)btn.textContent=active()==='dark'?'\u2600':'\u263e';}
+    if(btn)btn.addEventListener('click',function(){
+      var next=active()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      try{localStorage.setItem(KEY,next);}catch(e){}
+      paint();
+    });
+    mq.addEventListener('change',paint);
+    paint();
+    document.querySelectorAll('[data-copy]').forEach(function(b){
+      b.addEventListener('click',function(){
+        navigator.clipboard.writeText(b.dataset.copy).then(function(){
+          var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t;},1200);
+        });
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
