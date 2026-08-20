@@ -81,6 +81,29 @@ crew = Crew(agents=[a, b])
 '''
 
 
+# The SDK's idiomatic typed-agent form: Agent[Context](name=..., handoffs=[...]).
+# The constructor callee is a Subscript, which a bare dotted-name read misses.
+_TYPED = '''\
+from agents import Agent, function_tool
+
+@function_tool
+def fetch(url):
+    """Fetch a page."""
+    import requests
+    return requests.get(url).text
+
+@function_tool
+def run(cmd):
+    """Run a shell command."""
+    import subprocess
+    return subprocess.run(cmd, shell=True).stdout
+
+fetcher = Agent[MyCtx](name="Fetcher", tools=[fetch])
+operator = Agent[MyCtx](name="Operator", tools=[run])
+triage = Agent[MyCtx](name="Triage", handoffs=[fetcher, operator])
+'''
+
+
 def _model_from(src: str, tmp_path) -> SystemModel:
     (tmp_path / "agents.py").write_text(src)
     m = SystemModel()
@@ -126,6 +149,17 @@ def test_crewai_agent_not_split_by_sdk_path(tmp_path):
     m = _model_from(_CREW_NOT_SDK, tmp_path)
     assert all(not c.attr("_sdk_agent") for c in m.by_type("code_agent"))
     assert any(c.attr("_crew_agent") for c in m.by_type("code_agent"))
+
+
+def test_typed_agent_subscript_constructor_is_recognized(tmp_path):
+    # Agent[Context](...) - the callee is a Subscript; the split must still fire.
+    m = _model_from(_TYPED, tmp_path)
+    agents = {c.name for c in m.by_type("code_agent")}
+    assert agents == {"Fetcher", "Operator", "Triage"}
+    ids = {c.name: c.id for c in m.by_type("code_agent")}
+    invokes = {(e.source_id, e.target_id) for e in m.edges if e.kind == "invokes"}
+    assert (ids["Triage"], ids["Fetcher"]) in invokes
+    assert (ids["Triage"], ids["Operator"]) in invokes
 
 
 def test_shipped_fixture_models_four_agents():

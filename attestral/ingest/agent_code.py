@@ -93,6 +93,15 @@ def _dotted(node: ast.AST) -> str:
     return ""
 
 
+def _ctor_name(func: ast.AST) -> str:
+    """The final name of a constructor callee, unwrapping a generic subscript so
+    `Agent[Ctx](...)` (the OpenAI Agents SDK / Pydantic AI typed-agent idiom)
+    reads as `Agent`, not the empty string a bare `_dotted` returns for it."""
+    if isinstance(func, ast.Subscript):
+        func = func.value
+    return _dotted(func).split(".")[-1]
+
+
 def _symbols_used(node: ast.AST) -> set[str]:
     """Every dotted callee and attribute name referenced under `node` - the
     symbols a tool's body touches, which is what its capability is read from."""
@@ -408,7 +417,7 @@ def _openai_agent_vars(tree: ast.AST) -> dict[str, ast.Call]:
         if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
             continue
         call = node.value
-        if _dotted(call.func).split(".")[-1] != "Agent":
+        if _ctor_name(call.func) != "Agent":
             continue
         kws = {kw.arg for kw in call.keywords}
         if "name" not in kws or "role" in kws:
