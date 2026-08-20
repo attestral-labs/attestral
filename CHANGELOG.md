@@ -6,6 +6,17 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **AutoGen group-chat topology ingestion.** `agent_code.py` now models an AutoGen team container
+  (`GroupChat` / `RoundRobinGroupChat` / `SelectorGroupChat` / `Swarm` / `MagenticOneGroupChat`) as one
+  `code_agent` component PER MEMBER, chained with `invokes` edges in the team's agent order (a faithful model
+  for a round robin, a conservative one for a manager-mediated group). Each `AssistantAgent(name=..., tools=[...])`
+  carries its tools as plain callables rather than `@tool` decorators, so - like the LangGraph and OpenAI-Agents
+  splits - this runs before the tool gate and also models teams that spread a full lethal trifecta across
+  members with no `@tool` in the file. The AutoGen agent/team constructors are distinct names, so there is no
+  cross-fire with the CrewAI or OpenAI `Agent` splits. Fixture `examples/autogen-groupchat` (3 components,
+  ATL-203/207/139/217, same class as the crew, graph, and handoff fixtures); `tests/test_autogen_topology.py`.
+  (Fourth and final in the multi-agent-topology series - CrewAI, LangGraph, OpenAI Agents SDK, AutoGen - which
+  now covers the major orchestration frameworks and shares one per-member emit + id-allocation core.)
 - **OpenAI Agents SDK handoff topology ingestion.** `agent_code.py` now models an OpenAI Agents SDK network -
   `Agent(name=..., tools=[...], handoffs=[...])` - as one `code_agent` component PER AGENT, turning every
   `handoffs=[...]` entry into an `invokes` delegation edge (the SDK's first-class handoff primitive, including
