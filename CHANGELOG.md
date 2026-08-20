@@ -6,6 +6,18 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **LangGraph multi-node topology ingestion.** `agent_code.py` now models a LangGraph `StateGraph` as one
+  `code_agent` component PER NODE (each `add_node("name", fn)` with only that node function's capabilities,
+  read from the function body), plus `invokes` edges recovered from `add_edge` and `add_conditional_edges`
+  (the `START`/`END` boundaries dropped), instead of collapsing the graph into a single blob. Because graph
+  nodes are plain callables rather than `@tool`-decorated functions, this is checked before the tool gate and
+  also closes a real gap: a graph that spreads a full lethal trifecta across nodes with no `@tool` anywhere in
+  the file was previously not modeled at all. A trifecta split across nodes (an untrusted-input intake node
+  that routes to a shell node and an egress node) is now a real CROSS-NODE attack path the fleet synthesis
+  surfaces, with the pivot on a different node than the entry and the sink. Graphs with a single node, and
+  every other framework, are unchanged. Fixture `examples/langgraph-crossagent`;
+  `tests/test_langgraph_topology.py`. (This is the follow-up to the CrewAI topology work below; the two now
+  share the per-member emit and id-allocation helpers.)
 - **CrewAI multi-agent topology ingestion.** `agent_code.py` now models a CrewAI `Crew` as one `code_agent`
   component PER AGENT (each `Agent(role=..., tools=[...])` with only its own tools' capabilities) plus
   `invokes` delegation edges, instead of collapsing the whole crew into a single blob. A lethal trifecta
