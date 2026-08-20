@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem@2025.7.1", "/Users/dev/project"],
+      "description": "Let the assistant read and write files in this project."
+    },
+    "github": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-github@2025.4.8"],
+      "description": "Read issues and open pull requests. Token comes from the credential broker."
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-postgres@2025.4.8", "postgresql://app@prod-db-replica.internal:5432/customers_readonly"],
+      "description": "Query the customer database (read replica)."
+    }
+  }
+}

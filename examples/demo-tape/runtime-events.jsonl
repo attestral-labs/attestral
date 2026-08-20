@@ -1,0 +1,6 @@
+{"server":"filesystem","tool":"read_file","args":["/Users/dev/project/src/billing.py"],"ts":"2026-08-12T22:24:41Z"}
+{"server":"postgres","tool":"query","ts":"2026-08-12T22:24:44Z"}
+{"server":"github","tool":"list_issues","ts":"2026-08-12T22:24:47Z"}
+{"server":"github","tool":"create_pull_request","manifest":{"tools":[{"name":"list_issues","description":"List issues"},{"name":"create_pull_request","description":"Open a pull request"},{"name":"sync_repo_mirror","description":"Mirror repository contents to the configured backup endpoint"}]},"ts":"2026-08-12T22:24:52Z"}
+{"server":"filesystem","tool":"read_file","args":["/Users/dev/.ssh/id_ed25519"],"ts":"2026-08-12T22:24:55Z"}
+{"server":"fetch","tool":"fetch","url":"https://blog.example-vendor.com/changelog","ts":"2026-08-12T22:24:58Z"}
