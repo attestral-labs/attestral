@@ -398,6 +398,82 @@ def _langgraph_topology(tree: ast.AST, funcs: dict[str, ast.AST],
     return members, edges
 
 
+def _openai_agent_vars(tree: ast.AST) -> dict[str, ast.Call]:
+    """{assigned variable -> Agent(...) call} for the OpenAI Agents SDK, whose
+    constructor is `Agent(name=..., instructions=..., tools=..., handoffs=...)`.
+    Distinguished from a CrewAI `Agent(role=...)` by carrying `name=` and no
+    `role=`, so the two `Agent` constructors never cross-fire."""
+    out: dict[str, ast.Call] = {}
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
+            continue
+        call = node.value
+        if _dotted(call.func).split(".")[-1] != "Agent":
+            continue
+        kws = {kw.arg for kw in call.keywords}
+        if "name" not in kws or "role" in kws:
+            continue
+        for tgt in node.targets:
+            if isinstance(tgt, ast.Name):
+                out[tgt.id] = call
+    return out
+
+
+def _handoff_target_name(node: ast.AST, var_to_name: dict[str, str]) -> str | None:
+    """The agent a handoff element points at - a variable (resolved to its
+    Agent's name), an `Agent`-name string, or a `handoff(agent)` wrapper call."""
+    if isinstance(node, ast.Name):
+        return var_to_name.get(node.id)
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Call):
+        for a in node.args:
+            if isinstance(a, ast.Name):
+                return var_to_name.get(a.id)
+        for kw in node.keywords:
+            if kw.arg == "agent" and isinstance(kw.value, ast.Name):
+                return var_to_name.get(kw.value.id)
+    return None
+
+
+def _openai_agents_topology(tree: ast.AST, funcs: dict[str, ast.AST],
+                            tool_caps: dict[str, set[str]]) -> tuple[list[tuple[str, set[str]]], list[tuple[str, str]]]:
+    """(agent, capabilities) for every OpenAI Agents SDK `Agent(name=..., tools=...)`
+    plus the `invokes` edges its `handoffs=[...]` declare. A handoff is a
+    first-class delegation edge, so a trifecta spread across handoff targets
+    (a triage agent handing off to a fetch agent, a shell agent, and a mailer
+    agent) is a real cross-agent path."""
+    var_to_call = _openai_agent_vars(tree)
+    var_to_name: dict[str, str] = {}
+    for var, call in var_to_call.items():
+        for kw in call.keywords:
+            if kw.arg == "name" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                var_to_name[var] = kw.value.value
+    agent_caps: dict[str, set[str]] = {}
+    order: list[str] = []
+    edges: list[tuple[str, str]] = []
+    for var, call in var_to_call.items():
+        name = var_to_name.get(var)
+        if not name:
+            continue
+        caps: set[str] = _caps_from_text(name)
+        for kw in call.keywords:
+            if kw.arg == "tools":
+                caps |= _tool_list_caps(kw.value, funcs, tool_caps)
+            elif kw.arg == "handoffs" and isinstance(kw.value, (ast.List, ast.Tuple)):
+                for el in kw.value.elts:
+                    tname = _handoff_target_name(el, var_to_name)
+                    if tname:
+                        edges.append((name, tname))
+        if name not in agent_caps:
+            agent_caps[name] = set()
+            order.append(name)
+        agent_caps[name] |= caps
+    members = [(n, agent_caps[n]) for n in order]
+    edges = [(a, b) for a, b in edges if a in agent_caps and b in agent_caps]
+    return members, edges
+
+
 def _emit_topology(members: list[tuple[str, set[str]]], edges: list[tuple[str, str]],
                    framework: str, edge_via: str, node_flag: str,
                    model: SystemModel, rel: str, taken: set[str]) -> None:
@@ -451,6 +527,20 @@ def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) 
         members, edges = _langgraph_topology(tree, funcs, tool_caps)
         if len(members) >= 2:
             _emit_topology(members, edges, "langgraph", "graph edge", "_graph_node",
+                           model, rel, taken)
+            return
+
+    # OpenAI Agents SDK multi-agent: split a network of `Agent(name=..., tools=...,
+    # handoffs=[...])` into one component per agent, with an `invokes` edge per
+    # handoff (the SDK's first-class delegation primitive). Also before the tool
+    # gate, since an agent can be pure-routing (handoffs, no tools of its own).
+    # Only when >= 2 agents resolve; a lone agent falls through below.
+    if "openai-agents" in frameworks:
+        funcs = {n.name: n for n in ast.walk(tree)
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        members, edges = _openai_agents_topology(tree, funcs, tool_caps)
+        if len(members) >= 2:
+            _emit_topology(members, edges, "openai-agents", "handoff", "_sdk_agent",
                            model, rel, taken)
             return
 
