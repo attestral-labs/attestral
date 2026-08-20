@@ -210,6 +210,18 @@ def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-") or "agent"
 
 
+def _alloc_id(name: str, taken: set[str]) -> str:
+    """A collision-free `code_agent.<slug>` id, suffixed `#2`, `#3`... on clash."""
+    slug = _slug(name)
+    cid = f"code_agent.{slug}"
+    suffix = 1
+    while cid in taken:
+        suffix += 1
+        cid = f"code_agent.{slug}#{suffix}"
+    taken.add(cid)
+    return cid
+
+
 def _crewai_agents(tree: ast.AST, tool_caps: dict[str, set[str]]) -> list[tuple[str, set[str]]]:
     """(role, capabilities) for each CrewAI `Agent(role=..., tools=[...])`.
 
@@ -244,6 +256,170 @@ def _crewai_agents(tree: ast.AST, tool_caps: dict[str, set[str]]) -> list[tuple[
     return agents
 
 
+_GRAPH_SENTINELS = {"__start__", "__end__"}
+
+
+def _edge_endpoint(node: ast.AST) -> str | None:
+    """A LangGraph edge endpoint's node name - a string literal, minus the
+    START/END sentinels (both the `START`/`END` Names and their `__start__`/
+    `__end__` string forms), which are graph boundaries, not nodes."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return None if node.value in _GRAPH_SENTINELS else node.value
+    return None  # START/END Names and non-literals are not real nodes
+
+
+def _parse_add_node(call: ast.Call) -> tuple[str | None, ast.AST | None]:
+    """(node name, action target) from `builder.add_node("name", fn)`,
+    `add_node(fn)` (name taken from the function), or the `node=`/`action=` kwargs."""
+    name: str | None = None
+    target: ast.AST | None = None
+    if call.args:
+        first = call.args[0]
+        if isinstance(first, ast.Constant) and isinstance(first.value, str):
+            name = first.value
+            target = call.args[1] if len(call.args) > 1 else None
+        else:
+            target = first
+    for kw in call.keywords:
+        if kw.arg == "node" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            name = kw.value.value
+        elif kw.arg in ("action", "runnable"):
+            target = kw.value
+    if name is None and target is not None:
+        if isinstance(target, ast.Name):
+            name = target.id
+        elif isinstance(target, ast.Attribute):
+            name = target.attr
+    return name, target
+
+
+def _tool_list_caps(node: ast.AST, funcs: dict[str, ast.AST], tool_caps: dict[str, set[str]]) -> set[str]:
+    """Capabilities from a `tools=[...]` list - each element resolved by name
+    against the file's @tool functions, plain functions, and its own text."""
+    caps: set[str] = set()
+    if not isinstance(node, (ast.List, ast.Tuple)):
+        return caps
+    for el in node.elts:
+        nm = ""
+        if isinstance(el, ast.Name):
+            nm = el.id
+        elif isinstance(el, ast.Attribute):
+            nm = el.attr
+        elif isinstance(el, ast.Call):
+            nm = _dotted(el.func).split(".")[-1]
+        if not nm:
+            continue
+        caps |= tool_caps.get(nm, set())
+        fn = funcs.get(nm)
+        if fn is not None:
+            caps |= _caps_from_symbols(_symbols_used(fn))
+        caps |= _caps_from_text(nm)
+    return caps
+
+
+def _node_caps(name: str, target: ast.AST | None, funcs: dict[str, ast.AST],
+               tool_caps: dict[str, set[str]]) -> set[str]:
+    """A LangGraph node's capabilities: the node name's text, plus - when the
+    action is a function in this file - that function's body symbols and
+    docstring, plus any tools handed to a `create_react_agent`/`ToolNode(...)`."""
+    caps = _caps_from_text(name)
+    if isinstance(target, ast.Name):
+        fn = funcs.get(target.id)
+        if fn is not None:
+            caps |= _caps_from_symbols(_symbols_used(fn))
+            caps |= _caps_from_text(ast.get_docstring(fn) or "")
+        elif target.id in tool_caps:
+            caps |= tool_caps[target.id]
+    elif isinstance(target, ast.Attribute):
+        caps |= _caps_from_text(target.attr)
+    elif isinstance(target, ast.Call):
+        for arg in target.args:
+            caps |= _tool_list_caps(arg, funcs, tool_caps)
+        for kw in target.keywords:
+            if kw.arg == "tools":
+                caps |= _tool_list_caps(kw.value, funcs, tool_caps)
+    return caps
+
+
+def _conditional_targets(call: ast.Call) -> list[str]:
+    """Destination node names of `add_conditional_edges(src, router, path_map)`,
+    where path_map is the `{branch: node}` dict or `[node, ...]` list (3rd
+    positional arg or the `path_map=` kwarg)."""
+    cand: ast.AST | None = call.args[2] if len(call.args) >= 3 else None
+    for kw in call.keywords:
+        if kw.arg == "path_map":
+            cand = kw.value
+    out: list[str] = []
+    if isinstance(cand, ast.Dict):
+        for v in cand.values:
+            t = _edge_endpoint(v)
+            if t:
+                out.append(t)
+    elif isinstance(cand, (ast.List, ast.Tuple)):
+        for el in cand.elts:
+            t = _edge_endpoint(el)
+            if t:
+                out.append(t)
+    return out
+
+
+def _langgraph_topology(tree: ast.AST, funcs: dict[str, ast.AST],
+                        tool_caps: dict[str, set[str]]) -> tuple[list[tuple[str, set[str]]], list[tuple[str, str]]]:
+    """(node, capabilities) for every `add_node` plus the `invokes` edges between
+    them from `add_edge`/`add_conditional_edges`. Mirrors the CrewAI split: a
+    StateGraph becomes one component per node so a toxic flow spanning nodes
+    (untrusted-input node -> shell node -> egress node) is a real cross-node path.
+    """
+    node_caps: dict[str, set[str]] = {}
+    order: list[str] = []
+    edges: list[tuple[str, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        meth = _dotted(node.func).split(".")[-1]
+        if meth == "add_node":
+            name, target = _parse_add_node(node)
+            if not name:
+                continue
+            if name not in node_caps:
+                node_caps[name] = set()
+                order.append(name)
+            node_caps[name] |= _node_caps(name, target, funcs, tool_caps)
+        elif meth == "add_edge" and len(node.args) >= 2:
+            a, b = _edge_endpoint(node.args[0]), _edge_endpoint(node.args[1])
+            if a and b:
+                edges.append((a, b))
+        elif meth == "add_conditional_edges" and node.args:
+            src = _edge_endpoint(node.args[0])
+            if src:
+                edges.extend((src, t) for t in _conditional_targets(node))
+    members = [(n, node_caps[n]) for n in order]
+    edges = [(a, b) for a, b in edges if a in node_caps and b in node_caps]
+    return members, edges
+
+
+def _emit_topology(members: list[tuple[str, set[str]]], edges: list[tuple[str, str]],
+                   framework: str, edge_via: str, node_flag: str,
+                   model: SystemModel, rel: str, taken: set[str]) -> None:
+    """Emit one `code_agent` component per member and an `invokes` edge per
+    connection - the shared body of the multi-agent (crew / graph) split."""
+    name_to_id: dict[str, str] = {}
+    for name, caps in members:
+        cid = _alloc_id(name, taken)
+        name_to_id[name] = cid
+        model.add(Component(
+            id=cid, type="code_agent", name=name, source=rel,
+            attributes={"_capabilities": sorted(caps), "_framework": [framework], node_flag: True},
+            trust_boundary="agent_runtime",
+        ))
+    seen: set[tuple[str, str]] = set()
+    for a, b in edges:
+        if a != b and a in name_to_id and b in name_to_id and (a, b) not in seen:
+            seen.add((a, b))
+            model.edges.append(Edge(source_id=name_to_id[a], target_id=name_to_id[b],
+                                    kind="invokes", attributes={"via": edge_via}))
+
+
 def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) -> None:
     try:
         tree = ast.parse(pyfile.read_text(encoding="utf-8", errors="replace"))
@@ -252,14 +428,33 @@ def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) 
     frameworks = _frameworks(tree)
     if not frameworks:
         return
-    tools = _tool_functions(tree) + _tool_dicts(tree)
-    if not tools:
-        return
 
     try:
         rel = str(pyfile.relative_to(root))
     except ValueError:
         rel = str(pyfile)
+
+    tool_fns = _tool_functions(tree)
+    tool_caps = {name: tcaps for name, tcaps in tool_fns}
+
+    # LangGraph multi-node: split a StateGraph into one component per node.
+    # Checked BEFORE the tool gate because node actions are plain callables, not
+    # @tool-decorated - a graph can spread a full trifecta across nodes with no
+    # @tool in the file at all, which the tool gate would otherwise drop entirely.
+    # The node functions' bodies (subprocess -> shell, requests -> network) give
+    # each node its capability, and add_edge/add_conditional_edges give the
+    # `invokes` structure. Only when >= 2 nodes resolve; a trivial graph is not a
+    # topology and falls through to the one-surface path below.
+    if "langgraph" in frameworks:
+        funcs = {n.name: n for n in ast.walk(tree)
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        members, edges = _langgraph_topology(tree, funcs, tool_caps)
+        if len(members) >= 2:
+            _emit_topology(members, edges, "langgraph", "graph edge", "_graph_node",
+                           model, rel, taken)
+            return
+
+    tools = tool_fns + _tool_dicts(tree)
 
     # CrewAI multi-agent: split a crew into one component per agent, so a toxic
     # flow that spans agents (an untrusted-input agent that delegates to a shell
@@ -267,19 +462,10 @@ def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) 
     # single blob that hides the structure. Only when >= 2 role-bearing agents
     # resolve; a single-agent crew falls through to the one-surface path below.
     if "crewai" in frameworks:
-        tool_caps = {name: tcaps for name, tcaps in _tool_functions(tree)}
         crew = _crewai_agents(tree, tool_caps)
         if len(crew) >= 2:
-            ids: list[str] = []
-            for role, acaps in crew:
-                slug = _slug(role)
-                cid = f"code_agent.{slug}"
-                s = 1
-                while cid in taken:
-                    s += 1
-                    cid = f"code_agent.{slug}#{s}"
-                taken.add(cid)
-                ids.append(cid)
+            ids = [_alloc_id(role, taken) for role, _ in crew]
+            for cid, (role, acaps) in zip(ids, crew):
                 model.add(Component(
                     id=cid, type="code_agent", name=role, source=rel,
                     attributes={
@@ -293,6 +479,9 @@ def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) 
                 model.edges.append(Edge(source_id=a, target_id=b, kind="invokes",
                                         attributes={"via": "crew delegation"}))
             return
+
+    if not tools:
+        return
 
     caps: set[str] = set()
     for _, tcaps in tools:
