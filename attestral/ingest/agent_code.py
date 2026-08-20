@@ -483,6 +483,79 @@ def _openai_agents_topology(tree: ast.AST, funcs: dict[str, ast.AST],
     return members, edges
 
 
+_AUTOGEN_AGENT_CTORS = {"AssistantAgent", "ConversableAgent", "UserProxyAgent"}
+_AUTOGEN_TEAM_CTORS = {"GroupChat", "RoundRobinGroupChat", "SelectorGroupChat",
+                       "Swarm", "MagenticOneGroupChat"}
+
+
+def _autogen_agent_vars(tree: ast.AST, funcs: dict[str, ast.AST],
+                        tool_caps: dict[str, set[str]]) -> dict[str, tuple[str, set[str]]]:
+    """{variable -> (name, capabilities)} for AutoGen agent constructors
+    (AssistantAgent / ConversableAgent / UserProxyAgent). Capability is read from
+    the agent's `tools=[...]` (plain callables or @tool functions) and its name."""
+    out: dict[str, tuple[str, set[str]]] = {}
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
+            continue
+        call = node.value
+        if _dotted(call.func).split(".")[-1] not in _AUTOGEN_AGENT_CTORS:
+            continue
+        name: str | None = None
+        caps: set[str] = set()
+        for kw in call.keywords:
+            if kw.arg == "name" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                name = kw.value.value
+            elif kw.arg == "tools":
+                caps |= _tool_list_caps(kw.value, funcs, tool_caps)
+        if name is None and call.args and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str):
+            name = call.args[0].value
+        if not name:
+            continue
+        caps |= _caps_from_text(name)
+        for tgt in node.targets:
+            if isinstance(tgt, ast.Name):
+                out[tgt.id] = (name, caps)
+    return out
+
+
+def _autogen_topology(tree: ast.AST, funcs: dict[str, ast.AST],
+                      tool_caps: dict[str, set[str]]) -> tuple[list[tuple[str, set[str]]], list[tuple[str, str]]]:
+    """(agent, capabilities) for the members of the first AutoGen team container
+    (GroupChat / RoundRobinGroupChat / Swarm / ...) plus the `invokes` edges
+    between them. Members are chained in the order they appear in the team's
+    agent list - a faithful model for a round-robin, and a conservative one for a
+    manager-mediated group. A trifecta split across the team's agents becomes a
+    real cross-agent path."""
+    agent_vars = _autogen_agent_vars(tree, funcs, tool_caps)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if _dotted(node.func).split(".")[-1] not in _AUTOGEN_TEAM_CTORS:
+            continue
+        agent_list: ast.AST | None = None
+        if node.args and isinstance(node.args[0], (ast.List, ast.Tuple)):
+            agent_list = node.args[0]
+        for kw in node.keywords:
+            if kw.arg in ("agents", "participants") and isinstance(kw.value, (ast.List, ast.Tuple)):
+                agent_list = kw.value
+        if not isinstance(agent_list, (ast.List, ast.Tuple)):
+            continue
+        order: list[str] = []
+        caps_by_name: dict[str, set[str]] = {}
+        for el in agent_list.elts:
+            if isinstance(el, ast.Name) and el.id in agent_vars:
+                nm, cp = agent_vars[el.id]
+                if nm not in caps_by_name:
+                    caps_by_name[nm] = set()
+                    order.append(nm)
+                caps_by_name[nm] |= cp
+        if len(order) >= 2:
+            members = [(nm, caps_by_name[nm]) for nm in order]
+            edges = [(order[i], order[i + 1]) for i in range(len(order) - 1)]
+            return members, edges  # first team container wins
+    return [], []
+
+
 def _emit_topology(members: list[tuple[str, set[str]]], edges: list[tuple[str, str]],
                    framework: str, edge_via: str, node_flag: str,
                    model: SystemModel, rel: str, taken: set[str]) -> None:
@@ -550,6 +623,19 @@ def _ingest_file(pyfile: Path, root: Path, model: SystemModel, taken: set[str]) 
         members, edges = _openai_agents_topology(tree, funcs, tool_caps)
         if len(members) >= 2:
             _emit_topology(members, edges, "openai-agents", "handoff", "_sdk_agent",
+                           model, rel, taken)
+            return
+
+    # AutoGen multi-agent: split a team container (GroupChat / RoundRobinGroupChat
+    # / Swarm / ...) into one component per member, chained in the team's agent
+    # order. Also before the tool gate - AutoGen agents carry their tools via a
+    # `tools=[...]` list of plain callables, not @tool decorators.
+    if "autogen" in frameworks:
+        funcs = {n.name: n for n in ast.walk(tree)
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        members, edges = _autogen_topology(tree, funcs, tool_caps)
+        if len(members) >= 2:
+            _emit_topology(members, edges, "autogen", "group chat", "_autogen_agent",
                            model, rel, taken)
             return
 
