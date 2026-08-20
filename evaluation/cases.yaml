@@ -27,6 +27,10 @@ positive:
     path: examples/agentic-risks
     expect: [ATL-101, ATL-103, ATL-104, ATL-107, ATL-108, ATL-109, ATL-110, ATL-111, ATL-112, ATL-114, ATL-115, ATL-116, ATL-117, ATL-202, ATL-203, ATL-207, ATL-214, ATL-216, ATL-217]
     cite: "OWASP ASI02/03/04/05; the lethal trifecta (Willison 2025); fleet flows per the fixture README"
+  - id: fastmcp-trifecta
+    path: examples/fastmcp-trifecta
+    expect: [ATL-202, ATL-203, ATL-207]
+    cite: "FastMCP server IMPLEMENTATION (mcp SDK), not a client config; lethal trifecta (Willison 2025); validated vs Damn Vulnerable MCP challenge 2 (2026-08-19)"
   - id: agent-cloud-confused-deputy
     path: examples/agent-cloud-confused-deputy
     expect: [ATL-104, ATL-112, ATL-222]
