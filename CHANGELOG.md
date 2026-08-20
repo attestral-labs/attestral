@@ -6,6 +6,8 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-20
+
 - **CrewAI multi-agent topology ingestion.** `agent_code.py` now models a CrewAI `Crew` as one `code_agent`
   component PER AGENT (each `Agent(role=..., tools=[...])` with only its own tools' capabilities) plus
   `invokes` delegation edges, instead of collapsing the whole crew into a single blob. A lethal trifecta
