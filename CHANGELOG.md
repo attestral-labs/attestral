@@ -6,6 +6,20 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **OpenAI Agents SDK handoff topology ingestion.** `agent_code.py` now models an OpenAI Agents SDK network -
+  `Agent(name=..., tools=[...], handoffs=[...])` - as one `code_agent` component PER AGENT, turning every
+  `handoffs=[...]` entry into an `invokes` delegation edge (the SDK's first-class handoff primitive, including
+  a pure-routing triage agent that carries handoffs but no tools of its own). A lethal trifecta spread across
+  handoff targets (a triage agent that hands off to a fetch agent, a shell agent, and a mailer agent) is now a
+  real CROSS-AGENT attack path, with the pivot on a different agent than the entry and the sink. The SDK's
+  `Agent` constructor is disambiguated from CrewAI's `Agent(role=...)` by carrying `name=` and no `role=`, so a
+  file using one framework never triggers the other's split, and the idiomatic typed form `Agent[Context](...)`
+  (a subscripted constructor) is recognized too - validated against the SDK's own `customer_service` and
+  `agent_patterns/routing` examples, which now split into their real triage/worker agents with the handoff edges
+  between them. Fixture `examples/openai-agents-handoff` (4
+  components, ATL-203/207/139/217, same class as the crew and graph fixtures); `tests/test_openai_agents_topology.py`.
+  (Third in the multi-agent-topology series after CrewAI and LangGraph; all three share the per-member emit and
+  id-allocation helpers.)
 - **LangGraph multi-node topology ingestion.** `agent_code.py` now models a LangGraph `StateGraph` as one
   `code_agent` component PER NODE (each `add_node("name", fn)` with only that node function's capabilities,
   read from the function body), plus `invokes` edges recovered from `add_edge` and `add_conditional_edges`
