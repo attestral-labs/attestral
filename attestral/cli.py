@@ -837,10 +837,14 @@ def blast_radius_cmd(path: str, limit: int) -> None:
 @click.option("--variants", is_flag=True,
               help="Also print the evasion matrix: the base injection wrapped in each obfuscation "
                    "(base64, rot13, hex, homoglyph, unicode tag-block, zero-width, HTML comment, ANSI).")
+@click.option("--evasion", is_flag=True,
+              help="Score the evasion matrix against the built-in injection detector: every "
+                   "obfuscation and two-layer composition, flagged as caught or EVADING. Turns the "
+                   "red-team wrappers into a measured test of the detector's evasion resistance.")
 @click.option("-o", "--output", default=None,
               help="Write the pentest report JSON here. Terminal-first: nothing written without -o.")
 def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, isolation: str | None,
-            techniques: bool, probe: bool, variants: bool, output: str | None) -> None:
+            techniques: bool, probe: bool, variants: bool, evasion: bool, output: str | None) -> None:
     """Execute a contained proof-of-exploit for each reachable attack path.
 
     The executed red-team tier. For every path the design makes reachable,
@@ -867,6 +871,9 @@ def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, isolation: str | N
     if variants:
         click.echo("")
         click.echo(redteam.render_variants(model))
+    if evasion:
+        click.echo("")
+        click.echo(redteam.render_evasion(model))
     if probe:
         click.echo("")
         click.echo("Follow-through probe (does a real model act on each technique?):")
@@ -889,6 +896,8 @@ def pentest(path: str, fail_on_exfil: bool, no_isolate: bool, isolation: str | N
             report["techniques"] = redteam.techniques_report(model)
         if variants:
             report["variants"] = redteam.variants_report(model)
+        if evasion:
+            report["evasion"] = redteam.evasion_report(model)
         Path(output).write_text(json.dumps(report, indent=2))
         click.echo(f"\nwrote {output}")
     if fail_on_exfil and any(r.exfiltrated for r in results):

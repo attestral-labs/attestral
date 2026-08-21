@@ -6,6 +6,16 @@ fails if the package version has no entry here (`tests/test_docs_sync.py`).
 
 ## [Unreleased]
 
+- **Measured evasion matrix + composed-obfuscation hardening.** The red-team obfuscation wrappers are now
+  scored against the real injection detector, turning them from payload generators into a regression test of
+  the detector's evasion resistance: `redteam.score_evasion` / `evasion_report` / `render_evasion`, and
+  `attestral pentest --evasion` printing which of every single obfuscation and two-layer composition the
+  detector catches or lets EVADE. Running it found a real gap - a payload obfuscated under two stacked
+  transforms (base64 of a homoglyph string, rot13 of base64, double base64, a tag-smuggled hex blob) slipped
+  past the single-layer decode - and closed it: `ml._reveal_layers` peels stacked encodings to a small depth
+  cap, decoding from the raw text and from each single visible-reveal (homoglyph, tag-block, zero-width), with
+  the looser imperative-verb check gated to genuine decodes so benign trigger-word and encoded text stay at
+  zero. Matrix now 73/73 caught with no benign false positives. `tests/test_evasion_matrix.py`.
 - **CrewAI multi-agent topology ingestion.** `agent_code.py` now models a CrewAI `Crew` as one `code_agent`
   component PER AGENT (each `Agent(role=..., tools=[...])` with only its own tools' capabilities) plus
   `invokes` delegation edges, instead of collapsing the whole crew into a single blob. A lethal trifecta

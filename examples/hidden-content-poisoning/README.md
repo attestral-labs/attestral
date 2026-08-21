@@ -14,7 +14,7 @@ attestral scan examples/hidden-content-poisoning
 ```
 
 ```
-5 components · 7 findings · 4 high · 2 medium · 1 low
+5 components · 7 findings · 5 high · 1 medium · 1 low
 ```
 
 Four servers each carry one high-signal smuggling primitive; one is clean:
