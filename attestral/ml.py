@@ -713,6 +713,77 @@ def _deobfuscate(text: str) -> str:
     return t.translate(_LEET_TABLE)
 
 
+def _reveal(text: str) -> str:
+    """Compose the single-layer visible-obfuscation reveals into one pass: strip
+    hidden unicode, map homoglyphs to their ASCII skeleton, then undo leetspeak and
+    separator spread. Scoring only, and (like its parts) it can only reveal an
+    injection family a benign string never carries, so it never inflates a score."""
+    return _deobfuscate(_deconfuse(_HIDDEN_UNICODE.sub("", text)))
+
+
+def _detag(text: str) -> str:
+    """Decode Unicode Tags-block smuggling (U+E0000+c -> c), the inverse of the
+    tag-smuggle transform, so an instruction hidden in invisible tag characters
+    resolves to ASCII for scoring."""
+    out: list[str] = []
+    for c in text:
+        o = ord(c)
+        out.append(chr(o - 0xE0000) if 0xE0000 <= o <= 0xE007F else c)
+    return "".join(out)
+
+
+def _reveal_layers(text: str, depth: int = 3):
+    """Peel composed obfuscation to a depth cap, yielding each newly revealed form.
+    Attackers stack transforms - base64 of a homoglyph string, rot13 of base64,
+    double base64 - and a single decode misses the composition. Each step
+    normalizes visible obfuscation with `_reveal`, then tries every decoder (base64,
+    hex / URL / decimal, and rot13's fixed shift), feeding results back in. Deduped
+    and capped so a hostile blob cannot blow up; benign text peels to benign forms,
+    so a revealed injection match is always a genuine hidden instruction."""
+    seen = {text}
+    frontier = [text]
+
+    def _emit(c: str, from_encoding: bool):
+        if c and c not in seen and len(seen) < 128:
+            seen.add(c)
+            frontier_next.append(c)
+            return c, from_encoding
+        return None
+
+    for _ in range(depth):
+        frontier_next: list[str] = []
+        for t in frontier:
+            # Visible reveals expose plain text hidden under a SINGLE transform (tag
+            # block, homoglyphs, zero-width). They differ from `t` only when real
+            # obfuscation is present, so benign text yields nothing here, and they
+            # carry from_encoding=False so only the strict pattern bank scores them.
+            for r in (_detag(t), _deconfuse(t), _HIDDEN_UNICODE.sub("", t)):
+                if r != t:
+                    got = _emit(r, False)
+                    if got:
+                        yield got
+            # Encoding decodes, tried from `t` and from each single reveal (composing
+            # reveals corrupts an encoding a single one exposes). A decoded blob
+            # carrying a bare imperative is a hidden instruction, so these alone get
+            # the looser imperative check (from_encoding=True).
+            for src in {t, _detag(t), _deconfuse(t), _HIDDEN_UNICODE.sub("", t)}:
+                for c in _decoded_payloads(src) + _decoded_encodings(src):
+                    got = _emit(c, True)
+                    if got:
+                        yield got
+            # rot13 is an involution, so applying it to plain text round-trips it
+            # back; trust a rot13 candidate only through the strict pattern bank
+            # (from_encoding=False), never the imperative check.
+            rot = _rot13(t)
+            if rot != t:
+                got = _emit(rot, False)
+                if got:
+                    yield got
+        frontier = frontier_next
+        if not frontier:
+            break
+
+
 def heuristic_score(text: str) -> tuple[float, list[str]]:
     """Score `text` for prompt-injection language. Returns (score in [0,1], evidence).
 
@@ -732,16 +803,16 @@ def heuristic_score(text: str) -> tuple[float, list[str]]:
         if _match_categories(body) or _IMPERATIVE.search(body):
             hits["html_comment_instruction"] = _clip(body)
             break
-    for dec in _decoded_payloads(text) + _decoded_encodings(text):
-        if _match_categories(dec) or _IMPERATIVE.search(dec):
-            hits["encoded_hidden_instruction"] = _clip(dec)
+    # Encoded and composed hidden instructions. Attackers stack transforms
+    # (base64 of a homoglyph string, rot13 of base64, double base64), so a single
+    # decode misses the composition. _reveal_layers peels to a small depth cap,
+    # applying every reveal at each step; each candidate is only checked for an
+    # injection family, so a benign encoding that decodes to non-instruction text
+    # never adds a hit.
+    for cand, from_encoding in _reveal_layers(text):
+        if _match_categories(cand) or (from_encoding and _IMPERATIVE.search(cand)):
+            hits["encoded_hidden_instruction"] = _clip(cand)
             break
-    # rot13 is a fixed shift, so a benign string rot13s to gibberish and matches
-    # nothing; it only fires on a payload that was actually rot13-encoded.
-    if "encoded_hidden_instruction" not in hits:
-        rot = _rot13(text)
-        if _match_categories(rot):
-            hits["encoded_hidden_instruction"] = _clip(rot)
 
     # Visible-text pattern families. Also match the homoglyph-normalized text, so
     # a look-alike-substituted instruction ("ignоre all prеvious...") is scored
