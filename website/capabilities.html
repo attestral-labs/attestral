@@ -268,6 +268,7 @@ img{max-width:100%;height:auto}
 </style>
 </head>
 <body>
+<script>try{var t=localStorage.getItem('attestral-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <header>
   <div class="wrap nav">
     <a class="wordmark" href="#top">
@@ -314,7 +315,7 @@ img{max-width:100%;height:auto}
   <section class="hero">
     <div class="wrap">
       <div class="prose">
-        <span class="eyebrow">Capabilities &middot; v0.18.0 &middot; Apache&#8209;2.0</span>
+        <span class="eyebrow">Capabilities &middot; v0.21.0 &middot; Apache&#8209;2.0</span>
         <h1 style="margin:18px 0 20px">Security review for systems that act.</h1>
         <p class="lede muted">An AI agent isn&rsquo;t a program you scan line by line. It&rsquo;s a system that <em>reaches</em>: across tools, across trust boundaries, straight into your cloud. Attestral builds a living model of the whole thing and reviews the architecture, from the first design sketch to whatever&rsquo;s running at 2am. Below is the entire pipeline, one stage at a time, as a living diagram. Scroll, and watch it build itself.</p>
         <div class="metaline">
@@ -477,6 +478,8 @@ img{max-width:100%;height:auto}
   function curTheme(){var r=root.getAttribute('data-theme');if(r)return r;return (window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light';}
   function paintToggle(){tt.textContent=curTheme()==='dark'?'☀':'☾';}
   paintToggle();
+  if(tt){tt.addEventListener('click',function(){var n=curTheme()==='dark'?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('attestral-theme',n);}catch(e){}paintToggle();});}
+  if(window.matchMedia)window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',paintToggle);
 
   var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.14});
   document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
