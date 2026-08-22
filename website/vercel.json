@@ -1,0 +1,7 @@
+{
+  "redirects": [
+    { "source": "/capabilities.html", "destination": "/pipeline.html", "permanent": true },
+    { "source": "/arcade.html", "destination": "/", "permanent": true },
+    { "source": "/terminal.html", "destination": "/", "permanent": true }
+  ]
+}

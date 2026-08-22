@@ -121,7 +121,6 @@
       <div class="nav-group">
         <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Product</span>
         <div class="nav-menu">
-          <a href="capabilities.html">Capabilities</a>
           <a href="pipeline.html">Pipeline</a>
           <a href="system.html" aria-current="page">System</a>
           <a href="review.html">Review layers</a>
@@ -156,15 +155,15 @@
     <div class="wrap">
       <p class="h2num">01 · the pipeline</p>
       <h2>From raw config to a runtime policy that catches drift.</h2>
-      <p class="section-lede">One command flows through seven stages. Nothing is hidden between them, and each stage reasons over the same system model.</p>
+      <p class="section-lede">One command flows through the same seven phases <a href="pipeline.html">the pipeline player</a> walks. Nothing is hidden between them, and each phase reasons over the same system model.</p>
       <div class="flow">
-        <div class="flow-stage"><span class="k">1 · Ingest</span><h3>Parse everything</h3><p>Terraform, Kubernetes, MCP configs, prompts, agent settings, agent cards.</p></div>
-        <div class="flow-stage"><span class="k">2 · Model</span><h3>One graph</h3><p>A <code>SystemModel</code>: components, edges, and trust boundaries.</p></div>
-        <div class="flow-stage"><span class="k">3 · Review</span><h3>Three layers</h3><p>Deterministic rules, then optional ML and LLM. Tagged by origin.</p></div>
-        <div class="flow-stage"><span class="k">4 · Evidence</span><h3>Hash chain</h3><p>Findings commit to a SHA-256 chain you verify offline.</p></div>
-        <div class="flow-stage"><span class="k">5 · Compile</span><h3>Default-deny policy</h3><p>The attested design becomes an mcp-guard (Attestral's runtime enforcement layer) policy, bound to the chain head.</p></div>
-        <div class="flow-stage"><span class="k">6 · Drift</span><h3>Catch divergence</h3><p>Runtime telemetry diffed against the policy: the running system diverging from the reviewed design gets caught. DRF-001..012.</p></div>
-        <div class="flow-stage"><span class="k">7 · Attest</span><h3>Sign the conformance</h3><p>The design, both compiled policies, and the drift verdict bound into one DSSE-signed statement a third party verifies offline. Tamper-evident, not a proof of safety.</p></div>
+        <div class="flow-stage"><span class="k">1 &#183; Ingest</span><h3>Parse everything</h3><p>Terraform, Kubernetes, MCP configs, prompts, agent code, agent settings, agent cards.</p></div>
+        <div class="flow-stage"><span class="k">2 &#183; Model</span><h3>One graph</h3><p>A <code>SystemModel</code>: components, edges, and trust boundaries.</p></div>
+        <div class="flow-stage"><span class="k">3 &#183; Trace</span><h3>Walk the reach</h3><p>Attack paths synthesized over the model's own edges: entry, pivot, exit. Findings on a reachable path are raised a band.</p></div>
+        <div class="flow-stage"><span class="k">4 &#183; Rules</span><h3>Typed packs</h3><p>Fail-closed YAML matchers over the graph, per-server and model-level. No eval anywhere.</p></div>
+        <div class="flow-stage"><span class="k">5 &#183; Layers</span><h3>Labeled review</h3><p>Deterministic rules always; optional local ML scoring and an LLM judge. Every finding tagged by origin.</p></div>
+        <div class="flow-stage"><span class="k">6 &#183; Attest</span><h3>Chain and sign</h3><p>Findings commit to a SHA-256 chain you verify offline; design, compiled policies, and the drift verdict bind into one DSSE-signed statement. Tamper-evident, not a proof of safety.</p></div>
+        <div class="flow-stage"><span class="k">7 &#183; Runtime</span><h3>Enforce and watch</h3><p>The attested design compiles to a default-deny policy bound to the chain head; guard vets calls in line; drift diffs telemetry against the design. DRF-001..012.</p></div>
       </div>
     </div>
   </section>

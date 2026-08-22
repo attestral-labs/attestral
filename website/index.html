@@ -597,7 +597,6 @@
       <div class="nav-group">
         <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Product</span>
         <div class="nav-menu">
-          <a href="capabilities.html">Capabilities</a>
           <a href="pipeline.html">Pipeline</a>
           <a href="system.html">System</a>
           <a href="review.html">Review layers</a>
@@ -731,16 +730,6 @@
     </div>
   </section>
 
-  <section id="metrics" style="padding:40px 0">
-    <div class="wrap">
-      <div class="metrics" id="metricsBand">
-        <div class="metric"><div class="num" data-to="288">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
-        <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
-        <div class="metric"><div class="num" data-to="6">0</div><div class="lbl">standards mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2 · ASVS</div></div>
-        <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
-      </div>
-    </div>
-  </section>
 
 
   <section id="model">
@@ -790,17 +779,70 @@
     </div>
   </section>
 
+  <section id="fleet">
+    <div class="wrap">
+      <h2>The finding that lives in no single file.</h2>
+      <p class="section-lede">Every server below is individually defensible, and a config-by-config scanner would wave them all through. The risk is compositional: the moment one agent session can read private data and reach an exit, a single injected sentence anywhere in its inputs becomes an exfiltration. Toggle the fleet and watch the pack's combination rules evaluate it live, using the same capability groups <code>attestral scan</code> applies to your real configs.</p>
+      <div class="fp-chips" id="fpChips" role="group" aria-label="Toggle servers in the hypothetical fleet"></div>
+      <div class="fp-grid">
+        <div class="fp-card" id="fpCard202">
+          <h3>The exfiltration chain</h3>
+          <div class="fp-legs">
+            <div class="fp-leg"><span class="lg">reads private data</span><span class="who none">nothing yet</span></div>
+            <span class="fp-plus" aria-hidden="true">+</span>
+            <div class="fp-leg"><span class="lg">reaches an exit</span><span class="who none">nothing yet</span></div>
+          </div>
+          <div class="fp-verdict" aria-live="polite">toggle servers above</div>
+        </div>
+        <div class="fp-card" id="fpCard203">
+          <h3>Command and control</h3>
+          <div class="fp-legs">
+            <div class="fp-leg"><span class="lg">executes commands</span><span class="who none">nothing yet</span></div>
+            <span class="fp-plus" aria-hidden="true">+</span>
+            <div class="fp-leg"><span class="lg">reaches the network</span><span class="who none">nothing yet</span></div>
+          </div>
+          <div class="fp-verdict" aria-live="polite">toggle servers above</div>
+        </div>
+        <div class="fp-card" id="fpCard220">
+          <h3>The iframe backdoor</h3>
+          <div class="fp-legs">
+            <div class="fp-leg"><span class="lg">reads private data</span><span class="who none">nothing yet</span></div>
+            <span class="fp-plus" aria-hidden="true">+</span>
+            <div class="fp-leg"><span class="lg">renders an app UI with external origins</span><span class="who none">nothing yet</span></div>
+          </div>
+          <div class="fp-verdict" aria-live="polite">toggle servers above</div>
+        </div>
+      </div>
+      <p class="fp-note">Fleet-level findings only: the per-server findings these toggles would also raise (a shell server is <a href="docs.html#ATL-103">ATL-103</a> all by itself) are left out here to keep the composition visible. On a real scan the full attack path is also synthesized end to end, entry to pivot to impact.</p>
+    </div>
+  </section>
+
+  <section id="crossrepo">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--seal)">The flagship</p>
+      <h2>...and no single repo.</h2>
+      <p class="section-lede">Real agent estates span repositories: a data reader in one, an ops runner in another, a notifier in a third. Each repo passes its own review. The attack chain completes only across the boundary, and only a model that spans them can see it. Assign each tool to a repo and watch every per-repo scan stay green while <code>attestral fleet</code> lights up.</p>
+      <div class="xr-assign" id="xrAssign" role="group" aria-label="Assign each tool to a repository"></div>
+      <div class="xr-scans">
+        <div class="xr-scan" id="xrRepoA"><h3>attestral scan repo-a</h3><div class="xr-out" aria-live="polite"></div></div>
+        <div class="xr-scan" id="xrRepoB"><h3>attestral scan repo-b</h3><div class="xr-out" aria-live="polite"></div></div>
+        <div class="xr-scan xr-fleet" id="xrFleet"><h3>attestral fleet repo-a repo-b</h3><div class="xr-out" aria-live="polite"></div></div>
+      </div>
+      <p class="fp-note"><a href="docs.html#ATL-213">ATL-213</a> fires only when the fleet completes a chain that no single repo completes alone. Move all three tools into one repo and it goes silent, because that repo's own scan already catches the flow. It is never noise, and it is the one finding a per-repo scanner structurally cannot produce.</p>
+    </div>
+  </section>
+
   <section id="wild">
     <div class="wrap">
       <p class="eyebrow" style="color:var(--seal)">Real systems · aggregate, no repo named</p>
-      <h2>Scanned in the wild: 33 popular MCP servers.</h2>
-      <p class="section-lede">The rest of the evaluation is a synthetic suite with an answer key. This is different: Attestral run against 33 of the most widely used public MCP servers, at pinned commits. It reviews the <em>documented launch configuration</em>, the <code>mcpServers</code> block users copy from a README, and every hit is a <b>configuration default, not an exploited vulnerability</b>. The aggregate below carries no embargo; per-repo results stay under responsible disclosure until each maintainer has been notified.</p>
+      <h2>Scanned in the wild: one in three ships the lethal trifecta.</h2>
+      <p class="section-lede">The rest of the evaluation is a synthetic suite with an answer key. This is different: Attestral run across <b>390</b> public MCP server repositories. Of the <b>233</b> that shipped a modelable configuration, <b>32.6%</b> carry the lethal trifecta: private data, untrusted input, and an exit path in one fleet. The rate was stable as the corpus grew and survived every correction pass. Every hit is a <b>configuration default, not an exploited vulnerability</b>; per-repo results stay under responsible disclosure until each maintainer has been notified.</p>
       <div class="wild-stats">
-        <div class="wild-stat"><b>33</b><span>servers scanned</span></div>
-        <div class="wild-stat"><b>23</b><span>shipped a modelable config</span></div>
-        <div class="wild-stat"><b>3</b><span>were clean (good counter-examples)</span></div>
+        <div class="wild-stat"><b>390</b><span>repos scanned</span></div>
+        <div class="wild-stat"><b>233</b><span>shipped a modelable config</span></div>
+        <div class="wild-stat"><b>32.6%</b><span>carry the lethal trifecta</span></div>
       </div>
-      <p class="section-lede" style="margin-top:6px">What those 23 shipped configs contain (percentages are of the 23):</p>
+      <p class="section-lede" style="margin-top:6px">The study began as a hand-audited pilot: 33 of the most widely used servers at pinned commits, reviewing the <em>documented launch configuration</em>, the <code>mcpServers</code> block users copy from a README. What the 23 modelable pilot configs contained (percentages are of the 23):</p>
       <div class="wild-table">
         <table>
           <thead><tr><th>Pattern</th><th>Rule</th><th class="num">% of 23</th></tr></thead>
@@ -816,8 +858,8 @@
           </tbody>
         </table>
       </div>
-      <p class="section-lede" style="margin-top:18px">The headline is the compositional one. The <b>lethal trifecta</b> and toxic-flow hits are fleet-level: they exist only once you model several servers, and in one case a committed sub-agent, together. That is the finding no config-by-config scanner produces, and it showed up in nearly a quarter of the configs that had enough to model.</p>
-      <p class="section-lede" style="margin-top:10px">We have since widened this to <b>390 servers</b>, and the compositional rate held at <b>one in three</b>. Two per-server numbers above were corrected on the way: the no-auth rate was an OAuth false positive and fell to under 1% once the check became OAuth-aware, and monorepo README merges can manufacture a false "fleet." The trifecta survived every correction.</p>
+      <p class="section-lede" style="margin-top:18px">The headline is the compositional one. The <b>lethal trifecta</b> and toxic-flow hits are fleet-level: they exist only once you model several servers, and in one case a committed sub-agent, together. That is the finding no config-by-config scanner produces: nearly a quarter of the pilot, and one in three across the full corpus.</p>
+      <p class="section-lede" style="margin-top:10px">Two per-server pilot numbers were corrected on the way to 390: the no-auth rate was an OAuth false positive and fell to under 1% once the check became OAuth-aware, and monorepo README merges can manufacture a false "fleet." The trifecta survived every correction.</p>
       <div class="cta-row" style="margin-top:22px">
         <a class="btn primary" href="research.html">Read the 390-server study</a>
         <a class="btn" href="https://github.com/attestral-labs/attestral/blob/main/evaluation/real-world.md">The 33-server aggregate write-up</a>
@@ -931,6 +973,12 @@
     <div class="wrap">
       <h2>288 checks, and the balance is the strategy.</h2>
       <p class="section-lede">We do not chase rule count. Every check earns its place with a real control and a fixture. The agentic and cross-boundary rules are the hard-to-copy core, the surfaces nobody else models; the cloud packs are deliberately good enough that you need no second scanner, never an arms race.</p>
+      <div class="metrics" id="metricsBand">
+        <div class="metric"><div class="num" data-to="288">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
+        <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
+        <div class="metric"><div class="num" data-to="6">0</div><div class="lbl">standards mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2 · ASVS</div></div>
+        <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
+      </div>
       <div class="cov" id="covBars">
         <div class="cov-row"><div class="cov-label">MCP / Agentic<span class="sub">hardest to copy</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="80"></div></div><div class="cov-count" data-to="76">0</div></div>
         <div class="cov-row"><div class="cov-label">Cross-boundary<span class="sub">reachability</span></div><div class="cov-track"><div class="cov-fill agentic" data-w="30"></div></div><div class="cov-count" data-to="23">0</div></div>
@@ -945,58 +993,7 @@
     </div>
   </section>
 
-  <section id="fleet">
-    <div class="wrap">
-      <h2>The finding that lives in no single file.</h2>
-      <p class="section-lede">Every server below is individually defensible, and a config-by-config scanner would wave them all through. The risk is compositional: the moment one agent session can read private data and reach an exit, a single injected sentence anywhere in its inputs becomes an exfiltration. Toggle the fleet and watch the pack's combination rules evaluate it live, using the same capability groups <code>attestral scan</code> applies to your real configs.</p>
-      <div class="fp-chips" id="fpChips" role="group" aria-label="Toggle servers in the hypothetical fleet"></div>
-      <div class="fp-grid">
-        <div class="fp-card" id="fpCard202">
-          <h3>The exfiltration chain</h3>
-          <div class="fp-legs">
-            <div class="fp-leg"><span class="lg">reads private data</span><span class="who none">nothing yet</span></div>
-            <span class="fp-plus" aria-hidden="true">+</span>
-            <div class="fp-leg"><span class="lg">reaches an exit</span><span class="who none">nothing yet</span></div>
-          </div>
-          <div class="fp-verdict" aria-live="polite">toggle servers above</div>
-        </div>
-        <div class="fp-card" id="fpCard203">
-          <h3>Command and control</h3>
-          <div class="fp-legs">
-            <div class="fp-leg"><span class="lg">executes commands</span><span class="who none">nothing yet</span></div>
-            <span class="fp-plus" aria-hidden="true">+</span>
-            <div class="fp-leg"><span class="lg">reaches the network</span><span class="who none">nothing yet</span></div>
-          </div>
-          <div class="fp-verdict" aria-live="polite">toggle servers above</div>
-        </div>
-        <div class="fp-card" id="fpCard220">
-          <h3>The iframe backdoor</h3>
-          <div class="fp-legs">
-            <div class="fp-leg"><span class="lg">reads private data</span><span class="who none">nothing yet</span></div>
-            <span class="fp-plus" aria-hidden="true">+</span>
-            <div class="fp-leg"><span class="lg">renders an app UI with external origins</span><span class="who none">nothing yet</span></div>
-          </div>
-          <div class="fp-verdict" aria-live="polite">toggle servers above</div>
-        </div>
-      </div>
-      <p class="fp-note">Fleet-level findings only: the per-server findings these toggles would also raise (a shell server is <a href="docs.html#ATL-103">ATL-103</a> all by itself) are left out here to keep the composition visible. On a real scan the full attack path is also synthesized end to end, entry to pivot to impact.</p>
-    </div>
-  </section>
 
-  <section id="crossrepo">
-    <div class="wrap">
-      <p class="eyebrow" style="color:var(--seal)">The flagship</p>
-      <h2>...and no single repo.</h2>
-      <p class="section-lede">Real agent estates span repositories: a data reader in one, an ops runner in another, a notifier in a third. Each repo passes its own review. The attack chain completes only across the boundary, and only a model that spans them can see it. Assign each tool to a repo and watch every per-repo scan stay green while <code>attestral fleet</code> lights up.</p>
-      <div class="xr-assign" id="xrAssign" role="group" aria-label="Assign each tool to a repository"></div>
-      <div class="xr-scans">
-        <div class="xr-scan" id="xrRepoA"><h3>attestral scan repo-a</h3><div class="xr-out" aria-live="polite"></div></div>
-        <div class="xr-scan" id="xrRepoB"><h3>attestral scan repo-b</h3><div class="xr-out" aria-live="polite"></div></div>
-        <div class="xr-scan xr-fleet" id="xrFleet"><h3>attestral fleet repo-a repo-b</h3><div class="xr-out" aria-live="polite"></div></div>
-      </div>
-      <p class="fp-note"><a href="docs.html#ATL-213">ATL-213</a> fires only when the fleet completes a chain that no single repo completes alone. Move all three tools into one repo and it goes silent, because that repo's own scan already catches the flow. It is never noise, and it is the one finding a per-repo scanner structurally cannot produce.</p>
-    </div>
-  </section>
 
   <section id="how">
     <div class="wrap">
