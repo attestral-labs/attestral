@@ -148,7 +148,6 @@
       <div class="nav-group">
         <span class="nav-group-label" tabindex="0" role="button" aria-haspopup="true">Product</span>
         <div class="nav-menu">
-          <a href="capabilities.html">Capabilities</a>
           <a href="pipeline.html">Pipeline</a>
           <a href="system.html">System</a>
           <a href="review.html">Review layers</a>
@@ -179,6 +178,7 @@
     <a href="deterministic.html">1 &#183; Deterministic</a>
     <a href="ml-deberta.html">2 &#183; ML classifier</a>
     <a href="judge.html" aria-current="page">3 &#183; LLM judge</a>
+    <a href="ifc.html">4 &#183; IFC lattice</a>
   </nav>
 </div>
 
@@ -284,11 +284,11 @@
     <h2>Where it runs, and what it skips</h2>
     <p>The judge runs last, after the deterministic and ML layers have produced findings, and only when you pass <code>--judge</code> with an API key set. It does <em>not</em> run on every finding. The cheap tiers settle most of them, so the judge is <strong>cascade-gated</strong>: it is spent only where it can change the answer - a finding that is false-positive-prone (confidence below high) or high-severity. A high-confidence structural finding is already settled and never costs a token; the operator sees how many were skipped, and <code>--judge-all</code> overrides the gate. It reviews what it is given and records verdicts; it does not gate the earlier layers, and everything it emits is tagged <code>origin=llm</code>.</p>
     <pre aria-label="Example scan output"><span class="c"># attestral scan examples/vulnerable-agent --judge --judge-suppress</span>
-<span class="c">cross-examining 6 of 16 findings with the judge (10 settled by the cheap tiers)...</span>
+<span class="c">cross-examining 6 of 17 findings with the judge (11 settled by the cheap tiers)...</span>
   ATL-202  lethal trifecta        <span class="g">judge: confirmed 0.94</span>
   ATL-101  non-TLS transport      <span class="y">judge: false_positive 0.83</span>  <span class="c">auto-waived</span>
   ATL-ML-001  injection text      <span class="y">judge: needs_review 0.55</span>
-6 judged &#183; <span class="g">4 confirmed</span> &#183; 1 auto-waived FP &#183; 1 needs review &#183; 10 settled
+6 judged &#183; <span class="g">4 confirmed</span> &#183; 1 auto-waived FP &#183; 1 needs review &#183; 11 settled
            <span class="c">origin=llm  verdicts recorded in the chain</span></pre>
     <p class="pull">This is calibrate-then-delegate (<a href="https://arxiv.org/abs/2604.14251">arXiv 2604.14251</a>): a cheap classifier decides <em>which</em> findings are worth an expensive second opinion, so the LLM is a scalpel on the uncertain and the high-stakes, not a floodlight over everything. It is the reason a scan that needs no API key by default can add an LLM verifier for the hard cases without paying for it on the easy ones.</p>
   </section>
