@@ -1,0 +1,33 @@
+version: 2
+
+# WHAT THIS FILE DOES, AND WHAT IT DOES NOT.
+#
+# This configures Dependabot VERSION UPDATES (the bot that opens PRs to bump
+# dependencies). It scopes those PRs to the real project manifest at the repo
+# root, so Dependabot never tries to "update" the deliberately vulnerable
+# manifests under examples/ (those are frozen test fixtures for Attestral's own
+# CVE-detection rules and must keep their known-bad pins).
+#
+# It does NOT control Dependabot SECURITY ALERTS (the count shown on the
+# Security tab). Those come from the dependency graph, which scans every
+# manifest in the repo including the examples/ fixtures, and there is no
+# dependabot.yml setting that suppresses them. The known-vulnerable fixtures are
+# never installed or executed - they exist as static text - so their alerts are
+# noise. They are dismissed (reason: not_used) by
+# .github/workflows/dependabot-fixture-triage.yml.
+
+updates:
+  # Real Python project manifest (root pyproject.toml). Fixtures excluded.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+
+  # Keep the CI workflow actions current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["ci"]
