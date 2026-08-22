@@ -582,7 +582,6 @@
   <a href="#top"><span>Overview</span></a>
   <a href="#pipeline"><span>Pipeline</span></a>
   <a href="#model"><span>System model</span></a>
-  <a href="#prove"><span>Reachability</span></a>
   <a href="#wild"><span>In the wild</span></a>
   <a href="#coverage"><span>Coverage</span></a>
   <a href="#how"><span>Layers</span></a>
@@ -686,49 +685,7 @@
         <li><svg class="fi" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>SARIF <b>· CycloneDX AI-BOM</b></li>
       </ul>
     </div>
-
-    <!-- Signature: the evidence chain -->
-    <div class="chain" role="img" aria-label="Illustration of a hash-linked evidence chain: three findings linked by hashes, ending in a sealed review entry.">
-      <div class="chain-track">
-        <div class="block">
-          <span class="b-label">Finding · ATL-003</span>
-          <div class="b-title">IAM policy grants wildcard actions</div>
-          <div class="b-hash">sha256 <b>9f41c2…a07e</b><br>prev&nbsp;&nbsp; 000000…0000</div>
-        </div>
-        <div class="link-glyph" aria-hidden="true">⇢</div>
-        <div class="block">
-          <span class="b-label">Finding · ATL-103</span>
-          <div class="b-title">Shell-capable MCP server configured</div>
-          <div class="b-hash">sha256 <b>b8d005…44c1</b><br>prev&nbsp;&nbsp; 9f41c2…a07e</div>
-        </div>
-        <div class="link-glyph" aria-hidden="true">⇢</div>
-        <div class="block">
-          <span class="b-label">Mitigation accepted</span>
-          <div class="b-title">Scoped filesystem root · reviewer J.K.</div>
-          <div class="b-hash">sha256 <b>27aa93…e6f2</b><br>prev&nbsp;&nbsp; b8d005…44c1</div>
-        </div>
-        <div class="link-glyph" aria-hidden="true">⇢</div>
-        <div class="block sealed">
-          <span class="b-label">Review sealed</span>
-          <div class="b-title">Design review v14 · chain head committed</div>
-          <div class="b-hash">head&nbsp;&nbsp; <b>c31f8e…9bd4</b><br>entries 14 · verified</div>
-          <div class="seal" aria-hidden="true">ATTESTRAL<br>SEALED</div>
-        </div>
-      </div>
-      <p class="chain-caption">Each entry commits to the one before it. If anyone edits a past finding, the head stops matching, and <code>attestral verify</code> will catch it offline. No server involved.</p>
-    </div>
   </div>
-
-  <section id="metrics" style="padding:40px 0">
-    <div class="wrap">
-      <div class="metrics" id="metricsBand">
-        <div class="metric"><div class="num" data-to="288">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
-        <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
-        <div class="metric"><div class="num" data-to="6">0</div><div class="lbl">standards mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2 · ASVS</div></div>
-        <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
-      </div>
-    </div>
-  </section>
 
   <section id="pipeline">
     <style>
@@ -759,7 +716,7 @@
       <div class="pl-band" aria-label="The seven pipeline phases">
         <a class="pl-phase" href="pipeline.html#phase-ingest" style="--i:0"><span class="n">01</span><b>Ingest</b><span class="d">configs · code · prompts · IaC · CI</span></a>
         <a class="pl-phase" href="pipeline.html#phase-model" style="--i:1"><span class="n">02</span><b>Model</b><span class="d">components · edges · trust boundaries</span></a>
-        <a class="pl-phase" href="pipeline.html#phase-trace" style="--i:2"><span class="n">03</span><b>Trace</b><span class="d">entry · pivot · exit</span></a>
+        <a class="pl-phase" href="proof.html" style="--i:2"><span class="n">03</span><b>Trace</b><span class="d">entry · pivot · exit</span></a>
         <a class="pl-phase" href="pipeline.html#phase-rules" style="--i:3"><span class="n">04</span><b>Rules</b><span class="d">typed packs · fail-closed</span></a>
         <a class="pl-phase" href="pipeline.html#phase-layers" style="--i:4"><span class="n">05</span><b>Layers</b><span class="d">deterministic · ML · judge</span></a>
         <a class="pl-phase" href="pipeline.html#phase-attest" style="--i:5"><span class="n">06</span><b>Attest</b><span class="d">SHA-256 evidence chain</span></a>
@@ -773,6 +730,18 @@
       </div>
     </div>
   </section>
+
+  <section id="metrics" style="padding:40px 0">
+    <div class="wrap">
+      <div class="metrics" id="metricsBand">
+        <div class="metric"><div class="num" data-to="288">0</div><div class="lbl">security checks</div><div class="sub">high-signal, each with a fixture</div></div>
+        <div class="metric"><div class="num" data-to="4">0</div><div class="lbl">clouds modeled</div><div class="sub">AWS · Azure · GCP · Kubernetes</div></div>
+        <div class="metric"><div class="num" data-to="6">0</div><div class="lbl">standards mapped</div><div class="sub">OWASP · NIST · MITRE · CIS · SOC 2 · ASVS</div></div>
+        <div class="metric"><div class="num" data-to="3">0</div><div class="lbl">review layers</div><div class="sub">deterministic · ML · LLM</div></div>
+      </div>
+    </div>
+  </section>
+
 
   <section id="model">
     <div class="wrap">
@@ -821,34 +790,6 @@
     </div>
   </section>
 
-  <section id="prove">
-    <div class="wrap">
-      <p class="eyebrow" style="color:var(--seal)">Adversarial validation · <code>attestral validate</code></p>
-      <h2>It no longer just flags the path. It shows the path is reachable.</h2>
-      <p class="section-lede">A finding is a claim about one config block. <code>attestral validate</code> takes the attack path it built from your system model and walks it over the model's own edges, showing whether it is reachable: entry, pivot, impact. The walked path lands in the tamper-evident evidence chain. Reachability is computed over declared capability (a sound over-approximation); it is necessary, not sufficient, for exploitation. Add <code>--remediate</code> and it scores the OWASP AIVSS agentic posture (an AARS, 0-10) and <b>verifies the fix</b>, the one change that removes the path, confirmed by re-synthesis. Watch one walk below, then open the fully interactive reachability walker.</p>
-      <div class="pshow">
-        <div class="pshow-head">
-          <p class="eyebrow">ATL-RT-INTERNAL · a prompt injection reaches exfiltration</p>
-        </div>
-        <div class="pshow-walk" id="psWalk">
-          <div class="ps-stage" data-role="entry"><span class="role">entry</span><div class="who">jira-reader</div><div class="via">ingests untrusted input via saas_data</div></div>
-          <span class="ps-arrow" aria-hidden="true">&#8594;</span>
-          <div class="ps-stage" data-role="pivot"><span class="role">pivot</span><div class="who">ops-shell</div><div class="via">runs code via shell</div></div>
-          <span class="ps-arrow" aria-hidden="true">&#8594;</span>
-          <div class="ps-stage" data-role="impact"><span class="role">impact</span><div class="who">web-fetch</div><div class="via">exfiltrates via network</div></div>
-        </div>
-        <div class="pshow-foot">
-          <div class="ps-stamp" id="psStamp"><span class="ps-seal">REACHABLE<br>IN MODEL</span><span class="ps-hash">chained · <b>verify offline</b> · OWASP AIVSS <b style="color:var(--seal)">AARS 10.0</b></span></div>
-          <button class="ps-replay" id="psReplay" type="button">replay</button>
-        </div>
-      </div>
-      <div class="cta-row" style="margin-top:26px">
-        <a class="btn primary" href="proof.html">Explore the live reachability walker</a>
-        <a class="btn" href="proof.html#tiers">See the three tiers</a>
-      </div>
-    </div>
-  </section>
-
   <section id="wild">
     <div class="wrap">
       <p class="eyebrow" style="color:var(--seal)">Real systems · aggregate, no repo named</p>
@@ -866,7 +807,7 @@
           <tbody>
             <tr class="hero-row"><td><b>Lethal trifecta</b> · private data + untrusted input + an exit, in one fleet</td><td><code>ATL-202</code></td><td class="num">22%</td></tr>
             <tr><td>Auto-installs an unpinned package at launch (<code>npx -y</code> / <code>uvx</code>)</td><td><code>ATL-105</code></td><td class="num">52%</td></tr>
-            <tr><td>Remote MCP server with no authentication</td><td><code>ATL-109</code></td><td class="num">48%</td></tr>
+            <tr><td>Remote MCP server with no authentication <em>(superseded: under 1% once the check became OAuth-aware, see below)</em></td><td><code>ATL-109</code></td><td class="num">48%</td></tr>
             <tr><td>Secret passed to the server via <code>env</code></td><td><code>ATL-104</code></td><td class="num">43%</td></tr>
             <tr><td>Outbound network / browser access</td><td><code>ATL-107</code></td><td class="num">26%</td></tr>
             <tr><td>Mutable <code>@latest</code> / <code>:latest</code> tag (rug-pull surface)</td><td><code>ATL-106</code></td><td class="num">22%</td></tr>
@@ -888,7 +829,7 @@
   <section id="try">
     <div class="wrap">
       <h2>Don't take the demo's word for it. Paste your own config.</h2>
-      <p class="section-lede">Drop in an <code>.mcp.json</code> or <code>claude_desktop_config.json</code> and twenty-seven of the agentic checks from the rule pack, the same typed matchers the engine runs, review it right here. Everything happens in this tab: the page makes no network request with what you paste. The CLI goes further, with the cloud packs, attack paths, prompt surfaces, and the evidence chain.</p>
+      <p class="section-lede">Drop in an <code>.mcp.json</code> or <code>claude_desktop_config.json</code> and twenty-seven of the agentic checks from the rule pack, the same typed matchers the engine runs, review it right here. Everything happens in this tab: the page makes no network request with what you paste. The CLI goes further, with the cloud packs, attack paths, prompt surfaces, and the evidence chain; the <a href="playground.html">playground</a> runs whole fleet scenarios in the browser.</p>
       <div class="try-grid">
         <div class="try-in">
           <label class="try-label" for="tryInput">mcpServers JSON</label>
@@ -1586,32 +1527,6 @@
       io.observe(band);
     }else run();
   })();
-  // Proof showcase: animate entry -> pivot -> impact -> stamp on view, with replay.
-  (function(){
-    var walk=document.getElementById('psWalk');
-    if(!walk)return;
-    var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-    var stages=walk.querySelectorAll('.ps-stage');
-    var arrows=walk.querySelectorAll('.ps-arrow');
-    var stamp=document.getElementById('psStamp');
-    var timers=[];
-    function clear(){timers.forEach(clearTimeout);timers=[];}
-    function reset(){stages.forEach(function(s){s.classList.remove('lit');});arrows.forEach(function(a){a.classList.remove('drawn');});if(stamp)stamp.classList.remove('on');}
-    function play(){
-      clear();reset();
-      if(reduce){stages.forEach(function(s){s.classList.add('lit');});arrows.forEach(function(a){a.classList.add('drawn');});if(stamp)stamp.classList.add('on');return;}
-      stages.forEach(function(s,i){
-        timers.push(setTimeout(function(){s.classList.add('lit');if(i>0&&arrows[i-1])arrows[i-1].classList.add('drawn');},i*520));
-      });
-      timers.push(setTimeout(function(){if(stamp)stamp.classList.add('on');},stages.length*520+200));
-    }
-    var rb=document.getElementById('psReplay');
-    if(rb)rb.addEventListener('click',play);
-    if('IntersectionObserver' in window){
-      var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();play();}});},{threshold:.35});
-      io.observe(walk);
-    }else play();
-  })();
 </script>
 <script>
   // Scroll progress bar.
@@ -1825,7 +1740,7 @@
         '<span class="dim">origin: ml · identical finding shape across all 3 tiers</span>'
       ]},
       judge:{cmd:'attestral scan examples/vulnerable-agent --judge --judge-suppress',lines:[
-        '<span class="dim">cross-examining 17 findings with the judge…</span>',
+        '<span class="dim">cross-examining the findings with the judge…</span>',
         '<span class="dim">  3-panelist majority vote · your ANTHROPIC_API_KEY · offline-labelled chain</span>',
         '&nbsp;',
         '  ATL-202  lethal trifecta              <span class="ok">judge: confirmed 0.94</span>',

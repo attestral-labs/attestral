@@ -149,7 +149,7 @@
   <div class="wrap hero">
     <p class="eyebrow">The whole system, one page</p>
     <h1>Attestral, <em>laid out</em>.</h1>
-    <p class="lede">Every part of the system and how it fits: the pipeline from config to runtime policy, the twelve commands, the three review layers, the adversarial-validation loop, what it covers, and what it emits. A single map you can hold in your head. Everything here reflects the shipping CLI.</p>
+    <p class="lede">Every part of the system and how it fits: the pipeline from config to runtime policy, the commands, the three review layers, the adversarial-validation loop, what it covers, and what it emits. A single map you can hold in your head. Everything here reflects the shipping CLI.</p>
   </div>
 
   <section id="pipeline">
@@ -163,7 +163,7 @@
         <div class="flow-stage"><span class="k">3 · Review</span><h3>Three layers</h3><p>Deterministic rules, then optional ML and LLM. Tagged by origin.</p></div>
         <div class="flow-stage"><span class="k">4 · Evidence</span><h3>Hash chain</h3><p>Findings commit to a SHA-256 chain you verify offline.</p></div>
         <div class="flow-stage"><span class="k">5 · Compile</span><h3>Default-deny policy</h3><p>The attested design becomes an mcp-guard (Attestral's runtime enforcement layer) policy, bound to the chain head.</p></div>
-        <div class="flow-stage"><span class="k">6 · Drift</span><h3>Catch divergence</h3><p>Runtime telemetry diffed against the policy: the running system diverging from the reviewed design gets caught. DRF-001..008.</p></div>
+        <div class="flow-stage"><span class="k">6 · Drift</span><h3>Catch divergence</h3><p>Runtime telemetry diffed against the policy: the running system diverging from the reviewed design gets caught. DRF-001..012.</p></div>
         <div class="flow-stage"><span class="k">7 · Attest</span><h3>Sign the conformance</h3><p>The design, both compiled policies, and the drift verdict bound into one DSSE-signed statement a third party verifies offline. Tamper-evident, not a proof of safety.</p></div>
       </div>
     </div>
@@ -172,7 +172,7 @@
   <section id="commands">
     <div class="wrap">
       <p class="h2num">02 · the commands</p>
-      <h2>Thirteen commands, the whole loop.</h2>
+      <h2>The commands, the whole loop.</h2>
       <div class="tw">
         <table>
           <thead><tr><th>Command</th><th>What it does</th><th>Key flags</th></tr></thead>
