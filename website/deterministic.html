@@ -192,7 +192,7 @@
   <div class="meta">
     <span>Layer: L1, always on</span>
     <span>Origin: deterministic</span>
-    <span>Rules: 228 typed matchers</span>
+    <span>Rules: 288 typed matchers</span>
   </div>
 
   <section>
@@ -277,7 +277,7 @@
       </div>
       <figcaption>Fail-closed is not a default you can misconfigure. An unrecognized matcher yields <b>no finding</b>, so a typo or a future matcher name can never silently emit a false positive, and a scan can never be tricked into passing by a malformed rule.</figcaption>
     </figure>
-    <p>The pack is 228 rules today: agentic and cross-boundary checks in <code>core_rules.yaml</code>, and modular per-provider cloud packs for AWS, Azure, GCP, and Kubernetes. We do not chase a thousand-rule count. Every rule cites a real CIS, NIST, OWASP, or MITRE control and ships with a fixture that proves it fires, because a rule nobody would act on is worse than no rule at all.</p>
+    <p>The pack is 288 rules today: agentic and cross-boundary checks in <code>core_rules.yaml</code>, and modular per-provider cloud packs for AWS, Azure, GCP, and Kubernetes. We do not chase a thousand-rule count. Every rule cites a real CIS, NIST, OWASP, or MITRE control and ships with a fixture that proves it fires, because a rule nobody would act on is worse than no rule at all.</p>
   </section>
 
   <section>
@@ -321,7 +321,7 @@
     <h2>Where it runs, and what it emits</h2>
     <p>The deterministic layer runs on every scan, first, with no flags. It reads declared configuration and agent wiring: what a Terraform file says a bucket is, what an MCP config says a server can do. It is a <strong>design review, not a SAST tool</strong>, so it does not trace arbitrary application logic. Every finding it emits is tagged <code>origin=deterministic</code> and lands in the same evidence chain and SARIF (the static-analysis result format GitHub's Security tab reads) as the ML and judge layers.</p>
     <pre aria-label="Example scan output"><span class="c"># attestral scan examples/vulnerable-agent</span>
-6 components &#183; 16 findings &#183; <span class="s">4 critical</span> &#183; <span class="y">11 high</span> &#183; 1 medium
+6 components &#183; 17 findings &#183; <span class="s">4 critical</span> &#183; <span class="y">12 high</span> &#183; 1 medium
 <span class="s">ATL-202</span>  critical  Tool fleet forms an exfiltration chain (lethal trifecta)
 <span class="s">ATL-103</span>  critical  Shell-capable MCP server configured  (mcp_server.shell)
 <span class="s">ATL-108</span>  critical  Tool calls auto-approved without a human checkpoint

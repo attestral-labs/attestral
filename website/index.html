@@ -716,7 +716,7 @@
       <div class="pl-band" aria-label="The seven pipeline phases">
         <a class="pl-phase" href="pipeline.html#phase-ingest" style="--i:0"><span class="n">01</span><b>Ingest</b><span class="d">configs · code · prompts · IaC · CI</span></a>
         <a class="pl-phase" href="pipeline.html#phase-model" style="--i:1"><span class="n">02</span><b>Model</b><span class="d">components · edges · trust boundaries</span></a>
-        <a class="pl-phase" href="pipeline.html#phase-trace" style="--i:2"><span class="n">03</span><b>Trace</b><span class="d">entry · pivot · exit</span></a>
+        <a class="pl-phase" href="proof.html" style="--i:2"><span class="n">03</span><b>Trace</b><span class="d">entry · pivot · exit</span></a>
         <a class="pl-phase" href="pipeline.html#phase-rules" style="--i:3"><span class="n">04</span><b>Rules</b><span class="d">typed packs · fail-closed</span></a>
         <a class="pl-phase" href="pipeline.html#phase-layers" style="--i:4"><span class="n">05</span><b>Layers</b><span class="d">deterministic · ML · judge</span></a>
         <a class="pl-phase" href="pipeline.html#phase-attest" style="--i:5"><span class="n">06</span><b>Attest</b><span class="d">SHA-256 evidence chain</span></a>
@@ -807,7 +807,7 @@
           <tbody>
             <tr class="hero-row"><td><b>Lethal trifecta</b> · private data + untrusted input + an exit, in one fleet</td><td><code>ATL-202</code></td><td class="num">22%</td></tr>
             <tr><td>Auto-installs an unpinned package at launch (<code>npx -y</code> / <code>uvx</code>)</td><td><code>ATL-105</code></td><td class="num">52%</td></tr>
-            <tr><td>Remote MCP server with no authentication</td><td><code>ATL-109</code></td><td class="num">48%</td></tr>
+            <tr><td>Remote MCP server with no authentication <em>(superseded: under 1% once the check became OAuth-aware, see below)</em></td><td><code>ATL-109</code></td><td class="num">48%</td></tr>
             <tr><td>Secret passed to the server via <code>env</code></td><td><code>ATL-104</code></td><td class="num">43%</td></tr>
             <tr><td>Outbound network / browser access</td><td><code>ATL-107</code></td><td class="num">26%</td></tr>
             <tr><td>Mutable <code>@latest</code> / <code>:latest</code> tag (rug-pull surface)</td><td><code>ATL-106</code></td><td class="num">22%</td></tr>
@@ -829,7 +829,7 @@
   <section id="try">
     <div class="wrap">
       <h2>Don't take the demo's word for it. Paste your own config.</h2>
-      <p class="section-lede">Drop in an <code>.mcp.json</code> or <code>claude_desktop_config.json</code> and twenty-seven of the agentic checks from the rule pack, the same typed matchers the engine runs, review it right here. Everything happens in this tab: the page makes no network request with what you paste. The CLI goes further, with the cloud packs, attack paths, prompt surfaces, and the evidence chain.</p>
+      <p class="section-lede">Drop in an <code>.mcp.json</code> or <code>claude_desktop_config.json</code> and twenty-seven of the agentic checks from the rule pack, the same typed matchers the engine runs, review it right here. Everything happens in this tab: the page makes no network request with what you paste. The CLI goes further, with the cloud packs, attack paths, prompt surfaces, and the evidence chain; the <a href="playground.html">playground</a> runs whole fleet scenarios in the browser.</p>
       <div class="try-grid">
         <div class="try-in">
           <label class="try-label" for="tryInput">mcpServers JSON</label>
@@ -1740,7 +1740,7 @@
         '<span class="dim">origin: ml · identical finding shape across all 3 tiers</span>'
       ]},
       judge:{cmd:'attestral scan examples/vulnerable-agent --judge --judge-suppress',lines:[
-        '<span class="dim">cross-examining 17 findings with the judge…</span>',
+        '<span class="dim">cross-examining the findings with the judge…</span>',
         '<span class="dim">  3-panelist majority vote · your ANTHROPIC_API_KEY · offline-labelled chain</span>',
         '&nbsp;',
         '  ATL-202  lethal trifecta              <span class="ok">judge: confirmed 0.94</span>',
