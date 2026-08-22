@@ -49,6 +49,7 @@ import yaml  # noqa: E402
 PAGE_PATH = REPO / "website" / "index.html"
 SYSTEM_PATH = REPO / "website" / "system.html"
 CAPABILITIES_PATH = REPO / "website" / "capabilities.html"
+PIPELINE_PATH = REPO / "website" / "pipeline.html"
 PACKS_DIR = REPO / "attestral" / "rules"
 
 # Rule-id band -> coverage bucket. 0xx AWS, 1xx MCP/agentic, 2xx cross-boundary,
@@ -262,6 +263,14 @@ def inject_coverage_capabilities(html: str, n_total: int) -> str:
     return apply_edits(html, edits, CAPABILITIES_PATH)
 
 
+def inject_coverage_pipeline(html: str, n_total: int) -> str:
+    """Own pipeline.html's one check-count string: the rules-phase card."""
+    edits = [
+        (r"\d+( typed, fail-closed matchers)", rf"{n_total}\g<1>"),
+    ]
+    return apply_edits(html, edits, PIPELINE_PATH)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true",
@@ -289,6 +298,10 @@ def main() -> int:
     cap_html = CAPABILITIES_PATH.read_text()
     new_cap = inject_coverage_capabilities(cap_html, n_total)
 
+    # pipeline.html: check-count string only.
+    pipe_html = PIPELINE_PATH.read_text()
+    new_pipe = inject_coverage_pipeline(pipe_html, n_total)
+
     for line in excluded:
         print(f"note: excluded from the browser checker: {line}")
     for line in warnings:
@@ -298,7 +311,8 @@ def main() -> int:
         p.relative_to(REPO)
         for p, old, new in [(args.page, index_html, new_index),
                             (SYSTEM_PATH, system_html, new_system),
-                            (CAPABILITIES_PATH, cap_html, new_cap)]
+                            (CAPABILITIES_PATH, cap_html, new_cap),
+                            (PIPELINE_PATH, pipe_html, new_pipe)]
         if old != new
     ]
 
@@ -317,6 +331,7 @@ def main() -> int:
     args.page.write_text(new_index)
     SYSTEM_PATH.write_text(new_system)
     CAPABILITIES_PATH.write_text(new_cap)
+    PIPELINE_PATH.write_text(new_pipe)
     print(f"wrote {args.page.relative_to(REPO)} + {SYSTEM_PATH.relative_to(REPO)}: "
           f"{len(mcp)} mcp_server rules, {len(fleet)} fleet rules, "
           f"counts {n_checks} of {n_total}")
