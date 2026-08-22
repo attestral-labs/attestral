@@ -1,0 +1,56 @@
+name: Dismiss fixture Dependabot alerts
+
+# Attestral ships deliberately vulnerable dependency manifests under examples/ as
+# test fixtures for its own CVE-detection rules. GitHub's dependency graph scans
+# them and raises security alerts even though the dependencies are never
+# installed or executed - pure noise on the Security tab. This workflow dismisses
+# every open alert whose manifest lives under examples/ with reason `not_used`.
+#
+# The built-in GITHUB_TOKEN cannot dismiss Dependabot alerts (the PATCH endpoint
+# needs the security_events scope), so this uses a repository secret named
+# DEPENDABOT_TRIAGE_TOKEN. Create a fine-grained PAT scoped to this repo with
+# "Dependabot alerts: read and write" and add it as that secret. Until it is set
+# the job no-ops with a notice rather than failing red.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # daily, clears any new fixture wave within a day
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-fixture-triage
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dismiss open alerts under examples/
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_TRIAGE_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::notice::DEPENDABOT_TRIAGE_TOKEN is not set; skipping. Add a fine-grained PAT with 'Dependabot alerts: read and write' on this repo to enable auto-dismissal."
+            exit 0
+          fi
+          nums=$(gh api "repos/$REPO/dependabot/alerts?state=open&per_page=100" --paginate \
+            -q '.[] | select(.dependency.manifest_path | startswith("examples/")) | .number')
+          if [ -z "$nums" ]; then
+            echo "No open fixture alerts to dismiss."
+            exit 0
+          fi
+          count=0
+          for n in $nums; do
+            echo "Dismissing alert #$n"
+            gh api -X PATCH "repos/$REPO/dependabot/alerts/$n" \
+              -f state=dismissed \
+              -f dismissed_reason=not_used \
+              -f dismissed_comment="Deliberately vulnerable test fixture under examples/; parsed as static text by Attestral's own CVE-detection rules, never installed or executed." >/dev/null
+            count=$((count + 1))
+          done
+          echo "Dismissed $count fixture alert(s)."
